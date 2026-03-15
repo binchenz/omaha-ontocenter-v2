@@ -24,8 +24,8 @@ class Project(Base):
     # Omaha configuration (stored as YAML text)
     omaha_config = Column(Text)
 
-    # Metadata
-    metadata = Column(JSON, default={})
+    # Project metadata
+    project_metadata = Column(JSON, default={})
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+    model_config = SettingsConfigDict(env_file="../.env", case_sensitive=True)
 
 
-settings = Settings()
+settings = Settings(_env_file="../.env")
