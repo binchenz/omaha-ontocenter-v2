@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Tabs, Button, message, Space } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { projectService } from '@/services/project';
@@ -13,6 +13,7 @@ const { TabPane } = Tabs;
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const projectId = id ? parseInt(id) : undefined;
   const [project, setProject] = useState<Project | null>(null);
   const [config, setConfig] = useState('');
@@ -101,6 +102,9 @@ const ProjectDetail: React.FC = () => {
           </Button>
           <Button onClick={handleBuildOntology} loading={validating}>
             Build Ontology
+          </Button>
+          <Button onClick={() => navigate(`/projects/${id}/semantic`)}>
+            语义层
           </Button>
           <Button
             type="primary"

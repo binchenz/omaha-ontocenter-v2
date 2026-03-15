@@ -7,6 +7,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import ObjectExplorer from './pages/ObjectExplorer';
 import AssetList from './pages/AssetList';
 import { ChatAgent } from './pages/ChatAgent';
+import SemanticEditor from './pages/SemanticEditor';
 import MainLayout from './components/Layout/MainLayout';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -30,6 +31,7 @@ const App: React.FC = () => {
           <Route path="projects/:id/explorer" element={<ObjectExplorer />} />
           <Route path="projects/:id/assets" element={<AssetList />} />
           <Route path="projects/:projectId/chat" element={<ChatAgent />} />
+          <Route path="projects/:id/semantic" element={<SemanticEditor />} />
         </Route>
       </Routes>
     </BrowserRouter>
