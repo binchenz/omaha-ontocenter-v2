@@ -7,7 +7,8 @@ Run with:
 """
 import asyncio
 import json
-from typing import Any
+import sys
+from typing import Any, Tuple
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -19,9 +20,13 @@ from app.database import SessionLocal
 
 server = Server("omaha-ontocenter")
 
+# Resolved once at startup; shared across all tool calls in this session.
+_PROJECT_ID: int = 0
+_CONFIG_YAML: str = ""
 
-def _get_context():
-    """Resolve API key at startup and return (project_id, config_yaml)."""
+
+def _load_context() -> Tuple[int, str]:
+    """Resolve API key and return (project_id, config_yaml). Raises on failure."""
     key = get_api_key_from_env()
     db = SessionLocal()
     try:
@@ -110,56 +115,61 @@ async def list_tools() -> list[types.Tool]:
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    project_id, config_yaml = _get_context()
+    # Use session-level cached context — no DB round-trip per call.
+    project_id = _PROJECT_ID
+    config_yaml = _CONFIG_YAML
 
-    db = SessionLocal()
-    try:
-        if name == "list_objects":
-            result = t.list_objects(config_yaml)
-        elif name == "get_schema":
-            result = t.get_schema(config_yaml, arguments["object_type"])
-        elif name == "get_relationships":
-            result = t.get_relationships(config_yaml, arguments["object_type"])
-        elif name == "query_data":
-            result = t.query_data(
-                config_yaml=config_yaml,
-                object_type=arguments["object_type"],
-                selected_columns=arguments.get("selected_columns"),
-                filters=arguments.get("filters"),
-                joins=arguments.get("joins"),
-                limit=arguments.get("limit", 100),
-            )
-        elif name == "save_asset":
-            result = t.save_asset(
-                db=db,
-                project_id=project_id,
-                created_by=0,
-                name=arguments["name"],
-                base_object=arguments["base_object"],
-                description=arguments.get("description", ""),
-                selected_columns=arguments.get("selected_columns"),
-                filters=arguments.get("filters"),
-                joins=arguments.get("joins"),
-                row_count=arguments.get("row_count"),
-            )
-        elif name == "list_assets":
-            result = t.list_assets(db=db, project_id=project_id)
-        elif name == "get_lineage":
-            result = t.get_lineage(db=db, asset_id=arguments["asset_id"])
-        else:
-            result = {"error": f"Unknown tool: {name}"}
-    finally:
-        db.close()
+    # Only open a DB session for tools that actually need it.
+    if name == "list_objects":
+        result = t.list_objects(config_yaml)
+    elif name == "get_schema":
+        result = t.get_schema(config_yaml, arguments["object_type"])
+    elif name == "get_relationships":
+        result = t.get_relationships(config_yaml, arguments["object_type"])
+    elif name == "query_data":
+        result = t.query_data(
+            config_yaml=config_yaml,
+            object_type=arguments["object_type"],
+            selected_columns=arguments.get("selected_columns"),
+            filters=arguments.get("filters"),
+            joins=arguments.get("joins"),
+            limit=arguments.get("limit", 100),
+        )
+    elif name in ("save_asset", "list_assets", "get_lineage"):
+        db = SessionLocal()
+        try:
+            if name == "save_asset":
+                result = t.save_asset(
+                    db=db,
+                    project_id=project_id,
+                    created_by=0,  # MCP context: no user identity available
+                    name=arguments["name"],
+                    base_object=arguments["base_object"],
+                    description=arguments.get("description", ""),
+                    selected_columns=arguments.get("selected_columns"),
+                    filters=arguments.get("filters"),
+                    joins=arguments.get("joins"),
+                    row_count=arguments.get("row_count"),
+                )
+            elif name == "list_assets":
+                result = t.list_assets(db=db, project_id=project_id)
+            else:
+                result = t.get_lineage(db=db, asset_id=arguments["asset_id"])
+        finally:
+            db.close()
+    else:
+        result = {"error": f"Unknown tool: {name}"}
 
     return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
 
 
 async def main():
-    # Validate API key at startup before accepting any connections
+    global _PROJECT_ID, _CONFIG_YAML
+
+    # Validate API key once at startup; cache for all subsequent tool calls.
     try:
-        _get_context()
+        _PROJECT_ID, _CONFIG_YAML = _load_context()
     except ValueError as e:
-        import sys
         sys.stderr.write(f"ERROR: {e}\n")
         sys.exit(1)
 

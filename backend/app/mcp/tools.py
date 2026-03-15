@@ -75,7 +75,7 @@ def save_asset(
         description=description,
         base_object=base_object,
         selected_columns=selected_columns or [],
-        filters=filters or {},
+        filters=filters or [],
         joins=joins or [],
         row_count=row_count,
         created_by=created_by,
@@ -109,7 +109,18 @@ def save_asset(
 
 def list_assets(db: Session, project_id: int) -> Dict[str, Any]:
     """List all dataset assets for a project."""
-    assets = db.query(DatasetAsset).filter(DatasetAsset.project_id == project_id).all()
+    assets = (
+        db.query(
+            DatasetAsset.id,
+            DatasetAsset.name,
+            DatasetAsset.description,
+            DatasetAsset.base_object,
+            DatasetAsset.row_count,
+            DatasetAsset.created_at,
+        )
+        .filter(DatasetAsset.project_id == project_id)
+        .all()
+    )
     return {
         "success": True,
         "assets": [

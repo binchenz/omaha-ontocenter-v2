@@ -1,5 +1,4 @@
 """API Key management endpoints."""
-import hashlib
 import secrets
 from datetime import datetime
 from typing import List, Optional
@@ -11,6 +10,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.api_key import ProjectApiKey
 from app.api.deps import get_current_user, get_project_for_owner
+from app.mcp.auth import _hash_key
 
 router = APIRouter()
 
@@ -33,10 +33,6 @@ class ApiKeyResponse(BaseModel):
 
 class ApiKeyCreated(ApiKeyResponse):
     key: str  # only returned once at creation
-
-
-def _hash_key(key: str) -> str:
-    return hashlib.sha256(key.encode()).hexdigest()
 
 
 @router.post("/{project_id}/api-keys", response_model=ApiKeyCreated,
