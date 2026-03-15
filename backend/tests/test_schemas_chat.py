@@ -5,9 +5,9 @@ from app.schemas.chat import ChatSessionCreate, ChatMessageCreate, ChatMessageRe
 
 def test_chat_session_create_valid():
     """Test valid ChatSessionCreate schema."""
-    data = {"project_id": 1, "user_id": 1, "title": "Test"}
+    data = {"user_id": 1, "title": "Test"}
     session = ChatSessionCreate(**data)
-    assert session.project_id == 1
+    assert session.user_id == 1
     assert session.title == "Test"
 
 
