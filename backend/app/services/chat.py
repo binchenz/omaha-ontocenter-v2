@@ -457,15 +457,21 @@ class ChatService:
 
             for tool_call in message.tool_calls:
                 tool_name = tool_call.function.name
-                tool_args = json.loads(tool_call.function.arguments)
+                try:
+                    tool_args = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError:
+                    tool_args = {}
                 result = self._execute_tool(tool_name, tool_args, config_yaml)
 
-                if tool_name == "query_data" and "data" in result:
+                if tool_name == "query_data" and result.get("data"):
                     data_table = result["data"]
                     sql = result.get("sql")
-                    chart_type = self.chart_engine.select_chart_type(data_table)
-                    if chart_type:
-                        chart_config = self.chart_engine.build_chart_config(data_table, chart_type)
+                    try:
+                        chart_type = self.chart_engine.select_chart_type(data_table)
+                        if chart_type:
+                            chart_config = self.chart_engine.build_chart_config(data_table, chart_type)
+                    except Exception:
+                        pass  # chart generation is optional
 
                 messages.append({
                     "role": "tool",
