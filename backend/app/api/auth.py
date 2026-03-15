@@ -60,7 +60,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
             detail="Inactive user",
         )
 
-    access_token = create_access_token(data={"sub": user.id, "username": user.username})
+    access_token = create_access_token(data={"sub": str(user.id), "username": user.username})
 
     return {"access_token": access_token, "token_type": "bearer"}
 
