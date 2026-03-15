@@ -35,7 +35,7 @@ class ProjectInDB(ProjectBase):
     id: int
     owner_id: int
     omaha_config: Optional[str] = None
-    metadata: dict = {}
+    project_metadata: dict = {}
     created_at: datetime
     updated_at: Optional[datetime] = None
 
