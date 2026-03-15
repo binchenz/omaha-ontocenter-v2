@@ -139,9 +139,12 @@ async def list_object_types(
         )
 
     ontology = result.get("ontology", {})
-    objects = ontology.get("objects", {})
+    objects = ontology.get("objects", [])
 
-    return {"objects": list(objects.keys())}
+    # Extract object names from the list
+    object_names = [obj.get("name") for obj in objects if obj.get("name")]
+
+    return {"objects": object_names}
 
 
 @router.get("/{project_id}/history")
