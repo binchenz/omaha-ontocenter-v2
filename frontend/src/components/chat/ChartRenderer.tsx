@@ -17,44 +17,32 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
+  // Initialize chart and register resize listener once on mount
   useEffect(() => {
-    if (!chartRef.current || !config) return;
+    if (!chartRef.current) return;
 
-    // Initialize chart
-    if (!chartInstanceRef.current) {
-      chartInstanceRef.current = echarts.init(chartRef.current);
-    }
+    chartInstanceRef.current = echarts.init(chartRef.current);
 
-    // Set chart options
-    chartInstanceRef.current.setOption(config);
-
-    // Handle resize
-    const handleResize = () => {
-      chartInstanceRef.current?.resize();
-    };
+    const handleResize = () => { chartInstanceRef.current?.resize(); };
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-    };
-  }, [config]);
-
-  useEffect(() => {
-    // Cleanup on unmount
-    return () => {
       chartInstanceRef.current?.dispose();
       chartInstanceRef.current = null;
     };
   }, []);
 
+  // Update chart options when config changes
+  useEffect(() => {
+    if (!chartInstanceRef.current || !config) return;
+    chartInstanceRef.current.setOption(config, { notMerge: true });
+  }, [config]);
+
   return (
     <Box
       ref={chartRef}
-      sx={{
-        width: '100%',
-        height: `${height}px`,
-        mt: 2,
-      }}
+      sx={{ width: '100%', height: `${height}px`, mt: 2 }}
     />
   );
 };

@@ -379,23 +379,15 @@ class ChatService:
             "sql": sql
         }
 
-    def _call_openai(
+    def _call_openai_compatible(
         self,
+        client,
+        model: str,
         messages: List[Dict[str, str]],
         tools: List[Dict[str, Any]],
         config_yaml: str
     ) -> tuple:
-        """Call OpenAI API with function calling."""
-        if not openai:
-            raise ImportError("openai package not installed")
-
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY not set")
-
-        client = openai.OpenAI(api_key=api_key)
-
-        # Function calling loop
+        """Shared function calling loop for OpenAI-compatible APIs (OpenAI + DeepSeek)."""
         max_iterations = 5
         data_table = None
         chart_config = None
@@ -403,7 +395,7 @@ class ChatService:
 
         for _ in range(max_iterations):
             response = client.chat.completions.create(
-                model="gpt-4-turbo-preview",
+                model=model,
                 messages=messages,
                 tools=tools,
                 tool_choice="auto"
@@ -411,11 +403,9 @@ class ChatService:
 
             message = response.choices[0].message
 
-            # If no tool calls, return response
             if not message.tool_calls:
                 return message.content, data_table, chart_config, sql
 
-            # Execute tool calls
             messages.append({
                 "role": "assistant",
                 "content": message.content or "",
@@ -432,15 +422,11 @@ class ChatService:
             for tool_call in message.tool_calls:
                 tool_name = tool_call.function.name
                 tool_args = json.loads(tool_call.function.arguments)
-
                 result = self._execute_tool(tool_name, tool_args, config_yaml)
 
-                # Extract data for chart generation
                 if tool_name == "query_data" and "data" in result:
                     data_table = result["data"]
                     sql = result.get("sql")
-
-                    # Generate chart
                     chart_type = self.chart_engine.select_chart_type(data_table)
                     if chart_type:
                         chart_config = self.chart_engine.build_chart_config(data_table, chart_type)
@@ -451,8 +437,22 @@ class ChatService:
                     "content": json.dumps(result, ensure_ascii=False)
                 })
 
-        # Max iterations reached
         return "抱歉，处理超时。", data_table, chart_config, sql
+
+    def _call_openai(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        config_yaml: str
+    ) -> tuple:
+        """Call OpenAI API with function calling."""
+        if not openai:
+            raise ImportError("openai package not installed")
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not set")
+        client = openai.OpenAI(api_key=api_key)
+        return self._call_openai_compatible(client, "gpt-4-turbo-preview", messages, tools, config_yaml)
 
     def _call_anthropic(
         self,
@@ -549,66 +549,8 @@ class ChatService:
         """Call DeepSeek API with function calling (OpenAI-compatible)."""
         if not openai:
             raise ImportError("openai package not installed")
-
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
             raise ValueError("DEEPSEEK_API_KEY not set")
-
-        client = openai.OpenAI(
-            api_key=api_key,
-            base_url="https://api.deepseek.com"
-        )
-
-        # Function calling loop (same as OpenAI)
-        max_iterations = 5
-        data_table = None
-        chart_config = None
-        sql = None
-
-        for _ in range(max_iterations):
-            response = client.chat.completions.create(
-                model="deepseek-chat",
-                messages=messages,
-                tools=tools,
-                tool_choice="auto"
-            )
-
-            message = response.choices[0].message
-
-            if not message.tool_calls:
-                return message.content, data_table, chart_config, sql
-
-            messages.append({
-                "role": "assistant",
-                "content": message.content or "",
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments}
-                    }
-                    for tc in message.tool_calls
-                ]
-            })
-
-            for tool_call in message.tool_calls:
-                tool_name = tool_call.function.name
-                tool_args = json.loads(tool_call.function.arguments)
-
-                result = self._execute_tool(tool_name, tool_args, config_yaml)
-
-                if tool_name == "query_data" and "data" in result:
-                    data_table = result["data"]
-                    sql = result.get("sql")
-
-                    chart_type = self.chart_engine.select_chart_type(data_table)
-                    if chart_type:
-                        chart_config = self.chart_engine.build_chart_config(data_table, chart_type)
-
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(result, ensure_ascii=False)
-                })
-
-        return "抱歉，处理超时。", data_table, chart_config, sql
+        client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+        return self._call_openai_compatible(client, "deepseek-chat", messages, tools, config_yaml)

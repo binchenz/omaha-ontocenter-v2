@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 
 class ChatSessionCreate(BaseModel):
     """Schema for creating a chat session."""
-    user_id: int
     title: Optional[str] = None
 
 

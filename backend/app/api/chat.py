@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.chat_session import ChatSession, ChatMessage
-from app.models.project import Project
+from app.models.user import User
+from app.models.chat_session import ChatSession
 from app.schemas.chat import (
     ChatSessionCreate,
     ChatSessionResponse,
@@ -15,6 +15,7 @@ from app.schemas.chat import (
     SendMessageResponse
 )
 from app.services.chat import ChatService
+from app.api.deps import get_current_user, get_project_for_owner
 
 
 router = APIRouter()
@@ -24,18 +25,15 @@ router = APIRouter()
 def create_chat_session(
     project_id: int,
     session_data: ChatSessionCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new chat session."""
-    # Verify project exists
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    get_project_for_owner(project_id, current_user, db)
 
-    # Create session
     chat_session = ChatSession(
         project_id=project_id,
-        user_id=session_data.user_id,
+        user_id=current_user.id,
         title=session_data.title
     )
     db.add(chat_session)
@@ -48,12 +46,15 @@ def create_chat_session(
 @router.get("/chat/{project_id}/sessions", response_model=List[ChatSessionResponse])
 def list_chat_sessions(
     project_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all chat sessions for a project."""
+    get_project_for_owner(project_id, current_user, db)
+
     sessions = (
         db.query(ChatSession)
-        .filter(ChatSession.project_id == project_id)
+        .filter(ChatSession.project_id == project_id, ChatSession.user_id == current_user.id)
         .order_by(ChatSession.created_at.desc())
         .all()
     )
@@ -65,26 +66,26 @@ def send_message(
     project_id: int,
     session_id: int,
     request: SendMessageRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Send a message and get response."""
-    # Verify session exists
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    project = get_project_for_owner(project_id, current_user, db)
+
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.project_id == project_id, ChatSession.user_id == current_user.id)
+        .first()
+    )
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Get project config
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Call chat service
     chat_service = ChatService(project_id=project_id, db=db)
     result = chat_service.send_message(
         session_id=session_id,
         user_message=request.message,
         config_yaml=project.omaha_config,
-        llm_provider="deepseek"  # TODO: Make configurable
+        llm_provider="deepseek"
     )
 
     return SendMessageResponse(**result)
@@ -94,10 +95,17 @@ def send_message(
 def delete_chat_session(
     project_id: int,
     session_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a chat session."""
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    get_project_for_owner(project_id, current_user, db)
+
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.project_id == project_id, ChatSession.user_id == current_user.id)
+        .first()
+    )
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
