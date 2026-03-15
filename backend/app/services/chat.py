@@ -45,21 +45,26 @@ def _json_dumps(obj: Any) -> str:
 class ChatService:
     """Service for handling chat interactions with LLM."""
 
-    SYSTEM_TEMPLATE = """你是一个数据分析助手，可以帮助用户查询和分析数据。
+    SYSTEM_TEMPLATE = """你是一个数据分析助手，帮助运营人员查询和分析拼便宜平台的商品数据。
 
 可用的数据对象：
 {ontology}
 
-你可以使用以下工具来访问数据：
+重要提示：
+1. 查询时必须使用 "ObjectName.field_name" 格式，例如 "Product.sku_name"
+2. 竞品平台信息请使用 GoodsMallMapping 对象（包含 platform_name, goods_name, similarity 等字段）
+3. 多平台价格对比请使用 PriceAnalysis 对象（包含 ppy_price, jdws_price, yjp_price, xsj_price）
+4. gross_margin 是计算字段，可以直接查询，无需手动计算
+5. 如果查询失败，请尝试使用 get_schema 工具先了解字段名称
+
+你可以使用以下工具：
 - list_objects: 列出所有可用的对象类型
-- get_schema: 获取对象的字段定义
+- get_schema: 获取对象的字段定义（不确定字段名时先调用此工具）
 - get_relationships: 获取对象间的关系
 - query_data: 执行数据查询
 - save_asset: 保存查询为资产
-- list_assets: 列出已保存的资产
-- get_lineage: 获取资产的数据血缘
 
-请用中文回答用户的问题。"""
+请用中文回答用户的问题，回答要简洁清晰。"""
 
     def __init__(self, project_id: int, db: Session):
         self.project_id = project_id
