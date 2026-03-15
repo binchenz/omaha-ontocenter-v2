@@ -21,6 +21,28 @@ from app.api.deps import get_current_user
 router = APIRouter()
 
 
+def _get_project(project_id: int, current_user: User, db: Session) -> Project:
+    """Fetch project and verify ownership, raising HTTP errors on failure."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
+    return project
+
+
+def _get_asset(asset_id: int, project_id: int, db: Session) -> DatasetAsset:
+    """Fetch asset by id and project, raising HTTP 404 if not found."""
+    asset = (
+        db.query(DatasetAsset)
+        .filter(DatasetAsset.id == asset_id, DatasetAsset.project_id == project_id)
+        .first()
+    )
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+    return asset
+
+
 @router.post("/{project_id}/assets", response_model=AssetSchema, status_code=status.HTTP_201_CREATED)
 def save_asset(
     project_id: int,
@@ -29,20 +51,7 @@ def save_asset(
     current_user: User = Depends(get_current_user),
 ):
     """Save query as asset."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
+    _get_project(project_id, current_user, db)
 
     # Create asset
     asset = DatasetAsset(
@@ -113,22 +122,8 @@ def list_assets(
     current_user: User = Depends(get_current_user),
 ):
     """List all assets for a project."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
+    _get_project(project_id, current_user, db)
 
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    # Get assets
     assets = (
         db.query(DatasetAsset)
         .filter(DatasetAsset.project_id == project_id)
@@ -149,38 +144,8 @@ def get_asset(
     current_user: User = Depends(get_current_user),
 ):
     """Get asset details."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    # Get asset
-    asset = (
-        db.query(DatasetAsset)
-        .filter(
-            DatasetAsset.id == asset_id,
-            DatasetAsset.project_id == project_id,
-        )
-        .first()
-    )
-
-    if not asset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Asset not found",
-        )
-
-    return asset
+    _get_project(project_id, current_user, db)
+    return _get_asset(asset_id, project_id, db)
 
 
 @router.delete("/{project_id}/assets/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -191,41 +156,10 @@ def delete_asset(
     current_user: User = Depends(get_current_user),
 ):
     """Delete an asset."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    # Get asset
-    asset = (
-        db.query(DatasetAsset)
-        .filter(
-            DatasetAsset.id == asset_id,
-            DatasetAsset.project_id == project_id,
-        )
-        .first()
-    )
-
-    if not asset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Asset not found",
-        )
-
-    # Delete asset (lineage will be cascade deleted)
+    _get_project(project_id, current_user, db)
+    asset = _get_asset(asset_id, project_id, db)
     db.delete(asset)
     db.commit()
-
     return None
 
 
@@ -237,53 +171,12 @@ def get_asset_lineage(
     current_user: User = Depends(get_current_user),
 ):
     """Get lineage information for an asset."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
+    _get_project(project_id, current_user, db)
+    _get_asset(asset_id, project_id, db)
 
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    # Get asset
-    asset = (
-        db.query(DatasetAsset)
-        .filter(
-            DatasetAsset.id == asset_id,
-            DatasetAsset.project_id == project_id,
-        )
-        .first()
-    )
-
-    if not asset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Asset not found",
-        )
-
-    # Get lineage records
-    lineage = (
+    return (
         db.query(DataLineage)
         .filter(DataLineage.asset_id == asset_id)
         .order_by(DataLineage.created_at.asc())
         .all()
     )
-
-    return lineage
-
-    # Get lineage
-    lineage = (
-        db.query(DataLineage)
-        .filter(DataLineage.asset_id == asset_id)
-        .order_by(DataLineage.created_at.asc())
-        .all()
-    )
-
-    return lineage

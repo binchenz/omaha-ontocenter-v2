@@ -71,7 +71,6 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
   const [selectedJoinType, setSelectedJoinType] = useState<string>('LEFT');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tableColumns, setTableColumns] = useState<any[]>([]);
   const [showSaveAssetModal, setShowSaveAssetModal] = useState(false);
   const [saveAssetForm] = Form.useForm();
 
@@ -164,13 +163,6 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
 
       if (result.success && result.data) {
         setData(result.data);
-        const cols = selectedColumns.map((colName) => ({
-          title: colName,
-          dataIndex: colName,
-          key: colName,
-          ellipsis: true,
-        }));
-        setTableColumns(cols);
         message.success(`Found ${result.count} records`);
       } else {
         message.error(result.error || 'Query failed');
@@ -484,7 +476,12 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
       {data.length > 0 && (
         <Card title={`Results (${data.length} rows)`}>
           <Table
-            columns={tableColumns}
+            columns={selectedColumns.map((colName) => ({
+              title: colName,
+              dataIndex: colName,
+              key: colName,
+              ellipsis: true,
+            }))}
             dataSource={data}
             loading={loading}
             rowKey={(_record, index) => index!}

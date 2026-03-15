@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-import json
 from decimal import Decimal
 
 from app.database import get_db
@@ -26,8 +25,27 @@ def convert_decimals(obj):
         return {key: convert_decimals(value) for key, value in obj.items()}
     elif isinstance(obj, Decimal):
         return float(obj)
-    else:
-        return obj
+    return obj
+
+
+def _get_project(project_id: int, current_user: User, db: Session) -> Project:
+    """Fetch project and verify ownership, raising HTTP errors on failure."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
+    return project
+
+
+def _require_config(project: Project) -> str:
+    """Return omaha_config or raise 400 if missing."""
+    if not project.omaha_config:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project has no Omaha configuration",
+        )
+    return project.omaha_config
 
 
 class QueryObjectsRequest(BaseModel):
@@ -57,31 +75,10 @@ async def get_relationships(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Get available relationships for an object type."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    if not project.omaha_config:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project has no Omaha configuration",
-        )
-
+    project = _get_project(project_id, current_user, db)
+    config = _require_config(project)
     try:
-        relationships = omaha_service.get_relationships(
-            project.omaha_config, object_type
-        )
+        relationships = omaha_service.get_relationships(config, object_type)
         return {"relationships": relationships}
     except Exception as e:
         raise HTTPException(
@@ -98,30 +95,11 @@ async def query_objects(
     current_user: User = Depends(get_current_user),
 ):
     """Query objects from a project."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = _get_project(project_id, current_user, db)
+    config = _require_config(project)
 
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    if not project.omaha_config:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project has no Omaha configuration",
-        )
-
-    # Query objects
     result = omaha_service.query_objects(
-        project.omaha_config,
+        config,
         request.object_type,
         request.selected_columns,
         request.filters,
@@ -129,16 +107,12 @@ async def query_objects(
         request.limit,
     )
 
-    # Convert Decimal objects before saving to database
-    result_data_converted = convert_decimals(result.get("data"))
-
-    # Save to query history
     query_history = QueryHistory(
         project_id=project_id,
         user_id=current_user.id,
         natural_language_query=f"Query {request.object_type}",
         object_type=request.object_type,
-        result_data=result_data_converted,
+        result_data=convert_decimals(result.get("data")),
         result_count=result.get("count"),
         status="success" if result.get("success") else "error",
         error_message=result.get("error"),
@@ -156,40 +130,20 @@ async def list_object_types(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """List available object types in a project."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
+    project = _get_project(project_id, current_user, db)
 
     if not project.omaha_config:
         return {"objects": []}
 
-    # Build ontology
     result = omaha_service.build_ontology(project.omaha_config)
-
     if not result.get("valid"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid Omaha configuration",
         )
 
-    ontology = result.get("ontology", {})
-    objects = ontology.get("objects", [])
-
-    # Extract object names from the list
-    object_names = [obj.get("name") for obj in objects if obj.get("name")]
-
-    return {"objects": object_names}
+    objects = result.get("ontology", {}).get("objects", [])
+    return {"objects": [obj.get("name") for obj in objects if obj.get("name")]}
 
 
 @router.get("/{project_id}/schema/{object_type}")
@@ -200,36 +154,15 @@ async def get_object_schema(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Get schema (columns) for an object type."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = _get_project(project_id, current_user, db)
+    config = _require_config(project)
 
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    if not project.omaha_config:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project has no Omaha configuration",
-        )
-
-    # Get schema from ontology
-    result = omaha_service.get_object_schema(project.omaha_config, object_type)
-
+    result = omaha_service.get_object_schema(config, object_type)
     if not result.get("success"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=result.get("error", "Failed to get schema"),
         )
-
     return result
 
 
@@ -242,22 +175,8 @@ async def get_query_history(
     current_user: User = Depends(get_current_user),
 ) -> List[Dict[str, Any]]:
     """Get query history for a project."""
-    # Get project
-    project = db.query(Project).filter(Project.id == project_id).first()
+    _get_project(project_id, current_user, db)
 
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    # Get history
     history = (
         db.query(QueryHistory)
         .filter(QueryHistory.project_id == project_id)

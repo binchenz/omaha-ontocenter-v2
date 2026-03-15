@@ -327,6 +327,36 @@ class OmahaService:
         where_clause = " AND ".join(conditions) if conditions else ""
         return where_clause, params
 
+    def _build_select_query(
+        self,
+        table_name: str,
+        object_type: str,
+        selected_columns: Optional[List[str]],
+        filters: Optional[List[Dict[str, Any]]],
+        joins: Optional[List[Dict[str, Any]]],
+        relationships: List[Dict[str, Any]],
+        objects: List[Dict[str, Any]],
+        limit: int,
+        db_type: str,
+    ) -> tuple[str, List[Any]]:
+        """Build a SELECT query string and parameter list."""
+        columns_str = ", ".join(selected_columns) if selected_columns else "*"
+        query = f"SELECT {columns_str} FROM {table_name} AS {object_type}"
+        params: List[Any] = []
+
+        if joins:
+            join_clause = self._build_join_clause(joins, relationships, objects)
+            if join_clause:
+                query += f" {join_clause}"
+
+        if filters:
+            where_clause, params = self._build_where_clause(filters, db_type)
+            if where_clause:
+                query += f" WHERE {where_clause}"
+
+        query += f" LIMIT {limit}"
+        return query, params
+
     def _query_sqlite(
         self,
         ds_config: Dict[str, Any],
@@ -340,12 +370,10 @@ class OmahaService:
         limit: int,
     ) -> List[Dict[str, Any]]:
         """Query SQLite database."""
-        # Get database path
         db_path = ds_config.get("connection", {}).get("database")
         if not db_path:
             raise ValueError("Database path not specified")
 
-        # Make path absolute if relative
         if not os.path.isabs(db_path):
             db_path = os.path.abspath(db_path)
 
@@ -356,39 +384,12 @@ class OmahaService:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Build query with column selection
-        if selected_columns:
-            columns_str = ", ".join(selected_columns)
-        else:
-            columns_str = "*"
-
-        query = f"SELECT {columns_str} FROM {table_name} AS {object_type}"
-        params = []
-
-        # Add JOIN clauses
-        if joins:
-            join_clause = self._build_join_clause(joins, relationships, objects)
-            if join_clause:
-                query += f" {join_clause}"
-
-        # Build WHERE clause from filters
-        if filters:
-            where_clause, params = self._build_where_clause(filters, "sqlite")
-            if where_clause:
-                query += f" WHERE {where_clause}"
-
-        query += f" LIMIT {limit}"
-
-        # Execute query
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-
-        rows = cursor.fetchall()
-        data = [dict(row) for row in rows]
+        query, params = self._build_select_query(
+            table_name, object_type, selected_columns, filters, joins, relationships, objects, limit, "sqlite"
+        )
+        cursor.execute(query, params)
+        data = [dict(row) for row in cursor.fetchall()]
         conn.close()
-
         return data
 
     def _query_mysql(
@@ -405,7 +406,6 @@ class OmahaService:
     ) -> List[Dict[str, Any]]:
         """Query MySQL database."""
         connection_config = ds_config.get("connection", {})
-
         conn = pymysql.connect(
             host=connection_config.get("host"),
             port=connection_config.get("port", 3306),
@@ -413,52 +413,21 @@ class OmahaService:
             password=connection_config.get("password"),
             database=connection_config.get("database"),
             connect_timeout=10,
-            charset='utf8mb4'
+            charset='utf8mb4',
         )
-
         cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-        # Build query with column selection
-        if selected_columns:
-            columns_str = ", ".join(selected_columns)
-        else:
-            columns_str = "*"
+        query, params = self._build_select_query(
+            table_name, object_type, selected_columns, filters, joins, relationships, objects, limit, "mysql"
+        )
+        cursor.execute(query, params)
 
-        query = f"SELECT {columns_str} FROM {table_name} AS {object_type}"
-        params = []
-
-        # Add JOIN clauses
-        if joins:
-            join_clause = self._build_join_clause(joins, relationships, objects)
-            if join_clause:
-                query += f" {join_clause}"
-
-        # Build WHERE clause from filters
-        if filters:
-            where_clause, params = self._build_where_clause(filters, "mysql")
-            if where_clause:
-                query += f" WHERE {where_clause}"
-
-        query += f" LIMIT {limit}"
-
-        # Execute query
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-
-        rows = cursor.fetchall()
-
-        # Convert datetime/date objects to strings
         data = []
-        for row in rows:
-            converted_row = {}
-            for key, value in row.items():
-                if hasattr(value, 'isoformat'):
-                    converted_row[key] = value.isoformat()
-                else:
-                    converted_row[key] = value
-            data.append(converted_row)
+        for row in cursor.fetchall():
+            data.append({
+                k: v.isoformat() if hasattr(v, 'isoformat') else v
+                for k, v in row.items()
+            })
 
         conn.close()
         return data
