@@ -6,8 +6,13 @@ import { queryService } from '@/services/query';
 
 const { Option } = Select;
 
-const ObjectExplorer: React.FC = () => {
+interface ObjectExplorerProps {
+  projectId?: number;
+}
+
+const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectId }) => {
   const { id } = useParams<{ id: string }>();
+  const projectId = propProjectId || (id ? parseInt(id) : undefined);
   const [objectTypes, setObjectTypes] = useState<string[]>([]);
   const [selectedType, setSelectedType] = useState<string>('');
   const [data, setData] = useState<any[]>([]);
@@ -16,16 +21,16 @@ const ObjectExplorer: React.FC = () => {
 
   useEffect(() => {
     loadObjectTypes();
-  }, [id]);
+  }, [projectId]);
 
   const loadObjectTypes = async () => {
-    if (!id) {
+    if (!projectId) {
       console.log('No project ID');
       return;
     }
-    console.log('Loading object types for project:', id);
+    console.log('Loading object types for project:', projectId);
     try {
-      const result = await queryService.listObjectTypes(parseInt(id));
+      const result = await queryService.listObjectTypes(projectId);
       console.log('Object types loaded:', result);
       setObjectTypes(result.objects || []);
       if (!result.objects || result.objects.length === 0) {
@@ -39,11 +44,11 @@ const ObjectExplorer: React.FC = () => {
   };
 
   const handleQuery = async (filters?: any) => {
-    if (!id || !selectedType) return;
+    if (!projectId || !selectedType) return;
     setLoading(true);
     try {
       const result = await queryService.queryObjects(
-        parseInt(id),
+        projectId,
         selectedType,
         filters
       );

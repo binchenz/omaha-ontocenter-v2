@@ -7,6 +7,7 @@ import { ontologyService } from '@/services/ontology';
 import { Project } from '@/types';
 import CodeMirror from '@uiw/react-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
+import ObjectExplorer from './ObjectExplorer';
 
 const { TabPane } = Tabs;
 
@@ -121,7 +122,7 @@ const ProjectDetail: React.FC = () => {
           />
         </TabPane>
         <TabPane tab="Explorer" key="explorer">
-          <p>Object Explorer will be available here after configuration is saved.</p>
+          <ObjectExplorer projectId={id ? parseInt(id) : undefined} />
         </TabPane>
       </Tabs>
     </Card>
