@@ -19,8 +19,10 @@ import {
   FolderOpenOutlined,
   CalendarOutlined,
   DatabaseOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
-import { assetService, Asset } from '@/services/asset';
+import { assetService, Asset, AssetLineage } from '@/services/asset';
+import LineageGraph from '@/components/LineageGraph';
 
 const { Title, Text, Paragraph } = Typography;
 const { confirm } = Modal;
@@ -32,6 +34,10 @@ const AssetList: React.FC = () => {
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lineageModalOpen, setLineageModalOpen] = useState(false);
+  const [lineageLoading, setLineageLoading] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [lineageData, setLineageData] = useState<AssetLineage>({ upstream: [], downstream: [] });
 
   useEffect(() => {
     if (projectId) {
@@ -71,6 +77,23 @@ const AssetList: React.FC = () => {
         }
       },
     });
+  };
+
+  const handleViewLineage = async (e: React.MouseEvent, asset: Asset) => {
+    e.stopPropagation();
+    if (!projectId) return;
+    setSelectedAsset(asset);
+    setLineageModalOpen(true);
+    setLineageLoading(true);
+    try {
+      const data = await assetService.getLineage(projectId, asset.id);
+      setLineageData(data);
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || 'Failed to load lineage');
+      setLineageData({ upstream: [], downstream: [] });
+    } finally {
+      setLineageLoading(false);
+    }
   };
 
   const handleOpenAsset = (asset: Asset) => {
@@ -132,6 +155,13 @@ const AssetList: React.FC = () => {
                   actions={[
                     <Button
                       type="text"
+                      icon={<ApartmentOutlined />}
+                      onClick={(e) => handleViewLineage(e, asset)}
+                    >
+                      查看血缘
+                    </Button>,
+                    <Button
+                      type="text"
                       danger
                       icon={<DeleteOutlined />}
                       onClick={(e) => {
@@ -189,6 +219,25 @@ const AssetList: React.FC = () => {
           </Row>
         )}
       </Card>
+
+      <Modal
+        title={`数据血缘 - ${selectedAsset?.name}`}
+        open={lineageModalOpen}
+        onCancel={() => setLineageModalOpen(false)}
+        footer={null}
+        width={800}
+      >
+        {lineageLoading ? (
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <Spin size="large" />
+          </div>
+        ) : (
+          <LineageGraph
+            assetName={selectedAsset?.name || ''}
+            lineage={lineageData}
+          />
+        )}
+      </Modal>
     </div>
   );
 };
