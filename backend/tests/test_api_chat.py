@@ -41,7 +41,6 @@ def override_get_db():
     mock_session.commit = Mock()
 
     def mock_refresh(obj):
-        # Set required fields on the object after refresh
         obj.id = 1
         obj.project_id = 1
         obj.user_id = 1
@@ -54,8 +53,15 @@ def override_get_db():
     yield mock_session
 
 
-app.dependency_overrides[get_current_user] = override_get_current_user
-app.dependency_overrides[get_db] = override_get_db
+@pytest.fixture(autouse=True)
+def apply_overrides():
+    """Apply dependency overrides for this module only, clean up after each test."""
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_db, None)
+
 
 client = TestClient(app)
 
