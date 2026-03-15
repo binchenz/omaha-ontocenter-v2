@@ -18,6 +18,9 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [columns, setColumns] = useState<any[]>([]);
+  const [allColumns, setAllColumns] = useState<string[]>([]);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [filters, setFilters] = useState<Array<{ field: string; operator: string; value: string }>>([]);
 
   useEffect(() => {
     loadObjectTypes();

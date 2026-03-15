@@ -69,11 +69,58 @@ class OmahaService:
                 "error": str(e),
             }
 
+    def get_object_schema(
+        self, config_yaml: str, object_type: str
+    ) -> Dict[str, Any]:
+        """Get schema (columns) for an object type."""
+        try:
+            # Parse config
+            result = self.parse_config(config_yaml)
+            if not result["valid"]:
+                return {"success": False, "error": "Invalid configuration"}
+
+            config = result["config"]
+
+            # Find the object definition
+            ontology = config.get("ontology", {})
+            objects = ontology.get("objects", [])
+
+            obj_def = None
+            for obj in objects:
+                if obj.get("name") == object_type:
+                    obj_def = obj
+                    break
+
+            if not obj_def:
+                return {
+                    "success": False,
+                    "error": f"Object type '{object_type}' not found in ontology",
+                }
+
+            # Extract properties/columns
+            properties = obj_def.get("properties", [])
+            columns = []
+
+            for prop in properties:
+                columns.append(
+                    {
+                        "name": prop.get("column") or prop.get("name"),
+                        "type": prop.get("type", "string"),
+                        "description": prop.get("description", ""),
+                    }
+                )
+
+            return {"success": True, "columns": columns}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def query_objects(
         self,
         config_yaml: str,
         object_type: str,
-        filters: Optional[Dict[str, Any]] = None,
+        selected_columns: Optional[List[str]] = None,
+        filters: Optional[List[Dict[str, Any]]] = None,
         limit: int = 100,
     ) -> Dict[str, Any]:
         """Query objects using Omaha Core."""
@@ -122,9 +169,13 @@ class OmahaService:
 
             # Connect to database based on type
             if ds_type == "sqlite":
-                data = self._query_sqlite(ds_config, table_name, filters, limit)
+                data = self._query_sqlite(
+                    ds_config, table_name, selected_columns, filters, limit
+                )
             elif ds_type == "mysql":
-                data = self._query_mysql(ds_config, table_name, filters, limit)
+                data = self._query_mysql(
+                    ds_config, table_name, selected_columns, filters, limit
+                )
             else:
                 return {
                     "success": False,
@@ -143,11 +194,43 @@ class OmahaService:
                 "error": str(e),
             }
 
+    def _build_where_clause(
+        self, filters: List[Dict[str, Any]], db_type: str
+    ) -> tuple[str, List[Any]]:
+        """Build WHERE clause from filters."""
+        conditions = []
+        params = []
+        placeholder = "?" if db_type == "sqlite" else "%s"
+
+        for f in filters:
+            field = f.get("field")
+            operator = f.get("operator", "=")
+            value = f.get("value")
+
+            if operator.upper() == "IN":
+                # Handle IN operator
+                values = [v.strip() for v in str(value).split(",")]
+                placeholders = ",".join([placeholder] * len(values))
+                conditions.append(f"{field} IN ({placeholders})")
+                params.extend(values)
+            elif operator.upper() == "LIKE":
+                # Handle LIKE operator
+                conditions.append(f"{field} LIKE {placeholder}")
+                params.append(f"%{value}%")
+            else:
+                # Handle standard operators (=, >, <, >=, <=, !=)
+                conditions.append(f"{field} {operator} {placeholder}")
+                params.append(value)
+
+        where_clause = " AND ".join(conditions) if conditions else ""
+        return where_clause, params
+
     def _query_sqlite(
         self,
         ds_config: Dict[str, Any],
         table_name: str,
-        filters: Optional[Dict[str, Any]],
+        selected_columns: Optional[List[str]],
+        filters: Optional[List[Dict[str, Any]]],
         limit: int,
     ) -> List[Dict[str, Any]]:
         """Query SQLite database."""
@@ -167,17 +250,20 @@ class OmahaService:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Build query
-        query = f"SELECT * FROM {table_name}"
+        # Build query with column selection
+        if selected_columns:
+            columns_str = ", ".join(selected_columns)
+        else:
+            columns_str = "*"
+
+        query = f"SELECT {columns_str} FROM {table_name}"
         params = []
 
+        # Build WHERE clause from filters
         if filters:
-            conditions = []
-            for field, value in filters.items():
-                conditions.append(f"{field} = ?")
-                params.append(value)
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
+            where_clause, params = self._build_where_clause(filters, "sqlite")
+            if where_clause:
+                query += f" WHERE {where_clause}"
 
         query += f" LIMIT {limit}"
 
@@ -197,7 +283,8 @@ class OmahaService:
         self,
         ds_config: Dict[str, Any],
         table_name: str,
-        filters: Optional[Dict[str, Any]],
+        selected_columns: Optional[List[str]],
+        filters: Optional[List[Dict[str, Any]]],
         limit: int,
     ) -> List[Dict[str, Any]]:
         """Query MySQL database."""
@@ -215,17 +302,20 @@ class OmahaService:
 
         cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-        # Build query
-        query = f"SELECT * FROM {table_name}"
+        # Build query with column selection
+        if selected_columns:
+            columns_str = ", ".join(selected_columns)
+        else:
+            columns_str = "*"
+
+        query = f"SELECT {columns_str} FROM {table_name}"
         params = []
 
+        # Build WHERE clause from filters
         if filters:
-            conditions = []
-            for field, value in filters.items():
-                conditions.append(f"{field} = %s")
-                params.append(value)
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
+            where_clause, params = self._build_where_clause(filters, "mysql")
+            if where_clause:
+                query += f" WHERE {where_clause}"
 
         query += f" LIMIT {limit}"
 

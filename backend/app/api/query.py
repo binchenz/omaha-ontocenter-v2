@@ -34,7 +34,8 @@ class QueryObjectsRequest(BaseModel):
     """Request schema for querying objects."""
 
     object_type: str
-    filters: Optional[Dict[str, Any]] = None
+    selected_columns: Optional[List[str]] = None  # 新增：列选择
+    filters: Optional[List[Dict[str, Any]]] = None  # 修改为 List
     limit: int = 100
 
 
@@ -80,6 +81,7 @@ async def query_objects(
     result = omaha_service.query_objects(
         project.omaha_config,
         request.object_type,
+        request.selected_columns,
         request.filters,
         request.limit,
     )
@@ -145,6 +147,47 @@ async def list_object_types(
     object_names = [obj.get("name") for obj in objects if obj.get("name")]
 
     return {"objects": object_names}
+
+
+@router.get("/{project_id}/schema/{object_type}")
+async def get_object_schema(
+    project_id: int,
+    object_type: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Get schema (columns) for an object type."""
+    # Get project
+    project = db.query(Project).filter(Project.id == project_id).first()
+
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    if project.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+
+    if not project.omaha_config:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project has no Omaha configuration",
+        )
+
+    # Get schema from ontology
+    result = omaha_service.get_object_schema(project.omaha_config, object_type)
+
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("error", "Failed to get schema"),
+        )
+
+    return result
 
 
 @router.get("/{project_id}/history")
