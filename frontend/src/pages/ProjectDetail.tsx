@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Tabs, Button, message, Space } from 'antd';
-import { SaveOutlined, MessageOutlined, DatabaseOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { SaveOutlined, MessageOutlined, DatabaseOutlined, AppstoreOutlined, KeyOutlined } from '@ant-design/icons';
 import { projectService } from '@/services/project';
 import { ontologyService } from '@/services/ontology';
 import { Project } from '@/types';
@@ -10,6 +10,7 @@ import { yaml } from '@codemirror/lang-yaml';
 import ObjectExplorer from './ObjectExplorer';
 import AssetList from './AssetList';
 import { ChatAgent } from './ChatAgent';
+import ApiKeyManager from '../components/ApiKeyManager';
 
 const { TabPane } = Tabs;
 
@@ -136,6 +137,9 @@ const ProjectDetail: React.FC = () => {
         </TabPane>
         <TabPane tab={<span><MessageOutlined /> Chat</span>} key="chat">
           {projectId && <ChatAgent projectIdProp={projectId} />}
+        </TabPane>
+        <TabPane tab={<span><KeyOutlined /> API Keys</span>} key="apikeys">
+          {projectId && <ApiKeyManager projectId={projectId} />}
         </TabPane>
       </Tabs>
     </Card>
