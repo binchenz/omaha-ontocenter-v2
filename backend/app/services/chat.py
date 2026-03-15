@@ -4,7 +4,17 @@ Chat service with LLM function calling.
 from typing import List, Dict, Any, Optional
 import json
 import os
+from pathlib import Path
 from sqlalchemy.orm import Session
+
+# Load .env from project root (two levels up from this file)
+try:
+    from dotenv import load_dotenv
+    _env_path = Path(__file__).parent.parent.parent.parent / ".env"
+    if _env_path.exists():
+        load_dotenv(_env_path)
+except ImportError:
+    pass
 
 try:
     import openai
