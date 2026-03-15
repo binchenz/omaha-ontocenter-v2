@@ -424,7 +424,7 @@ class ChatService:
         config_yaml: str
     ) -> tuple:
         """Shared function calling loop for OpenAI-compatible APIs (OpenAI + DeepSeek)."""
-        max_iterations = 5
+        max_iterations = 10
         data_table = None
         chart_config = None
         sql = None
@@ -521,7 +521,7 @@ class ChatService:
         claude_messages = [m for m in messages if m["role"] != "system"]
 
         # Function calling loop
-        max_iterations = 5
+        max_iterations = 10
         data_table = None
         chart_config = None
         sql = None

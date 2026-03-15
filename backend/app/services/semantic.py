@@ -84,7 +84,7 @@ class SemanticService:
         if obj_meta.get("description"):
             lines.append(obj_meta["description"])
             lines.append("")
-        lines.append("字段：")
+        lines.append("可用字段（查询时使用 ObjectName.field_name 格式）：")
         for name, prop in obj_meta["base_properties"].items():
             desc = prop.get("description", "")
             stype = prop.get("semantic_type", "")
@@ -98,8 +98,7 @@ class SemanticService:
             else:
                 lines.append(f"  - {name}: {desc}")
         for name, prop in obj_meta["computed_properties"].items():
-            lines.append(f"  - {name} [计算]: {prop.get('description', '')}")
-            lines.append(f"    公式: {prop.get('formula', '')}")
+            lines.append(f"  - {name} [计算字段，可直接查询]: {prop.get('description', '')}")
             if prop.get("business_context"):
                 lines.append(f"    基准: {prop['business_context']}")
         return "\n".join(lines)
