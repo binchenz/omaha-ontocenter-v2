@@ -6,6 +6,16 @@ import json
 import os
 from sqlalchemy.orm import Session
 
+try:
+    import openai
+except ImportError:
+    openai = None
+
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+
 from app.models.chat_session import ChatSession, ChatMessage
 from app.services.omaha import omaha_service
 from app.services.chart_engine import ChartEngine
@@ -319,7 +329,7 @@ class ChatService:
         """
         Send a message and get response with optional chart.
 
-        This is a placeholder that will be completed in Task 6.
+        Supports OpenAI, Anthropic (Claude), and DeepSeek.
         """
         # Load history
         history = self._load_history(session_id, limit=20)
@@ -331,16 +341,274 @@ class ChatService:
         # Get tool schemas
         tools = self._get_tool_schemas()
 
-        # TODO: Implement LLM calling logic in Task 6
-        # For now, return a placeholder response
-        response_text = "这是一个占位响应。LLM 集成将在 Task 6 中完成。"
+        # Build messages
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(history)
+        messages.append({"role": "user", "content": user_message})
+
+        # Call LLM with function calling
+        try:
+            if llm_provider == "openai":
+                response_text, data_table, chart_config, sql = self._call_openai(
+                    messages, tools, config_yaml
+                )
+            elif llm_provider == "anthropic":
+                response_text, data_table, chart_config, sql = self._call_anthropic(
+                    messages, tools, config_yaml
+                )
+            elif llm_provider == "deepseek":
+                response_text, data_table, chart_config, sql = self._call_deepseek(
+                    messages, tools, config_yaml
+                )
+            else:
+                raise ValueError(f"Unsupported LLM provider: {llm_provider}")
+
+        except Exception as e:
+            response_text = f"抱歉，处理您的请求时出错：{str(e)}"
+            data_table = None
+            chart_config = None
+            sql = None
 
         # Save messages
-        self._save_messages(session_id, user_message, response_text)
+        self._save_messages(session_id, user_message, response_text, chart_config=chart_config)
 
         return {
             "message": response_text,
-            "data_table": None,
-            "chart_config": None,
-            "sql": None
+            "data_table": data_table,
+            "chart_config": chart_config,
+            "sql": sql
         }
+
+    def _call_openai(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        config_yaml: str
+    ) -> tuple:
+        """Call OpenAI API with function calling."""
+        if not openai:
+            raise ImportError("openai package not installed")
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not set")
+
+        client = openai.OpenAI(api_key=api_key)
+
+        # Function calling loop
+        max_iterations = 5
+        data_table = None
+        chart_config = None
+        sql = None
+
+        for _ in range(max_iterations):
+            response = client.chat.completions.create(
+                model="gpt-4-turbo-preview",
+                messages=messages,
+                tools=tools,
+                tool_choice="auto"
+            )
+
+            message = response.choices[0].message
+
+            # If no tool calls, return response
+            if not message.tool_calls:
+                return message.content, data_table, chart_config, sql
+
+            # Execute tool calls
+            messages.append({
+                "role": "assistant",
+                "content": message.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.function.name, "arguments": tc.function.arguments}
+                    }
+                    for tc in message.tool_calls
+                ]
+            })
+
+            for tool_call in message.tool_calls:
+                tool_name = tool_call.function.name
+                tool_args = json.loads(tool_call.function.arguments)
+
+                result = self._execute_tool(tool_name, tool_args, config_yaml)
+
+                # Extract data for chart generation
+                if tool_name == "query_data" and "data" in result:
+                    data_table = result["data"]
+                    sql = result.get("sql")
+
+                    # Generate chart
+                    chart_type = self.chart_engine.select_chart_type(data_table)
+                    if chart_type:
+                        chart_config = self.chart_engine.build_chart_config(data_table, chart_type)
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(result, ensure_ascii=False)
+                })
+
+        # Max iterations reached
+        return "抱歉，处理超时。", data_table, chart_config, sql
+
+    def _call_anthropic(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        config_yaml: str
+    ) -> tuple:
+        """Call Anthropic Claude API with function calling."""
+        if not anthropic:
+            raise ImportError("anthropic package not installed")
+
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set")
+
+        client = anthropic.Anthropic(api_key=api_key)
+
+        # Convert tools to Claude format
+        claude_tools = [
+            {
+                "name": t["function"]["name"],
+                "description": t["function"]["description"],
+                "input_schema": t["function"]["parameters"]
+            }
+            for t in tools
+        ]
+
+        # Extract system message
+        system_msg = messages[0]["content"] if messages[0]["role"] == "system" else ""
+        claude_messages = [m for m in messages if m["role"] != "system"]
+
+        # Function calling loop
+        max_iterations = 5
+        data_table = None
+        chart_config = None
+        sql = None
+
+        for _ in range(max_iterations):
+            response = client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=4096,
+                system=system_msg,
+                messages=claude_messages,
+                tools=claude_tools
+            )
+
+            # Check for tool use
+            tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
+
+            if not tool_use_blocks:
+                # No more tool calls, extract text
+                text_blocks = [b.text for b in response.content if hasattr(b, 'text')]
+                return " ".join(text_blocks), data_table, chart_config, sql
+
+            # Execute tool calls
+            claude_messages.append({
+                "role": "assistant",
+                "content": response.content
+            })
+
+            tool_results = []
+            for tool_use in tool_use_blocks:
+                result = self._execute_tool(tool_use.name, tool_use.input, config_yaml)
+
+                # Extract data for chart generation
+                if tool_use.name == "query_data" and "data" in result:
+                    data_table = result["data"]
+                    sql = result.get("sql")
+
+                    # Generate chart
+                    chart_type = self.chart_engine.select_chart_type(data_table)
+                    if chart_type:
+                        chart_config = self.chart_engine.build_chart_config(data_table, chart_type)
+
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_use.id,
+                    "content": json.dumps(result, ensure_ascii=False)
+                })
+
+            claude_messages.append({
+                "role": "user",
+                "content": tool_results
+            })
+
+        return "抱歉，处理超时。", data_table, chart_config, sql
+
+    def _call_deepseek(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        config_yaml: str
+    ) -> tuple:
+        """Call DeepSeek API with function calling (OpenAI-compatible)."""
+        if not openai:
+            raise ImportError("openai package not installed")
+
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise ValueError("DEEPSEEK_API_KEY not set")
+
+        client = openai.OpenAI(
+            api_key=api_key,
+            base_url="https://api.deepseek.com"
+        )
+
+        # Function calling loop (same as OpenAI)
+        max_iterations = 5
+        data_table = None
+        chart_config = None
+        sql = None
+
+        for _ in range(max_iterations):
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=messages,
+                tools=tools,
+                tool_choice="auto"
+            )
+
+            message = response.choices[0].message
+
+            if not message.tool_calls:
+                return message.content, data_table, chart_config, sql
+
+            messages.append({
+                "role": "assistant",
+                "content": message.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.function.name, "arguments": tc.function.arguments}
+                    }
+                    for tc in message.tool_calls
+                ]
+            })
+
+            for tool_call in message.tool_calls:
+                tool_name = tool_call.function.name
+                tool_args = json.loads(tool_call.function.arguments)
+
+                result = self._execute_tool(tool_name, tool_args, config_yaml)
+
+                if tool_name == "query_data" and "data" in result:
+                    data_table = result["data"]
+                    sql = result.get("sql")
+
+                    chart_type = self.chart_engine.select_chart_type(data_table)
+                    if chart_type:
+                        chart_config = self.chart_engine.build_chart_config(data_table, chart_type)
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(result, ensure_ascii=False)
+                })
+
+        return "抱歉，处理超时。", data_table, chart_config, sql
