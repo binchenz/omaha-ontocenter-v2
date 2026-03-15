@@ -4,6 +4,7 @@ Chat service with LLM function calling.
 from typing import List, Dict, Any, Optional
 import json
 import os
+from decimal import Decimal
 from pathlib import Path
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,15 @@ from app.models.chat_session import ChatSession, ChatMessage
 from app.services.omaha import omaha_service
 from app.services.semantic import semantic_service
 from app.services.chart_engine import ChartEngine
+
+
+def _json_dumps(obj: Any) -> str:
+    """JSON serialize with Decimal support."""
+    def default(o):
+        if isinstance(o, Decimal):
+            return float(o)
+        raise TypeError(f"Object of type {type(o)} is not JSON serializable")
+    return json.dumps(obj, ensure_ascii=False, default=default)
 
 
 class ChatService:
@@ -460,7 +470,7 @@ class ChatService:
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
-                    "content": json.dumps(result, ensure_ascii=False)
+                    "content": _json_dumps(result)
                 })
 
         return "抱歉，处理超时。", data_table, chart_config, sql
@@ -556,7 +566,7 @@ class ChatService:
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": tool_use.id,
-                    "content": json.dumps(result, ensure_ascii=False)
+                    "content": _json_dumps(result)
                 })
 
             claude_messages.append({
