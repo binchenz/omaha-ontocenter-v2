@@ -206,7 +206,7 @@ export const ChatAgent: React.FC = () => {
           multiline
           maxRows={4}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Type your message..."
           disabled={loading}
