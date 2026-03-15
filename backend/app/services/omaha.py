@@ -8,6 +8,7 @@ import pymysql
 import os
 
 from app.services.semantic import semantic_service
+from app.services.query_builder import SemanticQueryBuilder
 
 
 def _find_by_name(items: List[Dict[str, Any]], name: str) -> Optional[Dict[str, Any]]:
@@ -221,14 +222,20 @@ class OmahaService:
             if ds_type not in ("sqlite", "mysql"):
                 return {"success": False, "error": f"Unsupported datasource type: {ds_type}"}
 
-            objects = ontology.get("objects", [])
-            relationships = ontology.get("relationships", [])
-            table_name = obj_def.get("table")
+            # Use SemanticQueryBuilder instead of _build_select_query
+            try:
+                builder = SemanticQueryBuilder(config_yaml, object_type)
+                query, params = builder.build(selected_columns, filters, joins, limit, ds_type)
+            except ValueError:
+                # Fallback to original method if semantic parsing fails
+                objects = ontology.get("objects", [])
+                relationships = ontology.get("relationships", [])
+                table_name = obj_def.get("table")
+                query, params = self._build_select_query(
+                    table_name, object_type, selected_columns, filters,
+                    joins, relationships, objects, limit, ds_type,
+                )
 
-            query, params = self._build_select_query(
-                table_name, object_type, selected_columns, filters,
-                joins, relationships, objects, limit, ds_type,
-            )
             data = self._execute_query(ds_config, ds_type, query, params)
 
             return {"success": True, "data": data, "count": len(data)}
