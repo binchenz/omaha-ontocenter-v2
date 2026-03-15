@@ -5,7 +5,8 @@ export const queryService = {
   async queryObjects(
     projectId: number,
     objectType: string,
-    filters?: Record<string, any>,
+    selectedColumns?: string[],
+    filters?: Array<{ field: string; operator: string; value: string }>,
     limit: number = 100
   ): Promise<{
     success: boolean;
@@ -15,6 +16,7 @@ export const queryService = {
   }> {
     const response = await api.post(`/query/${projectId}/query`, {
       object_type: objectType,
+      selected_columns: selectedColumns,
       filters,
       limit,
     });
@@ -23,6 +25,18 @@ export const queryService = {
 
   async listObjectTypes(projectId: number): Promise<{ objects: string[] }> {
     const response = await api.get(`/query/${projectId}/objects`);
+    return response.data;
+  },
+
+  async getObjectSchema(
+    projectId: number,
+    objectType: string
+  ): Promise<{
+    success: boolean;
+    columns?: Array<{ name: string; type: string; description: string }>;
+    error?: string;
+  }> {
+    const response = await api.get(`/query/${projectId}/schema/${objectType}`);
     return response.data;
   },
 
