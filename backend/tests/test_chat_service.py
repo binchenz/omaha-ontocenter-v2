@@ -2,6 +2,33 @@ import pytest
 from unittest.mock import Mock, patch
 from app.services.chat import ChatService
 
+SEMANTIC_CONFIG = """
+datasources:
+  - id: test_db
+    type: sqlite
+    connection:
+      database: ./test.db
+ontology:
+  objects:
+    - name: Product
+      datasource: test_db
+      table: products
+      primary_key: id
+      properties:
+        - name: price
+          column: sale_price
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: "商品售价"
+        - name: gross_margin
+          semantic_type: computed
+          formula: "(price - cost) / price"
+          return_type: percentage
+          description: "商品毛利率"
+          business_context: "毛利率 > 30% 视为健康"
+"""
+
 
 def test_chat_service_initialization():
     """Test ChatService can be initialized."""
@@ -25,6 +52,16 @@ def test_build_ontology_context():
         assert "Product" in context
         assert "id" in context
         assert "name" in context
+
+
+def test_build_ontology_context_uses_semantic_service():
+    """Test that _build_ontology_context uses semantic_service for enriched context."""
+    service = ChatService(project_id=1, db=Mock())
+    context = service._build_ontology_context(SEMANTIC_CONFIG)
+    assert "Product" in context
+    assert "CNY" in context
+    assert "毛利率 > 30% 视为健康" in context
+    assert "gross_margin" in context
 
 
 def test_get_tool_schemas():

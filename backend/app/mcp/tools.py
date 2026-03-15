@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.asset import DatasetAsset, DataLineage
 from app.services.omaha import omaha_service
+from app.services.semantic import semantic_service
 
 
 def list_objects(config_yaml: str) -> Dict[str, Any]:
@@ -27,7 +28,11 @@ def list_objects(config_yaml: str) -> Dict[str, Any]:
 
 
 def get_schema(config_yaml: str, object_type: str) -> Dict[str, Any]:
-    """Return column schema for a given object type."""
+    """Return column schema enriched with semantic metadata for a given object type."""
+    result = semantic_service.get_schema_with_semantics(config_yaml, object_type)
+    if result.get("success"):
+        return result
+    # Fallback to basic schema
     return omaha_service.get_object_schema(config_yaml, object_type)
 
 

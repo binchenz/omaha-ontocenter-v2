@@ -99,3 +99,16 @@ def test_invalid_formula_reference():
     obj = result["objects"]["Product"]
     with pytest.raises(ValueError, match="unknown property"):
         svc.expand_formula("(price - nonexistent) / price", obj["property_map"])
+
+
+def test_omaha_get_object_schema_uses_semantic():
+    """Task 5: get_object_schema returns semantic-enriched schema."""
+    from app.services.omaha import omaha_service
+    result = omaha_service.get_object_schema(SAMPLE_CONFIG, "Product")
+    assert result["success"] is True
+    col_names = [c["name"] for c in result["columns"]]
+    assert "price" in col_names
+    assert "gross_margin" in col_names
+    # computed property should carry return_type
+    computed = next(c for c in result["columns"] if c["name"] == "gross_margin")
+    assert computed.get("return_type") == "percentage"

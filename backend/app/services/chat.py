@@ -18,6 +18,7 @@ except ImportError:
 
 from app.models.chat_session import ChatSession, ChatMessage
 from app.services.omaha import omaha_service
+from app.services.semantic import semantic_service
 from app.services.chart_engine import ChartEngine
 
 
@@ -46,14 +47,22 @@ class ChatService:
         self.chart_engine = ChartEngine()
 
     def _build_ontology_context(self, config_yaml: str) -> str:
-        """Build ontology context string from project config."""
-        result = omaha_service.build_ontology(config_yaml)
+        """Build ontology context string from project config, enriched with semantic metadata."""
+        semantic_result = semantic_service.parse_config(config_yaml)
 
+        if semantic_result.get("valid") and semantic_result.get("objects"):
+            context_lines = []
+            for obj_name, obj_meta in semantic_result["objects"].items():
+                agent_ctx = semantic_service.build_agent_context(obj_meta)
+                context_lines.append(f"### {obj_name}\n{agent_ctx}")
+            return "\n\n".join(context_lines)
+
+        # Fallback to basic ontology context
+        result = omaha_service.build_ontology(config_yaml)
         if not result.get("valid"):
             return "无可用对象"
 
         objects = result.get("ontology", {}).get("objects", [])
-
         context_lines = []
         for obj in objects:
             name = obj.get("name", "Unknown")

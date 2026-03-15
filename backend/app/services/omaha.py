@@ -7,6 +7,8 @@ import sqlite3
 import pymysql
 import os
 
+from app.services.semantic import semantic_service
+
 
 def _find_by_name(items: List[Dict[str, Any]], name: str) -> Optional[Dict[str, Any]]:
     """Find an item in a list of dicts by its 'name' key."""
@@ -136,12 +138,15 @@ class OmahaService:
     def get_object_schema(
         self, config_yaml: str, object_type: str
     ) -> Dict[str, Any]:
-        """Get schema (columns) for an object type."""
+        """Get schema (columns) for an object type, enriched with semantic metadata."""
         try:
+            result = semantic_service.get_schema_with_semantics(config_yaml, object_type)
+            if result.get("success"):
+                return result
+            # Fallback to basic schema
             _, _, obj_def, err = self._find_object(config_yaml, object_type)
             if err:
                 return err
-
             columns = [
                 {
                     "name": prop.get("column") or prop.get("name"),

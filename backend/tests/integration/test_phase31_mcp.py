@@ -247,6 +247,40 @@ class TestMcpTools:
         finally:
             db.close()
 
+    def test_get_schema_with_semantic_metadata(self):
+        """Task 4: get_schema returns semantic-enriched columns including computed properties."""
+        from app.mcp.tools import get_schema
+        config = """
+datasources:
+  - id: test_db
+    type: sqlite
+    connection:
+      database: ./test.db
+ontology:
+  objects:
+    - name: Product
+      datasource: test_db
+      table: products
+      primary_key: id
+      properties:
+        - name: price
+          column: sale_price
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: "售价"
+        - name: gross_margin
+          semantic_type: computed
+          formula: "(price - cost) / price"
+          return_type: percentage
+          description: "毛利率"
+"""
+        result = get_schema(config, "Product")
+        assert result.get("success") is True
+        col_names = [c["name"] for c in result["columns"]]
+        assert "price" in col_names
+        assert "gross_margin" in col_names
+
 
 # ─── MCP Server Protocol ──────────────────────────────────────────────────────
 
