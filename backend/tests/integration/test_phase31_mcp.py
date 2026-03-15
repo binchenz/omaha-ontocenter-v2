@@ -251,52 +251,94 @@ class TestMcpTools:
 # ─── MCP Server Protocol ──────────────────────────────────────────────────────
 
 class TestMcpServerProtocol:
-    def test_tool_definitions_count(self):
-        from app.mcp.server import TOOL_DEFINITIONS
-        assert len(TOOL_DEFINITIONS) == 7
+    """Test MCP server via subprocess (official SDK version)."""
+
+    # Real API key in omaha.db (created during Claude Desktop config setup)
+    REAL_API_KEY = "omaha_7_d65f7f9de67e5ef64340ec39b7466a1e"
+
+    def _run_mcp(self, messages: list) -> list:
+        """Send messages to MCP server and collect responses."""
+        import subprocess, os
+        env = os.environ.copy()
+        env['OMAHA_API_KEY'] = self.REAL_API_KEY
+        env['PYTHONPATH'] = '.'
+        proc = subprocess.Popen(
+            ['venv311/bin/python', '-m', 'app.mcp.server'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, env=env
+        )
+        responses = []
+        for msg in messages:
+            proc.stdin.write((json.dumps(msg) + '\n').encode())
+            proc.stdin.flush()
+            responses.append(json.loads(proc.stdout.readline()))
+        proc.terminate()
+        return responses
+
+    def test_initialize(self):
+        resps = self._run_mcp([{
+            'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
+            'params': {'protocolVersion': '2024-11-05', 'capabilities': {},
+                       'clientInfo': {'name': 'test', 'version': '1.0'}}
+        }])
+        assert resps[0]['result']['serverInfo']['name'] == 'omaha-ontocenter'
+        assert 'tools' in resps[0]['result']['capabilities']
+
+    def test_tools_list_returns_7_tools(self):
+        resps = self._run_mcp([
+            {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
+             'params': {'protocolVersion': '2024-11-05', 'capabilities': {},
+                        'clientInfo': {'name': 'test', 'version': '1.0'}}},
+            {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}}
+        ])
+        tools = resps[1]['result']['tools']
+        assert len(tools) == 7
 
     def test_tool_names(self):
-        from app.mcp.server import TOOL_DEFINITIONS
-        names = {t["name"] for t in TOOL_DEFINITIONS}
+        resps = self._run_mcp([
+            {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
+             'params': {'protocolVersion': '2024-11-05', 'capabilities': {},
+                        'clientInfo': {'name': 'test', 'version': '1.0'}}},
+            {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}}
+        ])
+        names = {t['name'] for t in resps[1]['result']['tools']}
         assert names == {
-            "list_objects", "get_schema", "get_relationships",
-            "query_data", "save_asset", "list_assets", "get_lineage"
+            'list_objects', 'get_schema', 'get_relationships',
+            'query_data', 'save_asset', 'list_assets', 'get_lineage'
         }
 
     def test_all_tools_have_input_schema(self):
-        from app.mcp.server import TOOL_DEFINITIONS
-        for tool in TOOL_DEFINITIONS:
-            assert "inputSchema" in tool
-            assert tool["inputSchema"]["type"] == "object"
+        resps = self._run_mcp([
+            {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
+             'params': {'protocolVersion': '2024-11-05', 'capabilities': {},
+                        'clientInfo': {'name': 'test', 'version': '1.0'}}},
+            {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}}
+        ])
+        for tool in resps[1]['result']['tools']:
+            assert 'inputSchema' in tool
+            assert tool['inputSchema']['type'] == 'object'
 
-    def test_send_helper(self):
-        import io
-        from unittest.mock import patch
-        from app.mcp import server
-        output = io.StringIO()
-        with patch("sys.stdout", output):
-            server._send({"jsonrpc": "2.0", "id": 1, "result": "ok"})
-        line = output.getvalue().strip()
-        parsed = json.loads(line)
-        assert parsed["result"] == "ok"
+    def test_invalid_key_rejected_at_startup(self):
+        import subprocess, os
+        env = os.environ.copy()
+        env['OMAHA_API_KEY'] = 'omaha_7_invalidkey000000000000000000'
+        env['PYTHONPATH'] = '.'
+        proc = subprocess.Popen(
+            ['venv311/bin/python', '-m', 'app.mcp.server'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, env=env
+        )
+        _, stderr = proc.communicate(timeout=5)
+        assert proc.returncode == 1
+        assert b'Invalid' in stderr or b'ERROR' in stderr
 
-    def test_handle_initialize(self):
-        import io
-        from unittest.mock import patch
-        from app.mcp import server
-        output = io.StringIO()
-        with patch("sys.stdout", output):
-            server._handle_initialize(1, {})
-        resp = json.loads(output.getvalue().strip())
-        assert resp["result"]["serverInfo"]["name"] == "omaha-mcp-server"
-        assert "tools" in resp["result"]["capabilities"]
-
-    def test_handle_tools_list(self):
-        import io
-        from unittest.mock import patch
-        from app.mcp import server
-        output = io.StringIO()
-        with patch("sys.stdout", output):
-            server._handle_tools_list(1)
-        resp = json.loads(output.getvalue().strip())
-        assert len(resp["result"]["tools"]) == 7
+    def test_list_objects_tool_call(self):
+        resps = self._run_mcp([
+            {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
+             'params': {'protocolVersion': '2024-11-05', 'capabilities': {},
+                        'clientInfo': {'name': 'test', 'version': '1.0'}}},
+            {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call',
+             'params': {'name': 'list_objects', 'arguments': {}}}
+        ])
+        result = json.loads(resps[1]['result']['content'][0]['text'])
+        assert 'objects' in result

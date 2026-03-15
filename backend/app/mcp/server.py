@@ -155,6 +155,14 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
 
 async def main():
+    # Validate API key at startup before accepting any connections
+    try:
+        _get_context()
+    except ValueError as e:
+        import sys
+        sys.stderr.write(f"ERROR: {e}\n")
+        sys.exit(1)
+
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
