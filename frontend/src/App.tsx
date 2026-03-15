@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import ProjectList from './pages/ProjectList';
 import ProjectDetail from './pages/ProjectDetail';
 import ObjectExplorer from './pages/ObjectExplorer';
+import AssetList from './pages/AssetList';
 import MainLayout from './components/Layout/MainLayout';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -26,6 +27,7 @@ const App: React.FC = () => {
           <Route path="projects" element={<ProjectList />} />
           <Route path="projects/:id" element={<ProjectDetail />} />
           <Route path="projects/:id/explorer" element={<ObjectExplorer />} />
+          <Route path="projects/:id/assets" element={<AssetList />} />
         </Route>
       </Routes>
     </BrowserRouter>

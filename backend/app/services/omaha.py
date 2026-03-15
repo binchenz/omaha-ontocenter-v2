@@ -69,6 +69,53 @@ class OmahaService:
                 "error": str(e),
             }
 
+    def get_relationships(
+        self, config_yaml: str, object_type: str
+    ) -> List[Dict[str, Any]]:
+        """Get available relationships for an object type."""
+        try:
+            # Parse config
+            result = self.parse_config(config_yaml)
+            if not result["valid"]:
+                return []
+
+            config_dict = result["config"]
+            ontology = config_dict.get("ontology", {})
+            relationships = ontology.get("relationships", [])
+
+            # Filter relationships where object_type is either from_object or to_object
+            available_relationships = []
+            for rel in relationships:
+                if rel.get("from_object") == object_type:
+                    available_relationships.append({
+                        "name": rel.get("name"),
+                        "description": rel.get("description", ""),
+                        "from_object": rel.get("from_object"),
+                        "to_object": rel.get("to_object"),
+                        "type": rel.get("type"),
+                        "join_condition": rel.get("join_condition"),
+                        "direction": "forward"
+                    })
+                elif rel.get("to_object") == object_type:
+                    # Reverse relationship
+                    available_relationships.append({
+                        "name": rel.get("name"),
+                        "description": rel.get("description", ""),
+                        "from_object": rel.get("to_object"),
+                        "to_object": rel.get("from_object"),
+                        "type": rel.get("type"),
+                        "join_condition": {
+                            "from_field": rel.get("join_condition", {}).get("to_field"),
+                            "to_field": rel.get("join_condition", {}).get("from_field")
+                        },
+                        "direction": "reverse"
+                    })
+
+            return available_relationships
+
+        except Exception as e:
+            return []
+
     def get_object_schema(
         self, config_yaml: str, object_type: str
     ) -> Dict[str, Any]:
@@ -115,12 +162,64 @@ class OmahaService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def _build_join_clause(
+        self,
+        joins: List[Dict[str, Any]],
+        relationships: List[Dict[str, Any]],
+        objects: List[Dict[str, Any]]
+    ) -> str:
+        """Build JOIN clause from join configurations."""
+        if not joins:
+            return ""
+
+        join_clauses = []
+        for join_config in joins:
+            relationship_name = join_config.get("relationship_name")
+            join_type = join_config.get("join_type", "LEFT").upper()
+
+            # Find the relationship
+            relationship = None
+            for rel in relationships:
+                if rel.get("name") == relationship_name:
+                    relationship = rel
+                    break
+
+            if not relationship:
+                continue
+
+            # Get table names
+            to_object_name = relationship.get("to_object")
+            to_object = None
+            for obj in objects:
+                if obj.get("name") == to_object_name:
+                    to_object = obj
+                    break
+
+            if not to_object:
+                continue
+
+            to_table = to_object.get("table")
+            join_condition = relationship.get("join_condition", {})
+            from_field = join_condition.get("from_field")
+            to_field = join_condition.get("to_field")
+
+            if not all([to_table, from_field, to_field]):
+                continue
+
+            # Build JOIN clause
+            from_object_name = relationship.get("from_object")
+            join_clause = f"{join_type} JOIN {to_table} AS {to_object_name} ON {from_object_name}.{from_field} = {to_object_name}.{to_field}"
+            join_clauses.append(join_clause)
+
+        return " ".join(join_clauses)
+
     def query_objects(
         self,
         config_yaml: str,
         object_type: str,
         selected_columns: Optional[List[str]] = None,
         filters: Optional[List[Dict[str, Any]]] = None,
+        joins: Optional[List[Dict[str, Any]]] = None,
         limit: int = 100,
     ) -> Dict[str, Any]:
         """Query objects using Omaha Core."""
@@ -167,14 +266,17 @@ class OmahaService:
             ds_type = ds_config.get("type")
             table_name = obj_def.get("table")
 
+            # Get relationships for JOIN support
+            relationships = ontology.get("relationships", [])
+
             # Connect to database based on type
             if ds_type == "sqlite":
                 data = self._query_sqlite(
-                    ds_config, table_name, selected_columns, filters, limit
+                    ds_config, table_name, object_type, selected_columns, filters, joins, relationships, objects, limit
                 )
             elif ds_type == "mysql":
                 data = self._query_mysql(
-                    ds_config, table_name, selected_columns, filters, limit
+                    ds_config, table_name, object_type, selected_columns, filters, joins, relationships, objects, limit
                 )
             else:
                 return {
@@ -229,8 +331,12 @@ class OmahaService:
         self,
         ds_config: Dict[str, Any],
         table_name: str,
+        object_type: str,
         selected_columns: Optional[List[str]],
         filters: Optional[List[Dict[str, Any]]],
+        joins: Optional[List[Dict[str, Any]]],
+        relationships: List[Dict[str, Any]],
+        objects: List[Dict[str, Any]],
         limit: int,
     ) -> List[Dict[str, Any]]:
         """Query SQLite database."""
@@ -256,8 +362,14 @@ class OmahaService:
         else:
             columns_str = "*"
 
-        query = f"SELECT {columns_str} FROM {table_name}"
+        query = f"SELECT {columns_str} FROM {table_name} AS {object_type}"
         params = []
+
+        # Add JOIN clauses
+        if joins:
+            join_clause = self._build_join_clause(joins, relationships, objects)
+            if join_clause:
+                query += f" {join_clause}"
 
         # Build WHERE clause from filters
         if filters:
@@ -283,8 +395,12 @@ class OmahaService:
         self,
         ds_config: Dict[str, Any],
         table_name: str,
+        object_type: str,
         selected_columns: Optional[List[str]],
         filters: Optional[List[Dict[str, Any]]],
+        joins: Optional[List[Dict[str, Any]]],
+        relationships: List[Dict[str, Any]],
+        objects: List[Dict[str, Any]],
         limit: int,
     ) -> List[Dict[str, Any]]:
         """Query MySQL database."""
@@ -308,8 +424,14 @@ class OmahaService:
         else:
             columns_str = "*"
 
-        query = f"SELECT {columns_str} FROM {table_name}"
+        query = f"SELECT {columns_str} FROM {table_name} AS {object_type}"
         params = []
+
+        # Add JOIN clauses
+        if joins:
+            join_clause = self._build_join_clause(joins, relationships, objects)
+            if join_clause:
+                query += f" {join_clause}"
 
         # Build WHERE clause from filters
         if filters:

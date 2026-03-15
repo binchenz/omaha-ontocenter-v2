@@ -36,6 +36,7 @@ class QueryObjectsRequest(BaseModel):
     object_type: str
     selected_columns: Optional[List[str]] = None  # 新增：列选择
     filters: Optional[List[Dict[str, Any]]] = None  # 修改为 List
+    joins: Optional[List[Dict[str, Any]]] = None  # Phase 2.1: JOIN support
     limit: int = 100
 
 
@@ -46,6 +47,47 @@ class QueryObjectsResponse(BaseModel):
     data: Optional[List[Dict[str, Any]]] = None
     count: Optional[int] = None
     error: Optional[str] = None
+
+
+@router.get("/{project_id}/relationships/{object_type}")
+async def get_relationships(
+    project_id: int,
+    object_type: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Get available relationships for an object type."""
+    # Get project
+    project = db.query(Project).filter(Project.id == project_id).first()
+
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    if project.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+
+    if not project.omaha_config:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project has no Omaha configuration",
+        )
+
+    try:
+        relationships = omaha_service.get_relationships(
+            project.omaha_config, object_type
+        )
+        return {"relationships": relationships}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get relationships: {str(e)}",
+        )
 
 
 @router.post("/{project_id}/query", response_model=QueryObjectsResponse)
@@ -83,6 +125,7 @@ async def query_objects(
         request.object_type,
         request.selected_columns,
         request.filters,
+        request.joins,
         request.limit,
     )
 

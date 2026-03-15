@@ -7,6 +7,7 @@ export const queryService = {
     objectType: string,
     selectedColumns?: string[],
     filters?: Array<{ field: string; operator: string; value: string }>,
+    joins?: Array<{ relationship_name: string; join_type: string }>,
     limit: number = 100
   ): Promise<{
     success: boolean;
@@ -18,8 +19,27 @@ export const queryService = {
       object_type: objectType,
       selected_columns: selectedColumns,
       filters,
+      joins,
       limit,
     });
+    return response.data;
+  },
+
+  async getRelationships(
+    projectId: number,
+    objectType: string
+  ): Promise<{
+    relationships: Array<{
+      name: string;
+      description: string;
+      from_object: string;
+      to_object: string;
+      type: string;
+      join_condition: { from_field: string; to_field: string };
+      direction: string;
+    }>;
+  }> {
+    const response = await api.get(`/query/${projectId}/relationships/${objectType}`);
     return response.data;
   },
 
