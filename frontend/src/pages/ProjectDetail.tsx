@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Tabs, Button, message, Space } from 'antd';
-import { SaveOutlined } from '@ant-design/icons';
+import { SaveOutlined, MessageOutlined, DatabaseOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { projectService } from '@/services/project';
 import { ontologyService } from '@/services/ontology';
 import { Project } from '@/types';
 import CodeMirror from '@uiw/react-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
 import ObjectExplorer from './ObjectExplorer';
+import AssetList from './AssetList';
+import { ChatAgent } from './ChatAgent';
 
 const { TabPane } = Tabs;
 
@@ -126,8 +128,14 @@ const ProjectDetail: React.FC = () => {
             onChange={(value) => setConfig(value)}
           />
         </TabPane>
-        <TabPane tab="Explorer" key="explorer">
+        <TabPane tab={<span><AppstoreOutlined /> Explorer</span>} key="explorer">
           <ObjectExplorer projectId={projectId} />
+        </TabPane>
+        <TabPane tab={<span><DatabaseOutlined /> 资产</span>} key="assets">
+          <AssetList />
+        </TabPane>
+        <TabPane tab={<span><MessageOutlined /> Chat</span>} key="chat">
+          {projectId && <ChatAgent />}
         </TabPane>
       </Tabs>
     </Card>
