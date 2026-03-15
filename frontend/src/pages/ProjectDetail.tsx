@@ -135,7 +135,7 @@ const ProjectDetail: React.FC = () => {
           <AssetList />
         </TabPane>
         <TabPane tab={<span><MessageOutlined /> Chat</span>} key="chat">
-          {projectId && <ChatAgent />}
+          {projectId && <ChatAgent projectIdProp={projectId} />}
         </TabPane>
       </Tabs>
     </Card>

@@ -20,8 +20,9 @@ import { DataTable } from '@/components/chat/DataTable';
 import { ChartRenderer } from '@/components/chat/ChartRenderer';
 import type { ChatMessage as ChatMessageType, SendMessageResponse } from '@/types/chat';
 
-export const ChatAgent: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+export const ChatAgent: React.FC<{ projectIdProp?: number }> = ({ projectIdProp }) => {
+  const { projectId: projectIdParam } = useParams<{ projectId: string }>();
+  const projectId = projectIdProp ? String(projectIdProp) : projectIdParam;
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [input, setInput] = useState('');
