@@ -1,33 +1,9 @@
 import api from './api';
+import { Asset } from '../types';
 
-export interface Asset {
-  id: number;
-  project_id: number;
-  name: string;
-  description?: string;
-  query_config: {
-    object_type: string;
-    selected_columns?: string[];
-    filters?: Array<{ field: string; operator: string; value: string }>;
-    joins?: Array<{ relationship_name: string; join_type: string }>;
-  };
-  row_count?: number;
-  created_by: number;
-  created_at: string;
-  updated_at?: string;
-}
+export type { Asset };
 
-export interface SaveAssetRequest {
-  name: string;
-  description?: string;
-  query_config: {
-    object_type: string;
-    selected_columns?: string[];
-    filters?: Array<{ field: string; operator: string; value: string }>;
-    joins?: Array<{ relationship_name: string; join_type: string }>;
-  };
-  row_count?: number;
-}
+export type SaveAssetRequest = Pick<Asset, 'name' | 'description' | 'query_config' | 'row_count'>;
 
 export interface AssetLineage {
   upstream: Array<{

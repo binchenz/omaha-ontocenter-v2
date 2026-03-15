@@ -2,7 +2,7 @@
 Project management endpoints.
 """
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -12,9 +12,8 @@ from app.schemas.project import (
     Project as ProjectSchema,
     ProjectCreate,
     ProjectUpdate,
-    ProjectWithOwner,
 )
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_project_for_owner
 
 router = APIRouter()
 
@@ -65,21 +64,7 @@ def get_project(
     current_user: User = Depends(get_current_user),
 ):
     """Get a specific project."""
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    return project
+    return get_project_for_owner(project_id, current_user, db)
 
 
 @router.put("/{project_id}", response_model=ProjectSchema)
@@ -90,21 +75,8 @@ def update_project(
     current_user: User = Depends(get_current_user),
 ):
     """Update a project."""
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = get_project_for_owner(project_id, current_user, db)
 
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
-    # Update fields
     update_data = project_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(project, field, value)
@@ -122,20 +94,7 @@ def delete_project(
     current_user: User = Depends(get_current_user),
 ):
     """Delete a project."""
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
-
+    project = get_project_for_owner(project_id, current_user, db)
     db.delete(project)
     db.commit()
 

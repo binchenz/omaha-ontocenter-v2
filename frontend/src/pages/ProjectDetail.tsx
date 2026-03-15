@@ -13,6 +13,7 @@ const { TabPane } = Tabs;
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const projectId = id ? parseInt(id) : undefined;
   const [project, setProject] = useState<Project | null>(null);
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,10 +24,10 @@ const ProjectDetail: React.FC = () => {
   }, [id]);
 
   const loadProject = async () => {
-    if (!id) return;
+    if (!projectId) return;
     setLoading(true);
     try {
-      const data = await projectService.get(parseInt(id));
+      const data = await projectService.get(projectId);
       setProject(data);
       setConfig(data.omaha_config || '');
     } catch (error: any) {
@@ -37,10 +38,10 @@ const ProjectDetail: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!id) return;
+    if (!projectId) return;
     setLoading(true);
     try {
-      await projectService.update(parseInt(id), { omaha_config: config });
+      await projectService.update(projectId, { omaha_config: config });
       message.success('Configuration saved successfully');
       loadProject();
     } catch (error: any) {
@@ -122,7 +123,7 @@ const ProjectDetail: React.FC = () => {
           />
         </TabPane>
         <TabPane tab="Explorer" key="explorer">
-          <ObjectExplorer projectId={id ? parseInt(id) : undefined} />
+          <ObjectExplorer projectId={projectId} />
         </TabPane>
       </Tabs>
     </Card>

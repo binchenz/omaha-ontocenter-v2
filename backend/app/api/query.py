@@ -11,7 +11,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.project import Project
 from app.models.query_history import QueryHistory
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_project_for_owner
 from app.services.omaha import omaha_service
 
 router = APIRouter()
@@ -28,16 +28,6 @@ def convert_decimals(obj):
     return obj
 
 
-def _get_project(project_id: int, current_user: User, db: Session) -> Project:
-    """Fetch project and verify ownership, raising HTTP errors on failure."""
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-    return project
-
-
 def _require_config(project: Project) -> str:
     """Return omaha_config or raise 400 if missing."""
     if not project.omaha_config:
@@ -52,9 +42,9 @@ class QueryObjectsRequest(BaseModel):
     """Request schema for querying objects."""
 
     object_type: str
-    selected_columns: Optional[List[str]] = None  # 新增：列选择
-    filters: Optional[List[Dict[str, Any]]] = None  # 修改为 List
-    joins: Optional[List[Dict[str, Any]]] = None  # Phase 2.1: JOIN support
+    selected_columns: Optional[List[str]] = None
+    filters: Optional[List[Dict[str, Any]]] = None
+    joins: Optional[List[Dict[str, Any]]] = None
     limit: int = 100
 
 
@@ -75,7 +65,7 @@ async def get_relationships(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Get available relationships for an object type."""
-    project = _get_project(project_id, current_user, db)
+    project = get_project_for_owner(project_id, current_user, db)
     config = _require_config(project)
     try:
         relationships = omaha_service.get_relationships(config, object_type)
@@ -95,7 +85,7 @@ async def query_objects(
     current_user: User = Depends(get_current_user),
 ):
     """Query objects from a project."""
-    project = _get_project(project_id, current_user, db)
+    project = get_project_for_owner(project_id, current_user, db)
     config = _require_config(project)
 
     result = omaha_service.query_objects(
@@ -130,7 +120,7 @@ async def list_object_types(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """List available object types in a project."""
-    project = _get_project(project_id, current_user, db)
+    project = get_project_for_owner(project_id, current_user, db)
 
     if not project.omaha_config:
         return {"objects": []}
@@ -154,7 +144,7 @@ async def get_object_schema(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Get schema (columns) for an object type."""
-    project = _get_project(project_id, current_user, db)
+    project = get_project_for_owner(project_id, current_user, db)
     config = _require_config(project)
 
     result = omaha_service.get_object_schema(config, object_type)
@@ -175,7 +165,7 @@ async def get_query_history(
     current_user: User = Depends(get_current_user),
 ) -> List[Dict[str, Any]]:
     """Get query history for a project."""
-    _get_project(project_id, current_user, db)
+    get_project_for_owner(project_id, current_user, db)
 
     history = (
         db.query(QueryHistory)

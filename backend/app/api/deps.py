@@ -1,7 +1,7 @@
 """
 API dependencies for authentication and database.
 """
-from typing import Generator, Optional
+from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
+from app.models.project import Project
 
 security = HTTPBearer()
 
@@ -68,3 +69,13 @@ def get_current_active_superuser(
             detail="Not enough permissions",
         )
     return current_user
+
+
+def get_project_for_owner(project_id: int, current_user: User, db: Session) -> Project:
+    """Fetch project and verify ownership, raising HTTP errors on failure."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
+    return project

@@ -1,34 +1,21 @@
 """
 Asset management endpoints for Phase 2.2.
 """
-from typing import List, Dict, Any
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
-from app.models.project import Project
 from app.models.asset import DatasetAsset, DataLineage
 from app.schemas.asset import (
     Asset as AssetSchema,
     AssetCreate,
-    AssetUpdate,
-    AssetWithLineage,
     Lineage as LineageSchema,
 )
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_project_for_owner
 
 router = APIRouter()
-
-
-def _get_project(project_id: int, current_user: User, db: Session) -> Project:
-    """Fetch project and verify ownership, raising HTTP errors on failure."""
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-    return project
 
 
 def _get_asset(asset_id: int, project_id: int, db: Session) -> DatasetAsset:
@@ -51,9 +38,8 @@ def save_asset(
     current_user: User = Depends(get_current_user),
 ):
     """Save query as asset."""
-    _get_project(project_id, current_user, db)
+    get_project_for_owner(project_id, current_user, db)
 
-    # Create asset
     asset = DatasetAsset(
         project_id=project_id,
         name=asset_in.name,
@@ -66,13 +52,9 @@ def save_asset(
         created_by=current_user.id,
     )
     db.add(asset)
-    db.flush()  # Get asset ID before creating lineage
+    db.flush()
 
-    # Create lineage records
-    lineage_records = []
-
-    # Base table lineage
-    lineage_records.append(
+    lineage_records = [
         DataLineage(
             asset_id=asset.id,
             lineage_type="query",
@@ -84,29 +66,22 @@ def save_asset(
                 "filters": asset_in.filters or [],
             },
         )
-    )
+    ] + [
+        DataLineage(
+            asset_id=asset.id,
+            lineage_type="join",
+            source_type="table",
+            source_id=join.get("target_object"),
+            source_name=join.get("target_object"),
+            transformation={
+                "relationship": join.get("relationship"),
+                "join_type": join.get("join_type"),
+            },
+        )
+        for join in (asset_in.joins or [])
+    ]
 
-    # Join lineage
-    if asset_in.joins:
-        for join in asset_in.joins:
-            lineage_records.append(
-                DataLineage(
-                    asset_id=asset.id,
-                    lineage_type="join",
-                    source_type="table",
-                    source_id=join.get("target_object"),
-                    source_name=join.get("target_object"),
-                    transformation={
-                        "relationship": join.get("relationship"),
-                        "join_type": join.get("join_type"),
-                    },
-                )
-            )
-
-    # Add all lineage records
-    for lineage in lineage_records:
-        db.add(lineage)
-
+    db.add_all(lineage_records)
     db.commit()
     db.refresh(asset)
 
@@ -122,7 +97,7 @@ def list_assets(
     current_user: User = Depends(get_current_user),
 ):
     """List all assets for a project."""
-    _get_project(project_id, current_user, db)
+    get_project_for_owner(project_id, current_user, db)
 
     assets = (
         db.query(DatasetAsset)
@@ -144,7 +119,7 @@ def get_asset(
     current_user: User = Depends(get_current_user),
 ):
     """Get asset details."""
-    _get_project(project_id, current_user, db)
+    get_project_for_owner(project_id, current_user, db)
     return _get_asset(asset_id, project_id, db)
 
 
@@ -156,7 +131,7 @@ def delete_asset(
     current_user: User = Depends(get_current_user),
 ):
     """Delete an asset."""
-    _get_project(project_id, current_user, db)
+    get_project_for_owner(project_id, current_user, db)
     asset = _get_asset(asset_id, project_id, db)
     db.delete(asset)
     db.commit()
@@ -171,7 +146,7 @@ def get_asset_lineage(
     current_user: User = Depends(get_current_user),
 ):
     """Get lineage information for an asset."""
-    _get_project(project_id, current_user, db)
+    get_project_for_owner(project_id, current_user, db)
     _get_asset(asset_id, project_id, db)
 
     return (

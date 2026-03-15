@@ -1,0 +1,44 @@
+datasources:
+  - id: local_sqlite
+    type: sqlite
+    connection:
+      database: test_join.db
+
+ontology:
+  objects:
+    - name: Product
+      datasource: local_sqlite
+      table: products
+      primary_key: id
+      properties:
+        - name: id
+          column: id
+          type: integer
+        - name: name
+          column: name
+          type: string
+        - name: category_id
+          column: category_id
+          type: integer
+
+    - name: Category
+      datasource: local_sqlite
+      table: categories
+      primary_key: id
+      properties:
+        - name: id
+          column: id
+          type: integer
+        - name: category_name
+          column: category_name
+          type: string
+
+  relationships:
+    - name: product_to_category
+      description: "Product to Category relationship"
+      from_object: Product
+      to_object: Category
+      type: many_to_one
+      join_condition:
+        from_field: category_id
+        to_field: id

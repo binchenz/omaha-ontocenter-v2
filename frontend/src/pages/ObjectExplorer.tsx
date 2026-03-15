@@ -143,6 +143,13 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
     }
   };
 
+  const getValidFilters = () => filters.filter((f) => f.field && f.operator && f.value);
+
+  const getJoinPayload = () =>
+    joins.length > 0
+      ? joins.map((j) => ({ relationship_name: j.relationship_name, join_type: j.join_type }))
+      : undefined;
+
   const handleQuery = async () => {
     if (!projectId || !selectedType) return;
     if (selectedColumns.length === 0) {
@@ -156,8 +163,8 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
         projectId,
         selectedType,
         selectedColumns,
-        filters.filter((f) => f.field && f.operator && f.value),
-        joins.length > 0 ? joins.map(j => ({ relationship_name: j.relationship_name, join_type: j.join_type })) : undefined,
+        getValidFilters(),
+        getJoinPayload(),
         100
       );
 
@@ -228,7 +235,7 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
         query_config: {
           object_type: selectedType,
           selected_columns: selectedColumns,
-          filters: filters.filter((f) => f.field && f.operator && f.value),
+          filters: getValidFilters(),
           joins: joins.map((j) => ({
             relationship_name: j.relationship_name,
             join_type: j.join_type,
@@ -242,14 +249,6 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
     } catch (error: any) {
       message.error(error.response?.data?.detail || 'Failed to save asset');
     }
-  };
-
-  const selectAllColumns = () => {
-    setSelectedColumns(allColumns.map((col: Column) => col.name));
-  };
-
-  const clearAllColumns = () => {
-    setSelectedColumns([]);
   };
 
   if (objectTypes.length === 0) {
@@ -310,10 +309,10 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
               <Divider orientation="left">Select Columns</Divider>
               <div>
                 <Space style={{ marginBottom: 8 }}>
-                  <Button size="small" onClick={selectAllColumns}>
+                  <Button size="small" onClick={() => setSelectedColumns(allColumns.map((col) => col.name))}>
                     Select All
                   </Button>
-                  <Button size="small" onClick={clearAllColumns}>
+                  <Button size="small" onClick={() => setSelectedColumns([])}>
                     Clear All
                   </Button>
                 </Space>
