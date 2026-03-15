@@ -55,6 +55,13 @@ class ChatService:
             for obj_name, obj_meta in semantic_result["objects"].items():
                 agent_ctx = semantic_service.build_agent_context(obj_meta)
                 context_lines.append(f"### {obj_name}\n{agent_ctx}")
+
+            metrics = semantic_result.get("metrics", [])
+            if metrics:
+                context_lines.append("### 业务指标")
+                for m in metrics:
+                    context_lines.append(f"  - {m.get('name')} ({m.get('label', '')}): {m.get('description', '')} = {m.get('formula', '')}")
+
             return "\n\n".join(context_lines)
 
         # Fallback to basic ontology context
