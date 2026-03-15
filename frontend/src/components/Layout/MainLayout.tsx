@@ -2,7 +2,7 @@ import React from 'react';
 import { Layout, Menu } from 'antd';
 import { ProjectOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useNavigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 const { Header, Content } = Layout;
 

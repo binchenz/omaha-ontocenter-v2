@@ -9,13 +9,15 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.21.1",
+    "@ant-design/icons": "^5.2.6",
+    "@codemirror/lang-yaml": "^6.1.2",
+    "@uiw/react-codemirror": "^4.25.8",
     "antd": "^5.12.8",
     "axios": "^1.6.5",
     "dayjs": "^1.11.10",
-    "@ant-design/icons": "^5.2.6"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.48",

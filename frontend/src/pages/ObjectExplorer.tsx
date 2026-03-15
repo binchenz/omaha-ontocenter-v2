@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Select, Button, Table, message, Space, Form, Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
-import { queryService } from '../../services/query';
+import { queryService } from '@/services/query';
 
 const { Option } = Select;
 

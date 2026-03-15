@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Tabs, Button, message, Space } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
-import { projectService } from '../../services/project';
-import { ontologyService } from '../../services/ontology';
-import { Project } from '../../types';
+import { projectService } from '@/services/project';
+import { ontologyService } from '@/services/ontology';
+import { Project } from '@/types';
 import CodeMirror from '@uiw/react-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
 

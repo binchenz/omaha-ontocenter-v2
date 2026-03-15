@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Button, Table, Space, Modal, Form, Input, message, Card } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { projectService } from '../../services/project';
-import { Project } from '../../types';
+import { projectService } from '@/services/project';
+import { Project } from '@/types';
 
 const ProjectList: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
