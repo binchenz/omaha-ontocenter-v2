@@ -19,12 +19,22 @@ const ObjectExplorer: React.FC = () => {
   }, [id]);
 
   const loadObjectTypes = async () => {
-    if (!id) return;
+    if (!id) {
+      console.log('No project ID');
+      return;
+    }
+    console.log('Loading object types for project:', id);
     try {
       const result = await queryService.listObjectTypes(parseInt(id));
-      setObjectTypes(result.objects);
+      console.log('Object types loaded:', result);
+      setObjectTypes(result.objects || []);
+      if (!result.objects || result.objects.length === 0) {
+        message.warning('No object types found. Please configure the project ontology.');
+      }
     } catch (error: any) {
-      message.error('Failed to load object types');
+      console.error('Failed to load object types:', error);
+      console.error('Error response:', error.response);
+      message.error(`Failed to load object types: ${error.message}`);
     }
   };
 
@@ -60,38 +70,47 @@ const ObjectExplorer: React.FC = () => {
 
   return (
     <Card title="Object Explorer">
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        <Space>
-          <Select
-            style={{ width: 200 }}
-            placeholder="Select object type"
-            value={selectedType}
-            onChange={setSelectedType}
-          >
-            {objectTypes.map((type) => (
-              <Option key={type} value={type}>
-                {type}
-              </Option>
-            ))}
-          </Select>
-          <Button
-            type="primary"
-            icon={<SearchOutlined />}
-            onClick={() => handleQuery()}
-            disabled={!selectedType}
-          >
-            Query
-          </Button>
-        </Space>
+      {objectTypes.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <p>Object Explorer will be available here after configuration is saved.</p>
+          <p style={{ color: '#999', marginTop: '10px' }}>
+            Please configure the project's Omaha ontology to enable object exploration.
+          </p>
+        </div>
+      ) : (
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <Space>
+            <Select
+              style={{ width: 200 }}
+              placeholder="Select object type"
+              value={selectedType}
+              onChange={setSelectedType}
+            >
+              {objectTypes.map((type) => (
+                <Option key={type} value={type}>
+                  {type}
+                </Option>
+              ))}
+            </Select>
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
+              onClick={() => handleQuery()}
+              disabled={!selectedType}
+            >
+              Query
+            </Button>
+          </Space>
 
-        <Table
-          columns={columns}
-          dataSource={data}
-          loading={loading}
-          rowKey={(record, index) => index}
-          pagination={{ pageSize: 50 }}
-        />
-      </Space>
+          <Table
+            columns={columns}
+            dataSource={data}
+            loading={loading}
+            rowKey={(record, index) => index}
+            pagination={{ pageSize: 50 }}
+          />
+        </Space>
+      )}
     </Card>
   );
 };
