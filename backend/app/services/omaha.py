@@ -4,6 +4,7 @@ Omaha Core integration service - Simplified for Phase 1.
 from typing import Dict, Any, List, Optional
 import yaml
 import sqlite3
+import pymysql
 import os
 
 
@@ -116,68 +117,19 @@ class OmahaService:
                     "error": f"Datasource '{datasource_id}' not found"
                 }
 
-            # Only support SQLite for now
-            if ds_config.get("type") != "sqlite":
-                return {
-                    "success": False,
-                    "error": f"Unsupported datasource type: {ds_config.get('type')}"
-                }
-
-            # Get database path
-            db_path = ds_config.get("connection", {}).get("database")
-            if not db_path:
-                return {
-                    "success": False,
-                    "error": "Database path not specified"
-                }
-
-            # Make path absolute if relative
-            if not os.path.isabs(db_path):
-                db_path = os.path.abspath(db_path)
-
-            if not os.path.exists(db_path):
-                return {
-                    "success": False,
-                    "error": f"Database file not found: {db_path}"
-                }
-
-            # Query the database
+            ds_type = ds_config.get("type")
             table_name = obj_def.get("table")
 
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
-            # Build query
-            query = f"SELECT * FROM {table_name}"
-
-            # Add filters if provided (filters is a dict of field: value)
-            params = []
-            if filters:
-                conditions = []
-                for field, value in filters.items():
-                    conditions.append(f"{field} = ?")
-                    params.append(value)
-
-                if conditions:
-                    query += " WHERE " + " AND ".join(conditions)
-
-            query += f" LIMIT {limit}"
-
-            # Execute query
-            if params:
-                cursor.execute(query, params)
+            # Connect to database based on type
+            if ds_type == "sqlite":
+                data = self._query_sqlite(ds_config, table_name, filters, limit)
+            elif ds_type == "mysql":
+                data = self._query_mysql(ds_config, table_name, filters, limit)
             else:
-                cursor.execute(query)
-
-            rows = cursor.fetchall()
-
-            # Convert to list of dicts
-            data = []
-            for row in rows:
-                data.append(dict(row))
-
-            conn.close()
+                return {
+                    "success": False,
+                    "error": f"Unsupported datasource type: {ds_type}"
+                }
 
             return {
                 "success": True,
@@ -190,6 +142,114 @@ class OmahaService:
                 "success": False,
                 "error": str(e),
             }
+
+    def _query_sqlite(
+        self,
+        ds_config: Dict[str, Any],
+        table_name: str,
+        filters: Optional[Dict[str, Any]],
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        """Query SQLite database."""
+        # Get database path
+        db_path = ds_config.get("connection", {}).get("database")
+        if not db_path:
+            raise ValueError("Database path not specified")
+
+        # Make path absolute if relative
+        if not os.path.isabs(db_path):
+            db_path = os.path.abspath(db_path)
+
+        if not os.path.exists(db_path):
+            raise ValueError(f"Database file not found: {db_path}")
+
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Build query
+        query = f"SELECT * FROM {table_name}"
+        params = []
+
+        if filters:
+            conditions = []
+            for field, value in filters.items():
+                conditions.append(f"{field} = ?")
+                params.append(value)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+        query += f" LIMIT {limit}"
+
+        # Execute query
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+
+        rows = cursor.fetchall()
+        data = [dict(row) for row in rows]
+        conn.close()
+
+        return data
+
+    def _query_mysql(
+        self,
+        ds_config: Dict[str, Any],
+        table_name: str,
+        filters: Optional[Dict[str, Any]],
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        """Query MySQL database."""
+        connection_config = ds_config.get("connection", {})
+
+        conn = pymysql.connect(
+            host=connection_config.get("host"),
+            port=connection_config.get("port", 3306),
+            user=connection_config.get("user"),
+            password=connection_config.get("password"),
+            database=connection_config.get("database"),
+            connect_timeout=10,
+            charset='utf8mb4'
+        )
+
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+        # Build query
+        query = f"SELECT * FROM {table_name}"
+        params = []
+
+        if filters:
+            conditions = []
+            for field, value in filters.items():
+                conditions.append(f"{field} = %s")
+                params.append(value)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+        query += f" LIMIT {limit}"
+
+        # Execute query
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+
+        rows = cursor.fetchall()
+
+        # Convert datetime/date objects to strings
+        data = []
+        for row in rows:
+            converted_row = {}
+            for key, value in row.items():
+                if hasattr(value, 'isoformat'):
+                    converted_row[key] = value.isoformat()
+                else:
+                    converted_row[key] = value
+            data.append(converted_row)
+
+        conn.close()
+        return data
 
     def analyze_pricing(
         self, config_yaml: str, object_type: str

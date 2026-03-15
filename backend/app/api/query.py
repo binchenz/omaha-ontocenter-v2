@@ -5,6 +5,8 @@ from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import json
+from decimal import Decimal
 
 from app.database import get_db
 from app.models.user import User
@@ -14,6 +16,18 @@ from app.api.deps import get_current_user
 from app.services.omaha import omaha_service
 
 router = APIRouter()
+
+
+def convert_decimals(obj):
+    """Convert Decimal objects to float for JSON serialization."""
+    if isinstance(obj, list):
+        return [convert_decimals(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_decimals(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    else:
+        return obj
 
 
 class QueryObjectsRequest(BaseModel):
@@ -70,13 +84,16 @@ async def query_objects(
         request.limit,
     )
 
+    # Convert Decimal objects before saving to database
+    result_data_converted = convert_decimals(result.get("data"))
+
     # Save to query history
     query_history = QueryHistory(
         project_id=project_id,
         user_id=current_user.id,
         natural_language_query=f"Query {request.object_type}",
         object_type=request.object_type,
-        result_data=result.get("data"),
+        result_data=result_data_converted,
         result_count=result.get("count"),
         status="success" if result.get("success") else "error",
         error_message=result.get("error"),
