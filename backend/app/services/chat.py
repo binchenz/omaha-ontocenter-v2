@@ -193,7 +193,7 @@ class ChatService:
                 "type": "function",
                 "function": {
                     "name": "query_data",
-                    "description": "执行数据查询，支持列选择、过滤和 JOIN",
+                    "description": "执行数据查询，支持列选择、过滤和 JOIN。重要：统计分析时必须使用聚合函数（SUM/AVG/COUNT），不要查询明细数据",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -324,7 +324,7 @@ class ChatService:
                     tool_args.get("selected_columns"),
                     tool_args.get("filters"),
                     tool_args.get("joins"),
-                    tool_args.get("limit", 100)
+                    tool_args.get("limit", 20)  # Reduced from 100 to avoid timeout
                 )
                 return result
 
