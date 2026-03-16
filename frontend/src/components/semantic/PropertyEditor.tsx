@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Table, Button, Select, Input, Typography, Divider } from 'antd';
+import { Card, Table, Button, Select, Input, Typography, Divider, Tag, Space } from 'antd';
 import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { SemanticObject } from '../../types/semantic';
 import FormulaBuilder from './FormulaBuilder';
 
 const { Text } = Typography;
+const { TextArea } = Input;
 
 interface PropertyEditorProps {
   objectName: string;
@@ -24,15 +25,66 @@ const SEMANTIC_TYPES = [
   { value: 'text', label: '文本' },
 ];
 
+const GRANULARITY_LEVELS = [
+  { value: 'master_data', label: '主数据' },
+  { value: 'city_level', label: '城市级' },
+  { value: 'store_level', label: '门店级' },
+  { value: 'transaction', label: '交易级' },
+];
+
 const PropertyEditor: React.FC<PropertyEditorProps> = ({
   objectName, objectMeta, projectId: _projectId, onTestFormula, onChange
 }) => {
   const [formulaBuilderOpen, setFormulaBuilderOpen] = useState(false);
   const [editingComputed, setEditingComputed] = useState<string | null>(null);
+  const [addingDimension, setAddingDimension] = useState(false);
+  const [newDimension, setNewDimension] = useState('');
 
   if (!objectMeta) {
     return <Card><Text type="secondary">请从左侧选择一个对象</Text></Card>;
   }
+
+  // Initialize granularity if not exists
+  const granularity = objectMeta.granularity || { dimensions: [], level: '', description: '' };
+
+  const updateObjectInfo = (field: string, value: any) => {
+    const updated = { ...objectMeta, [field]: value };
+    onChange(updated);
+  };
+
+  const updateGranularity = (field: string, value: any) => {
+    const updated = {
+      ...objectMeta,
+      granularity: { ...granularity, [field]: value },
+    };
+    onChange(updated);
+  };
+
+  const addDimension = () => {
+    if (newDimension.trim()) {
+      const updated = {
+        ...objectMeta,
+        granularity: {
+          ...granularity,
+          dimensions: [...granularity.dimensions, newDimension.trim()],
+        },
+      };
+      onChange(updated);
+      setNewDimension('');
+      setAddingDimension(false);
+    }
+  };
+
+  const removeDimension = (dimension: string) => {
+    const updated = {
+      ...objectMeta,
+      granularity: {
+        ...granularity,
+        dimensions: granularity.dimensions.filter(d => d !== dimension),
+      },
+    };
+    onChange(updated);
+  };
 
   const updateBaseProperty = (propName: string, field: string, value: any) => {
     const updated = {
@@ -111,6 +163,87 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
 
   return (
     <div style={{ padding: 16 }}>
+      <Card title={<Text strong>对象信息</Text>} size="small" style={{ marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div>
+            <Text strong>描述：</Text>
+            <Input
+              value={objectMeta.description || ''}
+              placeholder="对象描述"
+              onChange={e => updateObjectInfo('description', e.target.value)}
+              style={{ marginTop: 8 }}
+            />
+          </div>
+          <div>
+            <Text strong>业务上下文：</Text>
+            <TextArea
+              value={objectMeta.business_context || ''}
+              placeholder="业务上下文说明"
+              rows={3}
+              onChange={e => updateObjectInfo('business_context', e.target.value)}
+              style={{ marginTop: 8 }}
+            />
+          </div>
+        </Space>
+      </Card>
+
+      <Card title={<Text strong>粒度信息</Text>} size="small" style={{ marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div>
+            <Text strong>维度：</Text>
+            <div style={{ marginTop: 8 }}>
+              <Space wrap>
+                {granularity.dimensions.map(dim => (
+                  <Tag key={dim} closable onClose={() => removeDimension(dim)}>
+                    {dim}
+                  </Tag>
+                ))}
+                {addingDimension ? (
+                  <Input
+                    size="small"
+                    style={{ width: 120 }}
+                    value={newDimension}
+                    onChange={e => setNewDimension(e.target.value)}
+                    onPressEnter={addDimension}
+                    onBlur={() => {
+                      addDimension();
+                      setAddingDimension(false);
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <Tag
+                    style={{ borderStyle: 'dashed', cursor: 'pointer' }}
+                    onClick={() => setAddingDimension(true)}
+                  >
+                    <PlusOutlined /> 添加维度
+                  </Tag>
+                )}
+              </Space>
+            </div>
+          </div>
+          <div>
+            <Text strong>级别：</Text>
+            <Select
+              value={granularity.level || undefined}
+              placeholder="选择粒度级别"
+              style={{ width: '100%', marginTop: 8 }}
+              options={GRANULARITY_LEVELS}
+              onChange={val => updateGranularity('level', val)}
+            />
+          </div>
+          <div>
+            <Text strong>描述：</Text>
+            <Input
+              value={granularity.description || ''}
+              placeholder="粒度描述"
+              onChange={e => updateGranularity('description', e.target.value)}
+              style={{ marginTop: 8 }}
+            />
+          </div>
+        </Space>
+      </Card>
+
       <Card title={<><Text strong>{objectName}</Text> — 基础字段</>} size="small">
         <Table columns={baseColumns} dataSource={baseData} pagination={false} size="small" />
       </Card>

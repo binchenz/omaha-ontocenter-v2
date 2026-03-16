@@ -1,0 +1,394 @@
+[
+  {
+    "scenario": "场景1：毛利率分析",
+    "question": "哪些商品的毛利率低于20%？",
+    "expectations": {
+      "understands_query": true,
+      "generates_sql": true,
+      "queries_objects": [
+        "Product"
+      ],
+      "returns_results": true
+    },
+    "success": false,
+    "response_time": 21.79,
+    "agent_response": {
+      "message": "抱歉，处理超时。",
+      "data_table": [
+        {
+          "sku_id": 54,
+          "sku_name": "娃哈哈AD钙奶220ml*24瓶/箱",
+          "product_name": "AD钙奶",
+          "ppy_price": "35.500000",
+          "ppy_current_cost": "31.000000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 56,
+          "sku_name": "百事可乐七喜柠檬味碳酸汽水饮料2L*6瓶/箱",
+          "product_name": "七喜柠檬味碳酸汽水饮料",
+          "ppy_price": "32.500000",
+          "ppy_current_cost": "26.350000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 58,
+          "sku_name": "康师傅茉莉蜜茶1L*12瓶/箱",
+          "product_name": "茉莉蜜茶",
+          "ppy_price": "37.880000",
+          "ppy_current_cost": "37.000000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 68,
+          "sku_name": "百事可乐七喜柠檬味碳酸汽水普罐330ml*24罐/箱",
+          "product_name": "七喜柠檬味碳酸汽水普罐",
+          "ppy_price": "41.000000",
+          "ppy_current_cost": "30.000000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 70,
+          "sku_name": "可口可乐普罐330ml*24罐/箱",
+          "product_name": "普罐",
+          "ppy_price": "38.000000",
+          "ppy_current_cost": "37.050000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 76,
+          "sku_name": "农夫山泉东方树叶红茶500ml*15瓶/箱",
+          "product_name": "东方树叶红茶",
+          "ppy_price": "55.000000",
+          "ppy_current_cost": "47.500000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 77,
+          "sku_name": "农夫山泉东方树叶绿茶500ml*15瓶/箱",
+          "product_name": "东方树叶绿茶",
+          "ppy_price": "55.000000",
+          "ppy_current_cost": "48.500000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 84,
+          "sku_name": "脉动青柠味维生素饮料600ml*15瓶/箱",
+          "product_name": "青柠味维生素饮料",
+          "ppy_price": "53.000000",
+          "ppy_current_cost": "47.000000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 86,
+          "sku_name": "脉动水蜜桃味维生素饮料600ml*15瓶/箱",
+          "product_name": "水蜜桃味维生素饮料",
+          "ppy_price": "48.500000",
+          "ppy_current_cost": "46.000000",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_id": 86,
+          "sku_name": "脉动水蜜桃味维生素饮料600ml*15瓶/箱",
+          "product_name": "水蜜桃味维生素饮料",
+          "ppy_price": "50.990000",
+          "ppy_current_cost": "46.000000",
+          "on_sell_status": "1"
+        }
+      ],
+      "chart_config": null,
+      "sql": "SELECT Product.sku_id, Product.sku_name, Product.product_name, Product.ppy_price, Product.ppy_current_cost, Product.on_sell_status FROM dm_ppy_product_info_ymd AS Product LIMIT 10"
+    },
+    "sql_queries": [],
+    "errors": [],
+    "validation": {
+      "understands_query": false,
+      "generates_sql": false,
+      "queries_objects": false,
+      "returns_results": false
+    }
+  },
+  {
+    "scenario": "场景2：竞对价格对比",
+    "question": "北京地区，哪些商品比京东贵？",
+    "expectations": {
+      "understands_query": true,
+      "generates_sql": true,
+      "returns_results": true
+    },
+    "success": false,
+    "response_time": 21.39,
+    "agent_response": {
+      "message": "抱歉，处理超时。",
+      "data_table": null,
+      "chart_config": null,
+      "sql": null
+    },
+    "sql_queries": [],
+    "errors": [],
+    "validation": {
+      "understands_query": false,
+      "generates_sql": false,
+      "returns_results": false
+    }
+  },
+  {
+    "scenario": "场景3：品类销售分析",
+    "question": "各品类的销售额排名如何？",
+    "expectations": {
+      "understands_query": true,
+      "generates_sql": true,
+      "returns_results": true
+    },
+    "success": false,
+    "response_time": 15.65,
+    "agent_response": {
+      "message": "抱歉，处理超时。",
+      "data_table": null,
+      "chart_config": null,
+      "sql": null
+    },
+    "sql_queries": [],
+    "errors": [],
+    "validation": {
+      "understands_query": false,
+      "generates_sql": false,
+      "returns_results": false
+    }
+  },
+  {
+    "scenario": "场景4：价格预警查询",
+    "question": "有多少高优先级的价格预警待处理？",
+    "expectations": {
+      "understands_query": true,
+      "generates_sql": true,
+      "queries_objects": [
+        "PriceAlert"
+      ],
+      "returns_results": true
+    },
+    "success": false,
+    "response_time": 17.2,
+    "agent_response": {
+      "message": "抱歉，处理超时。",
+      "data_table": [
+        {
+          "product_type_first_level": "冷冻食品",
+          "total_sales": null
+        },
+        {
+          "product_type_first_level": "个人护理",
+          "total_sales": "38937368.160000"
+        },
+        {
+          "product_type_first_level": "日用杂百",
+          "total_sales": "19188968.820000"
+        },
+        {
+          "product_type_first_level": "酒类",
+          "total_sales": "547172058.530000"
+        },
+        {
+          "product_type_first_level": "乳品冲饮",
+          "total_sales": "1633959375.110000"
+        },
+        {
+          "product_type_first_level": "生鲜食品",
+          "total_sales": "5580.000000"
+        },
+        {
+          "product_type_first_level": "方便速食",
+          "total_sales": "149207577.380000"
+        },
+        {
+          "product_type_first_level": "母婴玩具",
+          "total_sales": "4323625.520000"
+        },
+        {
+          "product_type_first_level": "粮油米面",
+          "total_sales": "33319728.880000"
+        },
+        {
+          "product_type_first_level": "家居清洁",
+          "total_sales": "32729339.690000"
+        }
+      ],
+      "chart_config": null,
+      "sql": "SELECT Product.product_type_first_level, SUM(Product.ppy_price * Product.v_goods_count_30d) as total_sales FROM dm_ppy_product_info_ymd AS Product GROUP BY Product.product_type_first_level LIMIT 20"
+    },
+    "sql_queries": [],
+    "errors": [],
+    "validation": {
+      "understands_query": false,
+      "generates_sql": false,
+      "queries_objects": false,
+      "returns_results": false
+    }
+  },
+  {
+    "scenario": "场景5：简单查询（性能测试）",
+    "question": "列出所有商品的名称和价格",
+    "expectations": {
+      "understands_query": true,
+      "generates_sql": true,
+      "returns_results": true
+    },
+    "success": false,
+    "response_time": 21.6,
+    "agent_response": {
+      "message": "基于查询结果，我为您提供以下分析：\n\n## 关于价格预警\n**结论**：在当前可用的数据系统中，**没有价格预警相关的数据**。Product表和GoodsMallMapping表都不包含价格预警状态、优先级等字段，因此无法查询有多少高优先级的价格预警待处理。\n\n## 商品名称和价格列表\n查询结果显示共有20条商品记录，以下是前10条商品的价格信息：\n\n1. **饮用纯净水** - 23.8元（深圳站）\n2. **酷儿橙汁** - 32.99元（宁波站）\n3. **酷儿橙汁** - 34.0元（温州站）\n4. **茉莉蜜茶** - 39.0元（温州站）\n5. **佳得乐柠檬味** - 49.9元（广州站）\n6. **七喜柠檬味碳酸汽水普罐** - 40.7元（苏州站）\n7. **东方树叶红茶** - 52.99元（苏州站）\n8. **东方树叶乌龙茶** - 53.0元（温州站）\n9. **水蜜桃味维生素饮料** - 53.9元（嘉兴站）\n10. **雪柚橘子维生素饮料** - 49.9元（南昌站）\n\n**关键观察**：\n- 所有查询到的商品都处于在售状态（on_sell_status=1）\n- 价格范围从23.8元到53.9元不等\n- 商品分布在不同城市站点\n- 共有20个商品记录，但系统只显示了前10条\n\n如果您需要查看完整的20条记录或特定城市的商品价格，我可以进一步筛选查询。",
+      "data_table": [
+        {
+          "product_name": "饮用纯净水",
+          "ppy_price": "23.800000",
+          "city": "深圳站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "酷儿橙汁",
+          "ppy_price": "32.990000",
+          "city": "宁波站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "酷儿橙汁",
+          "ppy_price": "34.000000",
+          "city": "温州站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "茉莉蜜茶",
+          "ppy_price": "39.000000",
+          "city": "温州站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "佳得乐柠檬味",
+          "ppy_price": "49.900000",
+          "city": "广州站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "七喜柠檬味碳酸汽水普罐",
+          "ppy_price": "40.700000",
+          "city": "苏州站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "东方树叶红茶",
+          "ppy_price": "52.990000",
+          "city": "苏州站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "东方树叶乌龙茶",
+          "ppy_price": "53.000000",
+          "city": "温州站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "水蜜桃味维生素饮料",
+          "ppy_price": "53.900000",
+          "city": "嘉兴站",
+          "on_sell_status": "1"
+        },
+        {
+          "product_name": "雪柚橘子维生素饮料",
+          "ppy_price": "49.900000",
+          "city": "南昌站",
+          "on_sell_status": "1"
+        }
+      ],
+      "chart_config": null,
+      "sql": "SELECT Product.product_name, Product.ppy_price, Product.city, Product.on_sell_status FROM dm_ppy_product_info_ymd AS Product LIMIT 20"
+    },
+    "sql_queries": [],
+    "errors": [],
+    "validation": {
+      "understands_query": true,
+      "generates_sql": false,
+      "returns_results": false
+    }
+  },
+  {
+    "scenario": "场景6：错误处理测试",
+    "question": "查询不存在的对象XYZ的数据",
+    "expectations": {
+      "understands_query": true
+    },
+    "success": true,
+    "response_time": 14.57,
+    "agent_response": {
+      "message": "基于查询结果，我为您提供以下分析：\n\n## 关于商品名称和价格\n**结论**：系统中共有20个在售商品，以下是前10个商品的价格信息：\n\n1. **可口可乐冰露纯净水550ml*24瓶/箱** - 12.0元（宁波站）\n2. **可口可乐酷儿橙汁450ml*12瓶/箱** - 32.99元（宁波站）\n3. **康师傅茉莉清茶1L*12瓶/箱** - 38.7元（苏州站）\n4. **康师傅茉莉清茶1L*12瓶/箱** - 38.7元（苏州站）\n5. **百事可乐佳得乐蓝莓600ml*15瓶/箱** - 48.0元（温州站）\n6. **百事可乐七喜柠檬味碳酸汽水普罐330ml*24罐/箱** - 40.7元（苏州站）\n7. **可口可乐雪碧普罐330ml*24罐/箱** - 39.9元（南京站）\n8. **可口可乐芬达橙味普罐330ml*24罐/箱** - 41.0元（温州站）\n9. **可口可乐汽水2L*8瓶/箱** - 43.5元（广州站）\n10. **农夫山泉东方树叶绿茶500ml*15瓶/箱** - 52.99元（苏州站）\n\n**关键观察**：\n- 所有商品都处于在售状态（on_sell_status=\"1\"）\n- 价格范围从12.0元到52.99元不等\n- 商品分布在不同城市站点：宁波、苏州、温州、南京、广州等\n- 共有20个商品记录，但系统只显示了前10条\n\n## 关于不存在的对象XYZ\n**结论**：**对象XYZ不存在**于当前数据系统中。可用的数据对象只有Product（商品信息）和GoodsMallMapping（商品商城关系映射），无法查询XYZ对象的数据。\n\n如果您需要查看完整的20条商品记录或特定品类的商品，我可以进一步筛选查询。",
+      "data_table": [
+        {
+          "sku_name": "可口可乐冰露纯净水550ml*24瓶/箱",
+          "ppy_price": "12.000000",
+          "city": "宁波站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "可口可乐酷儿橙汁450ml*12瓶/箱",
+          "ppy_price": "32.990000",
+          "city": "宁波站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "康师傅茉莉清茶1L*12瓶/箱",
+          "ppy_price": "38.700000",
+          "city": "苏州站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "康师傅茉莉清茶1L*12瓶/箱",
+          "ppy_price": "38.700000",
+          "city": "苏州站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "百事可乐佳得乐蓝莓600ml*15瓶/箱",
+          "ppy_price": "48.000000",
+          "city": "温州站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "百事可乐七喜柠檬味碳酸汽水普罐330ml*24罐/箱",
+          "ppy_price": "40.700000",
+          "city": "苏州站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "可口可乐雪碧普罐330ml*24罐/箱",
+          "ppy_price": "39.900000",
+          "city": "南京站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "可口可乐芬达橙味普罐330ml*24罐/箱",
+          "ppy_price": "41.000000",
+          "city": "温州站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "可口可乐汽水2L*8瓶/箱",
+          "ppy_price": "43.500000",
+          "city": "广州站",
+          "on_sell_status": "1"
+        },
+        {
+          "sku_name": "农夫山泉东方树叶绿茶500ml*15瓶/箱",
+          "ppy_price": "52.990000",
+          "city": "苏州站",
+          "on_sell_status": "1"
+        }
+      ],
+      "chart_config": null,
+      "sql": "SELECT Product.sku_name, Product.ppy_price, Product.city, Product.on_sell_status FROM dm_ppy_product_info_ymd AS Product LIMIT 20"
+    },
+    "sql_queries": [],
+    "errors": [],
+    "validation": {
+      "understands_query": true
+    }
+  }
+]

@@ -11,12 +11,20 @@ export interface SemanticProperty {
   enum_values?: Array<{ value: string; label: string }>;
 }
 
+export interface Granularity {
+  dimensions: string[];
+  level: string;
+  description: string;
+}
+
 export interface SemanticObject {
   description?: string;
   base_properties: Record<string, SemanticProperty>;
   computed_properties: Record<string, SemanticProperty>;
   property_map: Record<string, string>;
   relationships: any[];
+  granularity?: Granularity;
+  business_context?: string;
 }
 
 export interface SemanticConfig {

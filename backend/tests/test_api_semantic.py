@@ -96,3 +96,44 @@ def test_get_schema_with_semantics_endpoint():
     col_names = [c["name"] for c in data["columns"]]
     assert "price" in col_names
     assert "gross_margin" in col_names
+
+
+def test_parse_config_with_granularity():
+    """Test parsing config with granularity and business_context fields."""
+    config_with_granularity = """
+datasources:
+  - id: test_db
+    type: sqlite
+    connection:
+      database: ./test.db
+ontology:
+  objects:
+    - name: Product
+      datasource: test_db
+      table: products
+      primary_key: sku_id
+      description: "商品主数据"
+      business_context: "商品是核心业务对象"
+      granularity:
+        dimensions: [sku_id, date]
+        level: transaction
+        description: "商品交易级别数据"
+      properties:
+        - name: sku_id
+          column: sku_id
+          type: string
+          description: "商品SKU ID"
+"""
+    resp = client.post("/api/v1/semantic/parse", json={"config_yaml": config_with_granularity})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["valid"] is True
+    assert "Product" in data["objects"]
+
+    product = data["objects"]["Product"]
+    assert product["description"] == "商品主数据"
+    assert product["business_context"] == "商品是核心业务对象"
+    assert product["granularity"] is not None
+    assert product["granularity"]["dimensions"] == ["sku_id", "date"]
+    assert product["granularity"]["level"] == "transaction"
+    assert product["granularity"]["description"] == "商品交易级别数据"
