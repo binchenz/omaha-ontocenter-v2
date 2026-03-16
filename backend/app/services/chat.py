@@ -64,6 +64,7 @@ class ChatService:
 - 查询时使用 "ObjectName.field_name" 格式，例如 "Product.sku_name"
 - gross_margin 是计算字段，可直接查询
 - 按品类统计时，使用 GROUP BY 聚合，不要返回明细数据
+- **重要：查询一次后立即基于结果回答，不要反复查询**
 
 ## 可用工具
 - list_objects: 列出所有对象类型
@@ -324,8 +325,13 @@ class ChatService:
                     tool_args.get("selected_columns"),
                     tool_args.get("filters"),
                     tool_args.get("joins"),
-                    tool_args.get("limit", 20)  # Reduced from 100 to avoid timeout
+                    min(tool_args.get("limit", 10), 20)  # Cap at 20 rows to avoid LLM timeout
                 )
+                # Truncate data sent to LLM to avoid context overflow
+                if result.get("data") and len(result["data"]) > 10:
+                    result = dict(result)
+                    result["data"] = result["data"][:10]
+                    result["note"] = f"数据已截断，仅显示前10条（共{result.get('count', '?')}条）"
                 return result
 
             elif tool_name == "save_asset":
@@ -447,15 +453,21 @@ class ChatService:
         First turn: force tool use (tool_choice='required') so Agent always
         queries real data before answering. Subsequent turns: auto.
         """
-        max_iterations = 10
+        max_iterations = 5  # Reduced from 10 to avoid timeout
         data_table = None
         chart_config = None
         sql = None
         first_turn = True
+        force_answer = False  # After successful query, force text answer
 
         for iteration in range(max_iterations):
-            # First turn: force tool call so Agent must query data first
-            tool_choice = "required" if first_turn else "auto"
+            # First turn: force tool call; after successful query: force answer
+            if force_answer:
+                tool_choice = "none"
+            elif first_turn:
+                tool_choice = "required"
+            else:
+                tool_choice = "auto"
             first_turn = False
 
             response = client.chat.completions.create(
@@ -503,6 +515,7 @@ class ChatService:
                 if tool_name == "query_data" and result.get("data"):
                     data_table = result["data"]
                     sql = result.get("sql")
+                    force_answer = True  # Force text answer after successful query
                     try:
                         chart_type = self.chart_engine.select_chart_type(data_table)
                         if chart_type:
@@ -510,10 +523,14 @@ class ChatService:
                     except Exception:
                         pass
 
+                tool_content = _json_dumps(result)
+                # After a successful query_data, nudge Agent to answer now
+                if tool_name == "query_data" and result.get("success") and result.get("data"):
+                    tool_content += "\n\n请基于以上数据直接回答用户问题，不要再查询更多数据。"
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
-                    "content": _json_dumps(result)
+                    "content": tool_content
                 })
 
         return "抱歉，处理超时。", data_table, chart_config, sql

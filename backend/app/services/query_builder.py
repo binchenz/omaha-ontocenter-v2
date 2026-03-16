@@ -61,9 +61,48 @@ class SemanticQueryBuilder:
         - "ObjectType.property_name" -> resolves property_name
         - "property_name" -> resolves directly
         - Computed properties -> expands formula to SQL expression AS alias
+        - Aggregate functions like "AVG(Product.gross_margin) as avg_margin"
+          -> expands computed properties inside the function
 
         Returns SQL expression string.
         """
+        import re
+
+        # Handle aggregate functions: AVG(...), SUM(...), COUNT(...), etc.
+        agg_match = re.match(r'^(\w+)\((.+?)\)(\s+as\s+\w+)?$', col_ref.strip(), re.IGNORECASE)
+        if agg_match:
+            func_name = agg_match.group(1)
+            inner = agg_match.group(2).strip()
+            alias = agg_match.group(3) or ""
+            # Resolve the inner expression (without AS alias for computed fields)
+            resolved_inner = self._resolve_inner(inner)
+            return f"{func_name}({resolved_inner}){alias}"
+
+        return self._resolve_simple_col(col_ref)
+
+    def _resolve_inner(self, col_ref: str) -> str:
+        """Resolve column inside aggregate function - no AS alias for computed fields."""
+        if "." in col_ref:
+            parts = col_ref.split(".", 1)
+            prop_name = parts[1]
+        else:
+            prop_name = col_ref
+
+        if prop_name in self.computed_properties:
+            formula = self.computed_properties[prop_name].get("formula", "")
+            try:
+                sql_expr = semantic_service.expand_formula(formula, self.property_map)
+                return f"({sql_expr})"  # No AS alias inside aggregate
+            except ValueError:
+                return prop_name
+
+        if prop_name in self.property_map:
+            return f"{self.object_type}.{self.property_map[prop_name]}"
+
+        return col_ref
+
+    def _resolve_simple_col(self, col_ref: str) -> str:
+        """Resolve a simple column reference (no aggregate functions)."""
         # Strip object type prefix if present
         if "." in col_ref:
             parts = col_ref.split(".", 1)
@@ -76,6 +115,7 @@ class SemanticQueryBuilder:
             formula = self.computed_properties[prop_name].get("formula", "")
             try:
                 sql_expr = semantic_service.expand_formula(formula, self.property_map)
+                # When used standalone (not inside aggregate), add AS alias
                 return f"({sql_expr}) AS {prop_name}"
             except ValueError:
                 return prop_name
@@ -173,6 +213,20 @@ class SemanticQueryBuilder:
 
             if where_parts:
                 query += f" WHERE {' AND '.join(where_parts)}"
+
+        # Auto-detect aggregate queries and add GROUP BY for non-aggregate columns
+        if selected_columns:
+            import re
+            agg_pattern = re.compile(r'^\s*(AVG|SUM|COUNT|MAX|MIN)\s*\(', re.IGNORECASE)
+            has_aggregate = any(agg_pattern.match(col) for col in selected_columns)
+            if has_aggregate:
+                # Non-aggregate columns become GROUP BY columns
+                group_cols = [
+                    self.resolve_column(col) for col in selected_columns
+                    if not agg_pattern.match(col)
+                ]
+                if group_cols:
+                    query += f" GROUP BY {', '.join(group_cols)}"
 
         query += f" LIMIT {limit}"
         return query, params
