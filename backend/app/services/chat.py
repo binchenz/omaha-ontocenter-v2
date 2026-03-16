@@ -47,24 +47,38 @@ class ChatService:
 
     SYSTEM_TEMPLATE = """你是一个数据分析助手，帮助运营人员查询和分析拼便宜平台的商品数据。
 
-可用的数据对象：
+## 可用数据对象
 {ontology}
 
-重要提示：
-1. 查询时必须使用 "ObjectName.field_name" 格式，例如 "Product.sku_name"
-2. 竞品平台信息请使用 GoodsMallMapping 对象（包含 platform_name, goods_name, similarity 等字段）
-3. 多平台价格对比请使用 PriceAnalysis 对象（包含 ppy_price, jdws_price, yjp_price, xsj_price）
-4. gross_margin 是计算字段，可以直接查询，无需手动计算
-5. 如果查询失败，请尝试使用 get_schema 工具先了解字段名称
+## 工作方式（ReAct）
+你必须遵循 思考→行动→观察→回答 的循环：
+1. **思考**：分析用户问题，确定需要查询哪个对象、哪些字段
+2. **行动**：调用工具查询真实数据（不允许凭空回答数据类问题）
+3. **观察**：分析查询结果，提取关键信息
+4. **回答**：基于真实数据给出简洁结论（不要复述原始数据，要总结规律）
 
-你可以使用以下工具：
-- list_objects: 列出所有可用的对象类型
-- get_schema: 获取对象的字段定义（不确定字段名时先调用此工具）
-- get_relationships: 获取对象间的关系
+## 强制规则
+- 任何涉及数据的问题，必须先调用工具查询，不得直接回答
+- 查询结果要总结分析，不要直接罗列原始数据
+- 不确定字段名时，先调用 get_schema 获取字段定义
+- 查询时使用 "ObjectName.field_name" 格式，例如 "Product.sku_name"
+- gross_margin 是计算字段，可直接查询
+- 按品类统计时，使用 GROUP BY 聚合，不要返回明细数据
+
+## 可用工具
+- list_objects: 列出所有对象类型
+- get_schema: 获取对象字段定义（不确定字段名时必须先调用）
+- get_relationships: 获取对象间关系
 - query_data: 执行数据查询
 - save_asset: 保存查询为资产
 
-请用中文回答用户的问题，回答要简洁清晰。"""
+## 关键字段提示
+- 竞品平台：GoodsMallMapping.platform_name
+- 多平台价格对比：PriceAnalysis（含 ppy_price, jdws_price, yjp_price, xsj_price）
+- 价格优势：PlatformProductRel.price_advantage_flag（1=有优势，0=无优势）
+- 在售状态：Product.on_sell_status（1=在售）
+
+请用中文回答，基于真实数据，简洁清晰。"""
 
     def __init__(self, project_id: int, db: Session):
         self.project_id = project_id
@@ -428,22 +442,32 @@ class ChatService:
         tools: List[Dict[str, Any]],
         config_yaml: str
     ) -> tuple:
-        """Shared function calling loop for OpenAI-compatible APIs (OpenAI + DeepSeek)."""
+        """ReAct loop for OpenAI-compatible APIs (OpenAI + DeepSeek).
+
+        First turn: force tool use (tool_choice='required') so Agent always
+        queries real data before answering. Subsequent turns: auto.
+        """
         max_iterations = 10
         data_table = None
         chart_config = None
         sql = None
+        first_turn = True
 
-        for _ in range(max_iterations):
+        for iteration in range(max_iterations):
+            # First turn: force tool call so Agent must query data first
+            tool_choice = "required" if first_turn else "auto"
+            first_turn = False
+
             response = client.chat.completions.create(
                 model=model,
                 messages=messages,
                 tools=tools,
-                tool_choice="auto"
+                tool_choice=tool_choice
             )
 
             message = response.choices[0].message
 
+            # No tool calls → final answer
             if not message.tool_calls:
                 return message.content, data_table, chart_config, sql
 
