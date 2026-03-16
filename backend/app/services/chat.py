@@ -492,6 +492,14 @@ class ChatService:
                     tool_args = {}
                 result = self._execute_tool(tool_name, tool_args, config_yaml)
 
+                # If query failed, add helpful hint so Agent can self-correct
+                if tool_name == "query_data" and not result.get("success"):
+                    result["hint"] = (
+                        "查询失败。请检查：1) object_type 必须大写开头（如 Product）"
+                        "2) selected_columns 格式为 ObjectName.field_name"
+                        "3) 先调用 get_schema 确认字段名"
+                    )
+
                 if tool_name == "query_data" and result.get("data"):
                     data_table = result["data"]
                     sql = result.get("sql")
@@ -500,7 +508,7 @@ class ChatService:
                         if chart_type:
                             chart_config = self.chart_engine.build_chart_config(data_table, chart_type)
                     except Exception:
-                        pass  # chart generation is optional
+                        pass
 
                 messages.append({
                     "role": "tool",
