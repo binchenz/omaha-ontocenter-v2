@@ -36,8 +36,16 @@ class SemanticService:
                     base_props[prop_name] = prop
                     prop_map[prop_name] = col
 
+            # Parse computed_properties section (new ontology design)
+            for comp_prop in obj_def.get("computed_properties", []):
+                prop_name = comp_prop.get("name")
+                if prop_name:
+                    computed_props[prop_name] = comp_prop
+
             objects[name] = {
                 "description": obj_def.get("description"),
+                "business_context": obj_def.get("business_context"),
+                "granularity": obj_def.get("granularity"),
                 "base_properties": base_props,
                 "computed_properties": computed_props,
                 "property_map": prop_map,
@@ -73,6 +81,7 @@ class SemanticService:
         sql_keywords = {
             'AND', 'OR', 'NOT', 'IF', 'TRUE', 'FALSE', 'NULL',
             'SUM', 'AVG', 'COUNT', 'MAX', 'MIN', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+            'COALESCE', 'NULLIF', 'IFNULL', 'NVL',  # NULL handling functions
             'true', 'false', 'null'
         }
         unknown = identifiers - set(property_map.keys()) - sql_keywords
@@ -84,23 +93,48 @@ class SemanticService:
         if obj_meta.get("description"):
             lines.append(obj_meta["description"])
             lines.append("")
+
+        # Add business context if available
+        if obj_meta.get("business_context"):
+            lines.append(f"业务上下文: {obj_meta['business_context']}")
+            lines.append("")
+
+        # Add granularity information if available
+        if obj_meta.get("granularity"):
+            granularity = obj_meta["granularity"]
+            dimensions = granularity.get("dimensions", [])
+            level = granularity.get("level", "")
+            gran_desc = granularity.get("description", "")
+            if dimensions:
+                lines.append(f"数据粒度: {', '.join(dimensions)} ({level})")
+                if gran_desc:
+                    lines.append(f"  说明: {gran_desc}")
+                lines.append("")
+
         lines.append("可用字段（查询时使用 ObjectName.field_name 格式）：")
         for name, prop in obj_meta["base_properties"].items():
             desc = prop.get("description", "")
             stype = prop.get("semantic_type", "")
+            biz_ctx = prop.get("business_context", "")
+
             if stype == "currency":
-                lines.append(f"  - {name} (货币, {prop.get('currency', '')}): {desc}")
+                field_line = f"  - {name} (货币, {prop.get('currency', '')}): {desc}"
             elif stype == "percentage":
-                lines.append(f"  - {name} (百分比): {desc}")
+                field_line = f"  - {name} (百分比): {desc}"
             elif stype == "enum":
                 vals = ", ".join(f"{e['value']}={e['label']}" for e in prop.get("enum_values", []))
-                lines.append(f"  - {name} (枚举: {vals}): {desc}")
+                field_line = f"  - {name} (枚举: {vals}): {desc}"
             else:
-                lines.append(f"  - {name}: {desc}")
+                field_line = f"  - {name}: {desc}"
+
+            lines.append(field_line)
+            if biz_ctx:
+                lines.append(f"    业务含义: {biz_ctx}")
+
         for name, prop in obj_meta["computed_properties"].items():
             lines.append(f"  - {name} [计算字段，可直接查询]: {prop.get('description', '')}")
             if prop.get("business_context"):
-                lines.append(f"    基准: {prop['business_context']}")
+                lines.append(f"    业务含义: {prop['business_context']}")
         return "\n".join(lines)
 
     def get_schema_with_semantics(self, config_yaml: str, object_type: str) -> Dict[str, Any]:

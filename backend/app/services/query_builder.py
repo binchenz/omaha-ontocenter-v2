@@ -32,7 +32,14 @@ class SemanticQueryBuilder:
             raise ValueError(f"Object type '{object_type}' not found in ontology")
 
         self.object_type = object_type
-        self.table_name = self.obj_def.get("table", object_type)
+        # Support both 'table' and 'query' fields
+        self.table_name = self.obj_def.get("table")
+        self.custom_query = self.obj_def.get("query")
+        if not self.table_name and not self.custom_query:
+            raise ValueError(f"Object '{object_type}' must have either 'table' or 'query' field")
+        # Use object_type as table alias for custom queries
+        if not self.table_name:
+            self.table_name = object_type
         self.relationships = ontology.get("relationships", [])
         self.all_objects = objects
         self.db_type = None  # set later
@@ -52,6 +59,109 @@ class SemanticQueryBuilder:
                 col = prop.get("column", name)
                 if name:
                     self.property_map[name] = col
+
+    def _detect_needed_joins(self, selected_columns: List[str]) -> set:
+        """
+        Analyze selected_columns to identify objects that need to be JOINed.
+
+        Args:
+            selected_columns: List of column references like ["ProductPrice.sku_id", "Product.sku_name"]
+
+        Returns:
+            Set of object names that need to be JOINed, e.g. {"Product"}
+        """
+        needed_objects = set()
+
+        for col in selected_columns:
+            if "." in col:
+                # Extract object name from "ObjectName.property_name"
+                obj_name = col.split(".")[0]
+                # If object name is not the current object, we need to JOIN
+                if obj_name != self.object_type:
+                    needed_objects.add(obj_name)
+
+        return needed_objects
+
+    def _find_relationship(self, target_object: str) -> Optional[Dict[str, Any]]:
+        """
+        Find a relationship from current object to target object.
+
+        Args:
+            target_object: Target object name
+
+        Returns:
+            Relationship definition dict, or None if not found
+        """
+        # Find relationship from current object to target object
+        for rel in self.relationships:
+            if (rel.get("from_object") == self.object_type and
+                rel.get("to_object") == target_object):
+                return rel
+
+        # Find reverse relationship (from target to current)
+        for rel in self.relationships:
+            if (rel.get("from_object") == target_object and
+                rel.get("to_object") == self.object_type):
+                # Return reversed relationship
+                return {
+                    "name": rel.get("name"),
+                    "from_object": self.object_type,
+                    "to_object": target_object,
+                    "type": "many_to_one" if rel.get("type") == "one_to_many" else "one_to_many",
+                    "join_condition": {
+                        "from_field": rel["join_condition"]["to_field"],
+                        "to_field": rel["join_condition"]["from_field"]
+                    }
+                }
+
+        return None
+
+    def _build_auto_join_clause(self, relationship: Dict[str, Any]) -> str:
+        """
+        Build JOIN clause from relationship definition.
+
+        Args:
+            relationship: Relationship definition
+
+        Returns:
+            JOIN clause string
+        """
+        to_object = relationship.get("to_object")
+        join_condition = relationship.get("join_condition", {})
+        from_field = join_condition.get("from_field")
+        to_field = join_condition.get("to_field")
+
+        # Find target object definition
+        to_obj_def = next((o for o in self.all_objects if o.get("name") == to_object), None)
+        if not to_obj_def:
+            return ""
+
+        # Support both 'table' and 'query' fields
+        if to_obj_def.get("table"):
+            to_table = to_obj_def["table"]
+        elif to_obj_def.get("query"):
+            # If custom query, wrap as subquery
+            to_table = f"({to_obj_def['query'].strip()})"
+        else:
+            return ""
+
+        # Default to LEFT JOIN
+        join_type = "LEFT JOIN"
+
+        # Build join condition
+        join_conditions = [f"{self.object_type}.{from_field} = {to_object}.{to_field}"]
+
+        # Add additional conditions if present
+        additional_conditions = relationship.get("additional_conditions", [])
+        for cond in additional_conditions:
+            from_f = cond.get("from_field")
+            to_f = cond.get("to_field")
+            if from_f and to_f:
+                join_conditions.append(f"{self.object_type}.{from_f} = {to_object}.{to_f}")
+
+        join_on = " AND ".join(join_conditions)
+
+        return f"{join_type} {to_table} AS {to_object} ON {join_on}"
 
     def resolve_column(self, col_ref: str) -> str:
         """
@@ -106,7 +216,12 @@ class SemanticQueryBuilder:
         # Strip object type prefix if present
         if "." in col_ref:
             parts = col_ref.split(".", 1)
+            obj_name = parts[0]
             prop_name = parts[1]
+
+            # If referencing another object, return as-is (will be handled by JOIN)
+            if obj_name != self.object_type:
+                return col_ref
         else:
             prop_name = col_ref
 
@@ -168,6 +283,18 @@ class SemanticQueryBuilder:
         self.db_type = db_type
         placeholder = "?" if db_type == "sqlite" else "%s"
 
+        # 1. Detect needed JOINs from selected_columns
+        needed_joins = self._detect_needed_joins(selected_columns or [])
+
+        # 2. Build auto-JOIN clauses
+        auto_join_clauses = []
+        for obj_name in needed_joins:
+            relationship = self._find_relationship(obj_name)
+            if relationship:
+                join_clause = self._build_auto_join_clause(relationship)
+                if join_clause:
+                    auto_join_clauses.append(join_clause)
+
         # Build SELECT clause
         if selected_columns:
             resolved = [self.resolve_column(col) for col in selected_columns]
@@ -181,10 +308,19 @@ class SemanticQueryBuilder:
             else:
                 columns_str = "*"
 
-        query = f"SELECT {columns_str} FROM {self.table_name} AS {self.object_type}"
+        # Build FROM clause - handle both table and custom query
+        if self.custom_query:
+            # Wrap custom query as subquery
+            query = f"SELECT {columns_str} FROM ({self.custom_query.strip()}) AS {self.object_type}"
+        else:
+            query = f"SELECT {columns_str} FROM {self.table_name} AS {self.object_type}"
         params: List[Any] = []
 
-        # Build JOIN clause
+        # 3. Add auto-JOIN clauses
+        if auto_join_clauses:
+            query += " " + " ".join(auto_join_clauses)
+
+        # Build JOIN clause (explicit joins from parameter)
         if joins:
             join_sql = self._build_join_clause(joins)
             if join_sql:

@@ -222,23 +222,31 @@ class OmahaService:
             if ds_type not in ("sqlite", "mysql"):
                 return {"success": False, "error": f"Unsupported datasource type: {ds_type}"}
 
-            # Use SemanticQueryBuilder instead of _build_select_query
-            try:
-                builder = SemanticQueryBuilder(config_yaml, object_type)
-                query, params = builder.build(selected_columns, filters, joins, limit, ds_type)
-            except ValueError:
-                # Fallback to original method if semantic parsing fails
-                objects = ontology.get("objects", [])
-                relationships = ontology.get("relationships", [])
-                table_name = obj_def.get("table")
-                query, params = self._build_select_query(
-                    table_name, object_type, selected_columns, filters,
-                    joins, relationships, objects, limit, ds_type,
+            # Check if object uses custom query instead of table
+            custom_query = obj_def.get("query")
+            if custom_query:
+                # Object uses custom query (e.g., Category, City, Platform)
+                query, params = self._build_query_from_custom(
+                    custom_query, object_type, selected_columns, filters, limit, ds_type
                 )
+            else:
+                # Use SemanticQueryBuilder for table-based objects
+                try:
+                    builder = SemanticQueryBuilder(config_yaml, object_type)
+                    query, params = builder.build(selected_columns, filters, joins, limit, ds_type)
+                except ValueError:
+                    # Fallback to original method if semantic parsing fails
+                    objects = ontology.get("objects", [])
+                    relationships = ontology.get("relationships", [])
+                    table_name = obj_def.get("table")
+                    query, params = self._build_select_query(
+                        table_name, object_type, selected_columns, filters,
+                        joins, relationships, objects, limit, ds_type,
+                    )
 
             data = self._execute_query(ds_config, ds_type, query, params)
 
-            return {"success": True, "data": data, "count": len(data)}
+            return {"success": True, "data": data, "count": len(data), "sql": query}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -269,6 +277,41 @@ class OmahaService:
                 params.append(value)
 
         return " AND ".join(conditions), params
+
+    def _build_query_from_custom(
+        self,
+        custom_query: str,
+        object_type: str,
+        selected_columns: Optional[List[str]],
+        filters: Optional[List[Dict[str, Any]]],
+        limit: int,
+        db_type: str,
+    ) -> Tuple[str, List[Any]]:
+        """Build query from custom SQL query definition.
+
+        For objects that use 'query' field instead of 'table'.
+        Wraps the custom query as a subquery and applies filters/limits.
+        """
+        params: List[Any] = []
+
+        # Wrap custom query as subquery
+        if selected_columns:
+            columns_str = ", ".join(selected_columns)
+        else:
+            columns_str = "*"
+
+        query = f"SELECT {columns_str} FROM ({custom_query.strip()}) AS {object_type}"
+
+        # Apply filters if provided
+        if filters:
+            where_clause, params = self._build_where_clause(filters, db_type)
+            if where_clause:
+                query += f" WHERE {where_clause}"
+
+        # Apply limit
+        query += f" LIMIT {limit}"
+
+        return query, params
 
     def _build_select_query(
         self,
