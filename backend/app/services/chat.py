@@ -61,23 +61,35 @@ class ChatService:
 - 任何涉及数据的问题，必须先调用工具查询，不得直接回答
 - 查询结果要总结分析，不要直接罗列原始数据
 - 不确定字段名时，先调用 get_schema 获取字段定义
-- 查询时使用 "ObjectName.field_name" 格式，例如 "Product.sku_name"
+- 查询时使用 "ObjectName.field_name" 格式，例如 "PriceComparison.sku_name"
 - gross_margin 是计算字段，可直接查询
-- 按品类统计时，使用 GROUP BY 聚合，不要返回明细数据
-- **重要：查询一次后立即基于结果回答，不要反复查询**
+- **查询一次后立即基于结果回答，不要反复查询**
+
+## 核心对象说明
+- **PriceComparison** 是核心对象（表：dm_ppy_platform_product_info_rel_ymd）
+  - platform_id 为空 = 自身记录（无竞品对比）
+  - platform_id 有值 = 与该竞品平台的价格对比
+  - price_advantage_flag: 1=有优势(我便宜), 2=无优势(我贵), 3=无竞品数据
+  - 查询竞品对比时必须过滤：platform_id != ''
+
+## 聚合查询示例
+**按城市统计优势品/劣势品：**
+```
+object_type: PriceComparison
+selected_columns: [
+  "PriceComparison.city",
+  "COUNT(DISTINCT CASE WHEN PriceComparison.price_advantage_flag = 1 THEN PriceComparison.sku_id END) as advantage_count",
+  "COUNT(DISTINCT CASE WHEN PriceComparison.price_advantage_flag = 2 THEN PriceComparison.sku_id END) as disadvantage_count"
+]
+filters: [{{field: "PriceComparison.platform_id", operator: "!=", value: ""}}]
+limit: 20
+```
 
 ## 可用工具
 - list_objects: 列出所有对象类型
-- get_schema: 获取对象字段定义（不确定字段名时必须先调用）
-- get_relationships: 获取对象间关系
-- query_data: 执行数据查询
+- get_schema: 获取对象字段定义
+- query_data: 执行数据查询（支持聚合函数）
 - save_asset: 保存查询为资产
-
-## 关键字段提示
-- 竞品平台：GoodsMallMapping.platform_name
-- 多平台价格对比：PriceAnalysis（含 ppy_price, jdws_price, yjp_price, xsj_price）
-- 价格优势：PlatformProductRel.price_advantage_flag（1=有优势，0=无优势）
-- 在售状态：Product.on_sell_status（1=在售）
 
 请用中文回答，基于真实数据，简洁清晰。"""
 
@@ -453,7 +465,7 @@ class ChatService:
         First turn: force tool use (tool_choice='required') so Agent always
         queries real data before answering. Subsequent turns: auto.
         """
-        max_iterations = 5  # Reduced from 10 to avoid timeout
+        max_iterations = 8  # Increased to handle complex aggregation queries
         data_table = None
         chart_config = None
         sql = None
