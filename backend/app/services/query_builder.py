@@ -43,6 +43,8 @@ class SemanticQueryBuilder:
         self.relationships = ontology.get("relationships", [])
         self.all_objects = objects
         self.db_type = None  # set later
+        # Read default_filters from object definition
+        self.default_filters = self.obj_def.get("default_filters", [])
 
         # Parse semantic layer
         semantic_result = semantic_service.parse_config(config_yaml)
@@ -266,6 +268,74 @@ class SemanticQueryBuilder:
 
         return field
 
+    def _build_where_clause(
+        self,
+        filters: Optional[List[Dict[str, Any]]],
+        placeholder: str
+    ) -> Tuple[str, List[Any]]:
+        """
+        Build WHERE clause combining default_filters and user filters.
+
+        Args:
+            filters: User-provided filters
+            placeholder: SQL placeholder ("?" for SQLite, "%s" for MySQL)
+
+        Returns:
+            Tuple of (where_clause_string, params_list)
+        """
+        where_parts = []
+        params: List[Any] = []
+
+        # 1. Apply default_filters first
+        for f in self.default_filters:
+            field = self.resolve_filter_field(f.get("field", ""))
+            operator = f.get("operator", "=")
+            value = f.get("value")
+
+            op_upper = operator.upper()
+            if op_upper == "IS NOT NULL":
+                where_parts.append(f"{field} IS NOT NULL")
+            elif op_upper == "IS NULL":
+                where_parts.append(f"{field} IS NULL")
+            elif "!=" in operator and value is None:
+                # Handle "!= ''" case
+                where_parts.append(f"{field} {operator}")
+            elif op_upper == "IN":
+                values = [v.strip() for v in str(value).split(",")]
+                placeholders = ",".join([placeholder] * len(values))
+                where_parts.append(f"{field} IN ({placeholders})")
+                params.extend(values)
+            elif op_upper == "LIKE":
+                where_parts.append(f"{field} LIKE {placeholder}")
+                params.append(f"%{value}%")
+            else:
+                where_parts.append(f"{field} {operator} {placeholder}")
+                params.append(value)
+
+        # 2. Apply user filters
+        if filters:
+            for f in filters:
+                field = self.resolve_filter_field(f.get("field", ""))
+                operator = f.get("operator", "=")
+                value = f.get("value")
+
+                op_upper = operator.upper()
+                if op_upper == "IN":
+                    values = [v.strip() for v in str(value).split(",")]
+                    placeholders = ",".join([placeholder] * len(values))
+                    where_parts.append(f"{field} IN ({placeholders})")
+                    params.extend(values)
+                elif op_upper == "LIKE":
+                    where_parts.append(f"{field} LIKE {placeholder}")
+                    params.append(f"%{value}%")
+                else:
+                    where_parts.append(f"{field} {operator} {placeholder}")
+                    params.append(value)
+
+        if where_parts:
+            return f" WHERE {' AND '.join(where_parts)}", params
+        return "", params
+
     def build(
         self,
         selected_columns: Optional[List[str]],
@@ -326,29 +396,11 @@ class SemanticQueryBuilder:
             if join_sql:
                 query += f" {join_sql}"
 
-        # Build WHERE clause
-        if filters:
-            where_parts = []
-            for f in filters:
-                field = self.resolve_filter_field(f.get("field", ""))
-                operator = f.get("operator", "=")
-                value = f.get("value")
-
-                op_upper = operator.upper()
-                if op_upper == "IN":
-                    values = [v.strip() for v in str(value).split(",")]
-                    placeholders = ",".join([placeholder] * len(values))
-                    where_parts.append(f"{field} IN ({placeholders})")
-                    params.extend(values)
-                elif op_upper == "LIKE":
-                    where_parts.append(f"{field} LIKE {placeholder}")
-                    params.append(f"%{value}%")
-                else:
-                    where_parts.append(f"{field} {operator} {placeholder}")
-                    params.append(value)
-
-            if where_parts:
-                query += f" WHERE {' AND '.join(where_parts)}"
+        # Build WHERE clause using _build_where_clause
+        where_clause, where_params = self._build_where_clause(filters, placeholder)
+        if where_clause:
+            query += where_clause
+            params.extend(where_params)
 
         # Auto-detect aggregate queries and add GROUP BY for non-aggregate columns
         if selected_columns:
