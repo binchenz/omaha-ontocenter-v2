@@ -772,3 +772,40 @@ ontology:
         - field: platform_id
           operator: "IS NULL OR platform_id = ''"
       business_context: 销售活跃度低的在售商品，需要分析原因（价格、库存、季节性等）
+
+    - name: city_advantage_disadvantage_distribution
+      label: 各城市优势品劣势品分布
+      description: 按城市分组，统计优势品（flag=1）和劣势品（flag=2）的SKU数量及优势率
+      object: PriceComparison
+      formula: |
+        SELECT
+          city,
+          COUNT(DISTINCT CASE WHEN price_advantage_flag = 1 THEN sku_id END) as advantage_sku_count,
+          COUNT(DISTINCT CASE WHEN price_advantage_flag = 2 THEN sku_id END) as disadvantage_sku_count,
+          COUNT(DISTINCT CASE WHEN price_advantage_flag IN (1,2) THEN sku_id END) as total_compared_sku,
+          ROUND(
+            COUNT(DISTINCT CASE WHEN price_advantage_flag = 1 THEN sku_id END) * 100.0 /
+            NULLIF(COUNT(DISTINCT CASE WHEN price_advantage_flag IN (1,2) THEN sku_id END), 0),
+          1) as advantage_rate_pct
+        FROM dm_ppy_platform_product_info_rel_ymd
+        WHERE platform_id IS NOT NULL AND platform_id != ''
+          AND city IS NOT NULL AND city != ''
+        GROUP BY city
+        ORDER BY advantage_rate_pct DESC
+      group_by:
+        - city
+      filters:
+        - field: platform_id
+          operator: "IS NOT NULL"
+        - field: platform_id
+          operator: "!= ''"
+      business_context: |
+        核心竞争力分析指标，按城市维度展示价格优势品和劣势品的分布情况。
+        优势品（price_advantage_flag=1）：拼便宜价格低于竞品，有价格竞争力。
+        劣势品（price_advantage_flag=2）：拼便宜价格高于竞品，需要关注调价。
+        优势率 = 优势品SKU数 / (优势品+劣势品SKU数) × 100%
+        参考基准：
+          - 佛山站 89.2%（最强）
+          - 深圳站 28.0%（最弱，需重点关注）
+          - 全国平均约 55-60%
+        查询时使用：SELECT city, advantage_sku_count, disadvantage_sku_count, advantage_rate_pct
