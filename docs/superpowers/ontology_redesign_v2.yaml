@@ -479,6 +479,186 @@ ontology:
           business_context: 按近30天日均销量估算当前库存可销售天数，>30天需关注库存积压风险
 
     # ============================================
+    # 竞品对比专用对象（基于 PriceComparison 过滤）
+    # ============================================
+
+    - name: CompetitorComparison
+      description: 竞品价格对比专用对象，只包含有竞品对比的记录（platform_id 有值），方便 Agent 直接查询竞品对比情况
+      datasource: ppy_mysql
+      table: dm_ppy_platform_product_info_rel_ymd
+      primary_key: [sku_id, city, p_date, batch, platform_id]
+      business_context: |
+        专门用于竞品价格对比分析的对象，自动过滤 platform_id IS NOT NULL AND platform_id != ''。
+        包含商品基础识别信息（sku_name, city, product_type_first_level），方便 Agent 直接查询"哪些商品比竞品贵"等问题，无需 JOIN。
+        如需详细商品信息（规格、品牌等），可 JOIN PriceComparison 或其他对象。
+      granularity:
+        dimensions: [sku_id, city, p_date, batch, platform_id]
+        level: sku_city_batch_platform_daily
+        description: SKU + 城市 + 日期 + 批次 + 竞品平台粒度，只包含有竞品对比的记录
+      default_filters:
+        - field: platform_id
+          operator: "IS NOT NULL"
+        - field: platform_id
+          operator: "!= ''"
+      properties:
+        # --- 维度键 ---
+        - name: p_date
+          column: p_date
+          type: date
+          semantic_type: date
+          description: 数据日期
+          business_context: 价格数据的采集日期，范围 2026-01-01 ~ 2026-03-16
+        - name: sku_id
+          column: sku_id
+          type: integer
+          semantic_type: id
+          description: SKU ID
+          business_context: 商品唯一标识
+        - name: city
+          column: city
+          type: string
+          description: 城市名称
+          business_context: 价格数据所属城市，覆盖15个城市
+        - name: batch
+          column: batch
+          type: string
+          description: 批次号
+          business_context: 进货批次
+        - name: platform_id
+          column: platform_id
+          type: string
+          semantic_type: enum
+          description: 竞品平台ID
+          business_context: |
+            竞品平台的唯一标识，此对象中必定有值（已过滤空值）。
+            platform_id 映射：yjp=易久批, xsj=鲜世纪, jd_ws=京东万商, kyd=快易点, xlq=锡里圈,
+            fuqiao=福侨, hjzx=合聚中心, qidian=起点配送, hongdenglong=洪灯笼, yixing=易兴,
+            118=118订货, jinyao=锦耀, abd=阿必达, kedi=可的, htyx=合通优选, tthp=图腾惠批,
+            blh=百联汇, lipinhui=利品汇, yilufa=伊路发。
+
+        # --- 基础识别信息（最小识别集）---
+        - name: sku_name
+          column: sku_name
+          type: string
+          description: SKU 名称
+          business_context: 商品的具体规格名称，如"农夫山泉 550ml"，用于识别商品
+        - name: product_type_first_level
+          column: product_type_first_level
+          type: string
+          description: 一级品类
+          business_context: 商品所属顶级分类，用于按品类分析竞品对比
+
+        # --- 拼便宜价格 ---
+        - name: ppy_price
+          column: ppy_price
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: 拼便宜售价
+          business_context: 拼便宜平台的正常销售价格，是价格对比的基准
+        - name: ppy_promotion_price
+          column: ppy_promotion_price
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: 拼便宜促销价
+          business_context: 促销活动期间的特殊价格，为空表示无促销
+
+        # --- 竞品价格 ---
+        - name: mall_price
+          column: mall_price
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: 竞品平台售价
+          business_context: 当前行对应竞品平台（由 platform_id 标识）的正常售价
+        - name: mall_promotion_price
+          column: mall_promotion_price
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: 竞品平台促销价
+          business_context: 当前竞品平台的促销价格，为空表示无促销
+
+        # --- 价格分析字段 ---
+        - name: price_advantage_flag
+          column: price_advantage_flag
+          type: integer
+          semantic_type: enum
+          description: 价格优势标识
+          enum_values:
+            - value: 1
+              label: "有价格优势（ppy_price < mall_price，我便宜）"
+            - value: 2
+              label: "无价格优势（ppy_price > mall_price，我贵）"
+            - value: 3
+              label: "无竞品数据（不应出现在此对象中）"
+            - value: 4
+              label: "特殊状态（价格差异较大，可能含异常数据）"
+          business_context: |
+            标识拼便宜相对竞品的价格优势状态。
+            flag=1：有优势，ppy_price < mall_price；
+            flag=2：无优势，ppy_price > mall_price；
+            flag=3：理论上不应出现在此对象中（已过滤 platform_id 为空的记录）；
+            flag=4：特殊状态，价格差异较大。
+        - name: min_price
+          column: min_price
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: 竞品最低价
+          business_context: 所有竞品平台中的最低价格
+        - name: max_price
+          column: max_price
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: 竞品最高价
+          business_context: 所有竞品平台中的最高价格
+        - name: price_gap
+          column: price_gap
+          type: decimal
+          semantic_type: currency
+          currency: CNY
+          description: 价差
+          business_context: |
+            ⚠️ 注意：price_gap 的计算逻辑复杂，建议直接使用 ppy_price - mall_price 自行计算价差。
+
+        # --- 竞品平台 SKU 信息 ---
+        - name: platform_sku_id
+          column: platform_sku_id
+          type: string
+          description: 竞品平台 SKU ID
+          business_context: 当前竞品平台（platform_id）上对应商品的 SKU ID
+        - name: platform_sku_name
+          column: platform_sku_name
+          type: string
+          description: 竞品平台 SKU 名称
+          business_context: 当前竞品平台上对应商品的名称，用于核对映射准确性
+
+      computed_properties:
+        - name: effective_ppy_price
+          formula: "COALESCE(ppy_promotion_price, ppy_price)"
+          return_type: currency
+          description: 拼便宜有效售价
+          business_context: 优先使用促销价，无促销则使用正常售价
+        - name: effective_mall_price
+          formula: "COALESCE(mall_promotion_price, mall_price)"
+          return_type: currency
+          description: 竞品有效售价
+          business_context: 竞品平台优先使用促销价，无促销则使用正常售价
+        - name: actual_price_gap
+          formula: "ppy_price - mall_price"
+          return_type: currency
+          description: 实际价差
+          business_context: 拼便宜售价 - 竞品售价，正值表示我们更贵，负值表示我们更便宜
+        - name: is_price_advantage
+          formula: "CASE WHEN price_advantage_flag = 1 THEN 1 ELSE 0 END"
+          return_type: boolean
+          description: 是否具有价格优势
+          business_context: 1 表示拼便宜价格低于竞品，具有价格优势
+
+    # ============================================
     # 维度对象
     # ============================================
 
@@ -613,6 +793,46 @@ ontology:
       business_context: |
         关联竞品平台维度，仅在 platform_id IS NOT NULL AND platform_id != '' 时有意义。
         platform_id 为空的自身记录不对应任何竞品平台。
+
+    - name: competitor_comparison_city
+      description: 竞品对比数据所属城市
+      from_object: CompetitorComparison
+      to_object: City
+      type: many_to_one
+      join_condition:
+        from_field: city
+        to_field: city_name
+      business_context: 通过城市维度分析不同城市的竞品价格对比情况
+
+    - name: competitor_comparison_category
+      description: 竞品对比数据所属品类
+      from_object: CompetitorComparison
+      to_object: Category
+      type: many_to_one
+      join_condition:
+        from_field: product_type_first_level
+        to_field: first_level
+      business_context: 通过品类维度分析不同品类的竞品价格对比情况
+
+    - name: competitor_comparison_platform
+      description: 竞品对比数据对应的竞品平台
+      from_object: CompetitorComparison
+      to_object: Platform
+      type: many_to_one
+      join_condition:
+        from_field: platform_id
+        to_field: platform_id
+      business_context: 关联竞品平台维度，获取平台名称和描述信息
+
+    - name: competitor_to_price_comparison
+      description: 竞品对比记录关联完整价格对比数据
+      from_object: CompetitorComparison
+      to_object: PriceComparison
+      type: one_to_one
+      join_condition:
+        from_field: [sku_id, city, p_date, batch, platform_id]
+        to_field: [sku_id, city, p_date, batch, platform_id]
+      business_context: 当需要查询商品详细信息（规格、品牌、成本等）时，可通过此关系 JOIN PriceComparison
 
   # ============================================
   # 业务指标
