@@ -7,6 +7,8 @@ expressions, and builds complete SELECT/JOIN/WHERE/LIMIT SQL.
 from typing import Any, Dict, List, Optional, Tuple
 import re
 
+import yaml
+
 from app.services.semantic import semantic_service
 
 
@@ -21,7 +23,6 @@ class SemanticQueryBuilder:
             config_yaml: Full YAML config string
             object_type: Name of the ontology object (e.g. "Product")
         """
-        import yaml
         config = yaml.safe_load(config_yaml)
         ontology = config.get("ontology", {})
 
@@ -178,8 +179,6 @@ class SemanticQueryBuilder:
 
         Returns SQL expression string.
         """
-        import re
-
         # Handle aggregate functions: AVG(...), SUM(...), COUNT(...), etc.
         agg_match = re.match(r'^(\w+)\((.+?)\)(\s+as\s+\w+)?$', col_ref.strip(), re.IGNORECASE)
         if agg_match:
@@ -268,13 +267,43 @@ class SemanticQueryBuilder:
 
         return field
 
+    def _apply_single_filter(
+        self,
+        f: Dict[str, Any],
+        placeholder: str,
+        where_parts: List[str],
+        params: List[Any],
+    ) -> None:
+        """Apply a single filter to the WHERE clause parts and params."""
+        field = self.resolve_filter_field(f.get("field", ""))
+        operator = f.get("operator", "=")
+        value = f.get("value")
+
+        op_upper = operator.upper()
+        if op_upper == "IS NOT NULL":
+            where_parts.append(f"{field} IS NOT NULL")
+        elif op_upper == "IS NULL":
+            where_parts.append(f"{field} IS NULL")
+        elif "!=" in operator and value is None:
+            where_parts.append(f"{field} {operator}")
+        elif op_upper == "IN":
+            values = [v.strip() for v in str(value).split(",")]
+            placeholders = ",".join([placeholder] * len(values))
+            where_parts.append(f"{field} IN ({placeholders})")
+            params.extend(values)
+        elif op_upper == "LIKE":
+            where_parts.append(f"{field} LIKE {placeholder}")
+            params.append(f"%{value}%")
+        else:
+            where_parts.append(f"{field} {operator} {placeholder}")
+            params.append(value)
+
     def _build_where_clause(
         self,
         filters: Optional[List[Dict[str, Any]]],
         placeholder: str
     ) -> Tuple[str, List[Any]]:
-        """
-        Build WHERE clause combining default_filters and user filters.
+        """Build WHERE clause combining default_filters and user filters.
 
         Args:
             filters: User-provided filters
@@ -283,58 +312,14 @@ class SemanticQueryBuilder:
         Returns:
             Tuple of (where_clause_string, params_list)
         """
-        where_parts = []
+        where_parts: List[str] = []
         params: List[Any] = []
 
-        # 1. Apply default_filters first
         for f in self.default_filters:
-            field = self.resolve_filter_field(f.get("field", ""))
-            operator = f.get("operator", "=")
-            value = f.get("value")
+            self._apply_single_filter(f, placeholder, where_parts, params)
 
-            op_upper = operator.upper()
-            if op_upper == "IS NOT NULL":
-                where_parts.append(f"{field} IS NOT NULL")
-            elif op_upper == "IS NULL":
-                where_parts.append(f"{field} IS NULL")
-            elif "!=" in operator and value is None:
-                # Handle "!= ''" case
-                where_parts.append(f"{field} {operator}")
-            elif op_upper == "IN":
-                values = [v.strip() for v in str(value).split(",")]
-                placeholders = ",".join([placeholder] * len(values))
-                where_parts.append(f"{field} IN ({placeholders})")
-                params.extend(values)
-            elif op_upper == "LIKE":
-                where_parts.append(f"{field} LIKE {placeholder}")
-                params.append(f"%{value}%")
-            else:
-                where_parts.append(f"{field} {operator} {placeholder}")
-                params.append(value)
-
-        # 2. Apply user filters
-        if filters:
-            for f in filters:
-                field = self.resolve_filter_field(f.get("field", ""))
-                operator = f.get("operator", "=")
-                value = f.get("value")
-
-                op_upper = operator.upper()
-                if op_upper == "IS NOT NULL":
-                    where_parts.append(f"{field} IS NOT NULL")
-                elif op_upper == "IS NULL":
-                    where_parts.append(f"{field} IS NULL")
-                elif op_upper == "IN":
-                    values = [v.strip() for v in str(value).split(",")]
-                    placeholders = ",".join([placeholder] * len(values))
-                    where_parts.append(f"{field} IN ({placeholders})")
-                    params.extend(values)
-                elif op_upper == "LIKE":
-                    where_parts.append(f"{field} LIKE {placeholder}")
-                    params.append(f"%{value}%")
-                else:
-                    where_parts.append(f"{field} {operator} {placeholder}")
-                    params.append(value)
+        for f in (filters or []):
+            self._apply_single_filter(f, placeholder, where_parts, params)
 
         if where_parts:
             return f" WHERE {' AND '.join(where_parts)}", params
@@ -408,7 +393,6 @@ class SemanticQueryBuilder:
 
         # Auto-detect aggregate queries and add GROUP BY for non-aggregate columns
         if selected_columns:
-            import re
             agg_pattern = re.compile(r'^\s*(AVG|SUM|COUNT|MAX|MIN)\s*\(', re.IGNORECASE)
             has_aggregate = any(agg_pattern.match(col) for col in selected_columns)
             if has_aggregate:

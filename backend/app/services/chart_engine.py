@@ -25,7 +25,7 @@ class ChartEngine:
         - Two numeric columns → scatter
         - Otherwise → None (table only)
         """
-        if not data or len(data) == 0:
+        if not data:
             return None
 
         columns = list(data[0].keys())

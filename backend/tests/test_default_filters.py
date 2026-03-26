@@ -2,14 +2,12 @@
 Unit tests for default_filters functionality in SemanticQueryBuilder.
 """
 import pytest
-import yaml
+
+from app.services.query_builder import SemanticQueryBuilder
 
 
 def test_default_filters_in_where_clause():
     """Test that default_filters are correctly applied to WHERE clause."""
-    import sys
-    sys.path.insert(0, '/Users/wangfushuaiqi/omaha_ontocenter/backend')
-    from app.services.query_builder import SemanticQueryBuilder
 
     # Create a minimal YAML config with default_filters
     config_yaml = """

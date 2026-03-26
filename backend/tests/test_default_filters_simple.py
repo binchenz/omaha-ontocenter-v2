@@ -2,15 +2,7 @@
 Simple unit tests for default_filters functionality.
 Tests query_builder directly without importing other app modules.
 """
-import sys
-import os
-
-# Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-# Import only what we need
 from app.services.query_builder import SemanticQueryBuilder
-from app.services.semantic import semantic_service
 
 
 def test_default_filters_loaded():

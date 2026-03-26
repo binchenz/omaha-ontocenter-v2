@@ -2,18 +2,29 @@
 Omaha Core integration service - Simplified for Phase 1.
 """
 from typing import Dict, Any, List, Optional, Tuple
-import yaml
-import sqlite3
-import pymysql
+import operator as op
 import os
 import re
-import tushare as ts
+import sqlite3
+
+import pymysql
 import pandas as pd
+import tushare as ts
+import yaml
 
 from app.services.semantic import semantic_service
 from app.services.query_builder import SemanticQueryBuilder
 from app.services.computed_property_engine import ComputedPropertyEngine
 from app.services.semantic_formatter import SemanticTypeFormatter
+
+
+# Operator lookup for client-side DataFrame filtering
+_DF_OPS = {
+    "=": op.eq, "==": op.eq,
+    "!=": op.ne,
+    ">": op.gt, ">=": op.ge,
+    "<": op.lt, "<=": op.le,
+}
 
 
 def _find_by_name(items: List[Dict[str, Any]], name: str) -> Optional[Dict[str, Any]]:
@@ -434,40 +445,29 @@ class OmahaService:
 
             api_supported = supported_params.get(api_name, [])
 
-            # Build API parameters and client-side filters
+            # Combine default_filters and user filters, then split into
+            # API-side params vs client-side filters
+            all_filters = list(obj_def.get("default_filters", []))
+            all_filters.extend(filters or [])
+
             api_params = {}
             client_filters = []
+            for f in all_filters:
+                field = f.get("field")
+                value = f.get("value")
+                if not (field and value):
+                    continue
+                if field in api_supported:
+                    api_params[field] = value
+                else:
+                    client_filters.append({
+                        "field": field,
+                        "value": value,
+                        "operator": f.get("operator", "="),
+                    })
 
-            # Apply default_filters first
-            default_filters = obj_def.get("default_filters", [])
-            if default_filters:
-                for f in default_filters:
-                    field = f.get("field")
-                    value = f.get("value")
-                    if field and value:
-                        if field in api_supported:
-                            api_params[field] = value
-                        else:
-                            client_filters.append({"field": field, "value": value})
-
-            # Apply user-provided filters (can override defaults)
-            if filters:
-                for f in filters:
-                    field = f.get("field")
-                    value = f.get("value")
-                    operator = f.get("operator", "=")
-                    if field and value:
-                        if field in api_supported:
-                            api_params[field] = value
-                        else:
-                            # Store for client-side filtering
-                            client_filters.append({"field": field, "value": value, "operator": operator})
-
-            # Add limit parameter (will be applied after client-side filtering)
             # Request more data if we need to filter client-side
-            api_limit = limit * 10 if client_filters else limit
-            if api_limit:
-                api_params["limit"] = api_limit
+            api_params["limit"] = limit * 10 if client_filters else limit
 
             # Call Tushare API
             df = getattr(pro, api_name)(**api_params)
@@ -477,27 +477,18 @@ class OmahaService:
                 return {"success": True, "data": [], "count": 0}
 
             # Apply client-side filters
-            if client_filters:
-                for f in client_filters:
-                    field = f["field"]
-                    value = f["value"]
-                    operator = f.get("operator", "=")
+            for f in client_filters:
+                field = f["field"]
+                value = f["value"]
+                operator = f.get("operator", "=")
 
-                    if field in df.columns:
-                        if operator == "=" or operator == "==":
-                            df = df[df[field] == value]
-                        elif operator == "!=":
-                            df = df[df[field] != value]
-                        elif operator == ">":
-                            df = df[df[field] > value]
-                        elif operator == ">=":
-                            df = df[df[field] >= value]
-                        elif operator == "<":
-                            df = df[df[field] < value]
-                        elif operator == "<=":
-                            df = df[df[field] <= value]
-                        elif operator == "in":
-                            df = df[df[field].isin(value if isinstance(value, list) else [value])]
+                if field not in df.columns:
+                    continue
+
+                if operator == "in":
+                    df = df[df[field].isin(value if isinstance(value, list) else [value])]
+                elif operator in _DF_OPS:
+                    df = df[_DF_OPS[operator](df[field], value)]
 
             # Apply limit after client-side filtering
             if limit and len(df) > limit:
@@ -532,24 +523,16 @@ class OmahaService:
         if df.empty:
             return []
 
-        # Get property definitions
-        properties = obj_def.get('properties', [])
-        computed_props = obj_def.get('computed_properties', [])
+        # Build semantic type map from both regular and computed properties
+        all_props = obj_def.get('properties', []) + obj_def.get('computed_properties', [])
+        semantic_type_map = {
+            prop['name']: prop['semantic_type']
+            for prop in all_props
+            if 'semantic_type' in prop
+        }
 
-        # Build semantic type map
-        semantic_type_map = {}
-        for prop in properties:
-            if 'semantic_type' in prop:
-                semantic_type_map[prop['name']] = prop['semantic_type']
-
-        for prop in computed_props:
-            if 'semantic_type' in prop:
-                semantic_type_map[prop['name']] = prop['semantic_type']
-
-        # Convert to dict records
         data = df.to_dict('records')
 
-        # Format each record
         if semantic_type_map:
             formatter = SemanticTypeFormatter()
             for record in data:

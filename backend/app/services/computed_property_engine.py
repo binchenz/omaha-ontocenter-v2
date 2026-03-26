@@ -5,6 +5,7 @@ Computed Property Engine
 """
 
 import re
+from collections import deque
 from typing import List, Dict, Any, Set
 import pandas as pd
 
@@ -94,13 +95,12 @@ class ComputedPropertyEngine:
             computed_deps = deps & computed_prop_names
             in_degree[name] = len(computed_deps)
 
-        # 找到所有入度为 0 的节点（不依赖其他计算属性）
-        queue = [name for name, degree in in_degree.items() if degree == 0]
+        # Find all nodes with in-degree 0
+        queue = deque([name for name, degree in in_degree.items() if degree == 0])
         result = []
 
         while queue:
-            # 取出一个入度为 0 的节点
-            current = queue.pop(0)
+            current = queue.popleft()
             result.append(prop_map[current])
 
             # 减少依赖于当前节点的节点的入度

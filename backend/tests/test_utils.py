@@ -3,20 +3,16 @@
 IMPORTANT: Call setup_test_environment() BEFORE importing any app modules.
 """
 import os
-import sys
 
 
 def setup_test_environment():
-    """Setup environment variables and Python path for testing.
+    """Setup environment variables for testing.
 
     Must be called BEFORE importing any app modules.
     """
     os.environ.setdefault('DATABASE_URL', 'sqlite:///./omaha.db')
     os.environ.setdefault('SECRET_KEY', 'test-secret-key')
     os.environ.setdefault('DATAHUB_GMS_URL', 'http://localhost:8080')
-
-    if 'backend' not in sys.path:
-        sys.path.insert(0, 'backend')
 
 
 def print_section(title):

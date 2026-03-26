@@ -22,8 +22,7 @@ class SemanticTypeFormatter:
 
     @staticmethod
     def format_value(value: Any, semantic_type: str) -> str:
-        """
-        根据语义类型格式化值
+        """根据语义类型格式化值
 
         Args:
             value: 原始值
@@ -35,20 +34,15 @@ class SemanticTypeFormatter:
         if value is None or value == '':
             return ''
 
-        if semantic_type == 'percentage':
-            return SemanticTypeFormatter._format_percentage(value)
-        elif semantic_type == 'currency_cny':
-            return SemanticTypeFormatter._format_currency_cny(value)
-        elif semantic_type == 'date':
-            return SemanticTypeFormatter._format_date(value)
-        elif semantic_type == 'stock_code':
-            return str(value)
-        elif semantic_type == 'text':
-            return str(value)
-        elif semantic_type == 'number':
-            return SemanticTypeFormatter._format_number(value)
-        else:
-            return str(value)
+        formatters = {
+            'percentage': SemanticTypeFormatter._format_percentage,
+            'currency_cny': SemanticTypeFormatter._format_currency_cny,
+            'date': SemanticTypeFormatter._format_date,
+            'number': SemanticTypeFormatter._format_number,
+        }
+
+        formatter = formatters.get(semantic_type)
+        return formatter(value) if formatter else str(value)
 
     @staticmethod
     def _format_percentage(value: Any) -> str:
