@@ -413,8 +413,19 @@ class OmahaService:
             if not api_name:
                 return {"success": False, "error": "Object must have 'api_name' field for Tushare datasource"}
 
-            # Build API parameters from default_filters and user filters
+            # Define supported API parameters for each API
+            # These are parameters that Tushare API accepts directly
+            supported_params = {
+                "stock_basic": ["ts_code", "name", "exchange", "market", "list_status", "is_hs"],
+                "daily": ["ts_code", "trade_date", "start_date", "end_date"],
+                "fina_indicator": ["ts_code", "ann_date", "start_date", "end_date", "period"],
+            }
+
+            api_supported = supported_params.get(api_name, [])
+
+            # Build API parameters and client-side filters
             api_params = {}
+            client_filters = []
 
             # Apply default_filters first
             default_filters = obj_def.get("default_filters", [])
@@ -423,7 +434,10 @@ class OmahaService:
                     field = f.get("field")
                     value = f.get("value")
                     if field and value:
-                        api_params[field] = value
+                        if field in api_supported:
+                            api_params[field] = value
+                        else:
+                            client_filters.append({"field": field, "value": value})
 
             # Apply user-provided filters (can override defaults)
             if filters:
@@ -431,11 +445,17 @@ class OmahaService:
                     field = f.get("field")
                     value = f.get("value")
                     if field and value:
-                        api_params[field] = value
+                        if field in api_supported:
+                            api_params[field] = value
+                        else:
+                            # Store for client-side filtering
+                            client_filters.append({"field": field, "value": value})
 
-            # Add limit parameter
-            if limit:
-                api_params["limit"] = limit
+            # Add limit parameter (will be applied after client-side filtering)
+            # Request more data if we need to filter client-side
+            api_limit = limit * 10 if client_filters else limit
+            if api_limit:
+                api_params["limit"] = api_limit
 
             # Call Tushare API
             df = getattr(pro, api_name)(**api_params)
@@ -443,6 +463,18 @@ class OmahaService:
             # Convert DataFrame to list of dicts
             if df is None or df.empty:
                 return {"success": True, "data": [], "count": 0}
+
+            # Apply client-side filters
+            if client_filters:
+                for f in client_filters:
+                    field = f["field"]
+                    value = f["value"]
+                    if field in df.columns:
+                        df = df[df[field] == value]
+
+            # Apply limit after client-side filtering
+            if limit and len(df) > limit:
+                df = df.head(limit)
 
             # Filter columns if specified
             if selected_columns:
