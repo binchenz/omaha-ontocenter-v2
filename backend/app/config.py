@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 
+    # Tushare
+    TUSHARE_TOKEN: Optional[str] = None
+
     model_config = SettingsConfigDict(env_file="../.env", case_sensitive=True)
 
 
