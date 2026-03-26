@@ -1,0 +1,8 @@
+# NOTE: Production paths use /opt/omaha-cloud/
+# Install with: crontab deployment/crontab.txt
+
+# Sync Tushare data daily at 2am
+0 2 * * * /opt/omaha-cloud/deployment/sync_wrapper.sh
+
+# Backup database daily at 3am
+0 3 * * * /opt/omaha-cloud/deployment/backup.sh
