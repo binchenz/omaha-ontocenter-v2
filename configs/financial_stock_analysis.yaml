@@ -329,6 +329,60 @@ ontology:
           description: 息税折旧摊销前利润（元），现金流分析常用
 
     # ============================================================
+    # 板块分类（Phase 3 新增）
+    # ============================================================
+    - name: Sector
+      datasource: tushare_pro
+      api_name: concept
+      description: 概念板块分类（新能源、AI、半导体等热门概念）
+      business_context: |
+        概念板块是投资者按主题筛选股票的重要工具。
+        常见热门板块：
+        - 新能源（TS101）：光伏、风电、储能、新能源汽车
+        - 人工智能（TS300）：AI芯片、大模型、算力
+        - 半导体（TS200）：芯片设计、制造、封测
+        - 医药（TS400）：创新药、医疗器械、CXO
+        使用场景：
+        - 找出新能源板块中ROE最高的股票
+        - 筛选AI概念股中市值超过100亿的公司
+        - 对比不同板块的平均估值水平
+      properties:
+        - name: code
+          type: string
+          description: 板块代码，如TS101（新能源）
+        - name: name
+          type: string
+          description: 板块名称，如"新能源"、"人工智能"
+        - name: src
+          type: string
+          description: 数据来源
+
+    - name: SectorMember
+      datasource: tushare_pro
+      api_name: concept_detail
+      description: 板块成分股（股票与板块的多对多关系）
+      business_context: |
+        记录每只股票所属的概念板块。
+        一只股票可以属于多个板块（如宁德时代同时属于新能源、锂电池、储能等板块）。
+        查询时需要指定板块代码（id参数）。
+      properties:
+        - name: id
+          type: string
+          description: 板块代码，如TS101
+        - name: ts_code
+          type: string
+          description: 股票代码
+        - name: name
+          type: string
+          description: 股票名称
+        - name: in_date
+          type: string
+          description: 纳入日期
+        - name: out_date
+          type: string
+          description: 剔除日期（如果为空表示仍在板块内）
+
+    # ============================================================
     # 技术指标（Phase 3 新增，基于日线数据计算）
     # ============================================================
     - name: TechnicalIndicator
@@ -458,3 +512,12 @@ ontology:
       join_condition:
         from_field: ts_code
         to_field: ts_code
+
+    - name: sector_members
+      description: 板块成分股（股票与板块的多对多关系）
+      from_object: Sector
+      to_object: SectorMember
+      type: one_to_many
+      join_condition:
+        from_field: code
+        to_field: id

@@ -426,6 +426,8 @@ class OmahaService:
                 "income": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
                 "balancesheet": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
                 "cashflow": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
+                "concept": ["src"],
+                "concept_detail": ["id", "ts_code"],
             }
 
             api_supported = supported_params.get(api_name, [])
