@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Omaha OntoCenter v2 is a configuration-driven pricing analysis platform with ontology management and object exploration capabilities. The system integrates with DataHub for metadata discovery and supports multi-datasource querying (PostgreSQL, MySQL).
+Omaha OntoCenter v2 is a configuration-driven financial analysis platform with ontology management and object exploration capabilities. The system uses YAML-based ontology configurations to define business objects (stocks, financial indicators, etc.) and supports multi-datasource querying.
 
 **Tech Stack:**
 - Backend: FastAPI + SQLAlchemy + PostgreSQL/SQLite
 - Frontend: React 18 + TypeScript + Vite + Ant Design
-- Core: Omaha Core library for configuration and query execution
+- Data Sources: Tushare Pro API, PostgreSQL, MySQL
+- Core Services: OmahaService (query execution), SemanticService (type formatting), ComputedPropertyEngine
 
 ## Development Commands
 
@@ -92,20 +93,18 @@ backend/
 ├── app/                    # FastAPI application
 │   ├── api/               # API endpoints (auth, projects, datahub, ontology, query, assets, chat)
 │   ├── core/              # Security utilities (JWT, password hashing)
-│   ├── models/            # SQLAlchemy ORM models
+│   ├── mcp/               # Model Context Protocol server implementation
+│   ├── models/            # SQLAlchemy ORM models (User, Project, Asset, ChatSession, QueryHistory, APIKey)
 │   ├── schemas/           # Pydantic schemas for request/response
 │   ├── services/          # Business logic layer
+│   │   ├── omaha.py       # Core service: YAML config parsing, query execution, multi-datasource support
+│   │   ├── semantic.py    # Semantic type formatting (currency, percentage, date, etc.)
+│   │   ├── query_builder.py        # Query builder with semantic enhancements
+│   │   ├── computed_property_engine.py  # Computed property evaluation
+│   │   └── semantic_formatter.py   # Format output based on semantic types
 │   ├── config.py          # Application settings
 │   ├── database.py        # Database connection
 │   └── main.py            # FastAPI app entry point
-├── omaha/                 # Omaha Core library
-│   ├── core/
-│   │   ├── config/        # YAML configuration loader with env var substitution
-│   │   ├── ontology/      # Ontology management
-│   │   ├── data/          # Data access layer
-│   │   └── agent/         # LLM orchestration (LangGraph)
-│   ├── cli/               # CLI interface
-│   └── utils/             # Utilities and exceptions
 ├── alembic/               # Database migrations
 └── tests/                 # Test suite
 ```
@@ -144,14 +143,22 @@ frontend/src/
 └── utils/               # Utility functions
 ```
 
-### Omaha Core Library
+### Core Services
 
-The `omaha/` directory contains the core business logic:
+The `app/services/` directory contains the core business logic:
 
-- **Configuration Layer**: YAML-based ontology configuration with environment variable substitution (pattern: `${VAR_NAME}` for uppercase vars only)
-- **Ontology Management**: Schema validation and business object definitions
-- **Data Layer**: Multi-datasource query execution with SQLAlchemy
-- **Agent Layer**: LLM orchestration using LangGraph for intelligent query assistance
+- **OmahaService** (`omaha.py`): Main service for YAML config parsing, query execution, and multi-datasource support (Tushare, PostgreSQL, MySQL, SQLite)
+- **SemanticService** (`semantic.py`): Handles semantic type formatting (currency, percentage, date, ratio, etc.)
+- **SemanticQueryBuilder** (`query_builder.py`): Builds queries with semantic enhancements and default filters
+- **ComputedPropertyEngine** (`computed_property_engine.py`): Evaluates computed properties defined in ontology configs
+- **SemanticTypeFormatter** (`semantic_formatter.py`): Formats query results based on semantic types
+
+### YAML Configuration Structure
+
+Ontology configs (in `configs/`) define business objects with:
+- **datasources**: Connection info for Tushare, PostgreSQL, MySQL
+- **objects**: Business object definitions with fields, semantic types, computed properties, and default filters
+- **Environment variable substitution**: Only uppercase patterns like `${VAR_NAME}` are substituted (lowercase `${var}` will NOT work)
 
 ## Database
 
@@ -176,22 +183,29 @@ The `omaha/` directory contains the core business logic:
 **Backend:** Environment variables in `.env` or `backend/.env`
 - `DATABASE_URL` - Database connection string
 - `SECRET_KEY` - JWT signing key
-- `DATAHUB_GMS_URL` - DataHub GMS endpoint
-- `DATAHUB_GMS_TOKEN` - DataHub authentication token
+- `DATAHUB_GMS_URL` - DataHub GMS endpoint (optional)
+- `DATAHUB_GMS_TOKEN` - DataHub authentication token (optional)
+- `TUSHARE_TOKEN` - Tushare Pro API token (for financial data)
 
-**Omaha Core:** YAML configuration files with environment variable substitution
-- Only uppercase patterns like `${VAR_NAME}` are substituted
+**Ontology Configs:** YAML files in `configs/` directory
+- Example: `configs/financial_stock_analysis.yaml`
+- Environment variable substitution: Only uppercase patterns like `${TUSHARE_TOKEN}` are substituted
 - Lowercase patterns like `${var}` will NOT be substituted
 
 ## Testing
 
-Tests are located in `backend/tests/` and use pytest with mocking:
+**Backend tests** in `backend/tests/` use pytest with mocking:
 - `test_api_*.py` - API endpoint tests
 - `test_models_*.py` - Model tests
 - `test_schemas_*.py` - Schema validation tests
 - `test_*_service.py` - Service layer tests
 
-Run tests from the `backend/` directory.
+**Root-level test files** for integration testing:
+- `test_phase3_real_scenario.py` - Real-world scenario tests with Tushare data
+- `test_tushare.py` - Tushare API integration tests
+- `test_default_filters.py` - Default filter behavior tests
+
+Run backend tests from the `backend/` directory. Run integration tests from the project root.
 
 ## Local Development Workflow
 

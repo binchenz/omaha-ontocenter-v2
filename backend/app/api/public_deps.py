@@ -1,11 +1,11 @@
 """Authentication dependency for public API endpoints."""
-import hashlib
 from datetime import datetime
 from fastapi import Header, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.public_api_key import PublicApiKey
+from app.core.security import hash_api_key
 
 
 def verify_api_key(
@@ -17,7 +17,7 @@ def verify_api_key(
         raise HTTPException(status_code=401, detail="Invalid authorization header")
 
     raw_key = authorization[7:]
-    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    key_hash = hash_api_key(raw_key)
 
     api_key = db.query(PublicApiKey).filter(
         PublicApiKey.key_hash == key_hash,

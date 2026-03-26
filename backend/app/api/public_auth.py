@@ -3,7 +3,6 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import secrets
-import hashlib
 
 from app.database import get_db
 from app.models import User, InviteCode, PublicApiKey
@@ -13,6 +12,7 @@ from app.schemas.public_auth import (
     ApiKeyRequest,
     ApiKeyResponse
 )
+from app.core.security import hash_api_key
 
 router = APIRouter()
 
@@ -61,7 +61,7 @@ def generate_api_key(request: ApiKeyRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
 
     raw_key = f"omaha_{secrets.token_urlsafe(32)}"
-    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    key_hash = hash_api_key(raw_key)
 
     api_key = PublicApiKey(
         user_id=user.id,

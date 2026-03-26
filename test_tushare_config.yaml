@@ -1,0 +1,35 @@
+datasources:
+  - id: tushare_pro
+    name: Tushare Pro API
+    type: tushare
+    connection:
+      token: 044a35feee6c10f656343bdf3523014b88265b00bf2b586ed7c0ad90
+
+ontology:
+  objects:
+    - name: Stock
+      datasource: tushare_pro
+      api_name: stock_basic
+      description: 股票基本信息
+      properties:
+        - name: ts_code
+          type: string
+          description: 股票代码
+        - name: symbol
+          type: string
+          description: 股票简称
+        - name: name
+          type: string
+          description: 股票名称
+        - name: area
+          type: string
+          description: 地域
+        - name: industry
+          type: string
+          description: 行业
+        - name: market
+          type: string
+          description: 市场类型
+        - name: list_date
+          type: string
+          description: 上市日期

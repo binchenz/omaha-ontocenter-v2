@@ -21,6 +21,12 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+def hash_api_key(api_key: str) -> str:
+    """Hash an API key using SHA256."""
+    import hashlib
+    return hashlib.sha256(api_key.encode()).hexdigest()
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
