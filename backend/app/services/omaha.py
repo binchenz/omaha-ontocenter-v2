@@ -419,6 +419,9 @@ class OmahaService:
                 "stock_basic": ["ts_code", "name", "exchange", "market", "list_status", "is_hs"],
                 "daily": ["ts_code", "trade_date", "start_date", "end_date"],
                 "fina_indicator": ["ts_code", "ann_date", "start_date", "end_date", "period"],
+                "income": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
+                "balancesheet": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
+                "cashflow": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
             }
 
             api_supported = supported_params.get(api_name, [])
@@ -444,12 +447,13 @@ class OmahaService:
                 for f in filters:
                     field = f.get("field")
                     value = f.get("value")
+                    operator = f.get("operator", "=")
                     if field and value:
                         if field in api_supported:
                             api_params[field] = value
                         else:
                             # Store for client-side filtering
-                            client_filters.append({"field": field, "value": value})
+                            client_filters.append({"field": field, "value": value, "operator": operator})
 
             # Add limit parameter (will be applied after client-side filtering)
             # Request more data if we need to filter client-side
@@ -469,8 +473,23 @@ class OmahaService:
                 for f in client_filters:
                     field = f["field"]
                     value = f["value"]
+                    operator = f.get("operator", "=")
+
                     if field in df.columns:
-                        df = df[df[field] == value]
+                        if operator == "=" or operator == "==":
+                            df = df[df[field] == value]
+                        elif operator == "!=":
+                            df = df[df[field] != value]
+                        elif operator == ">":
+                            df = df[df[field] > value]
+                        elif operator == ">=":
+                            df = df[df[field] >= value]
+                        elif operator == "<":
+                            df = df[df[field] < value]
+                        elif operator == "<=":
+                            df = df[df[field] <= value]
+                        elif operator == "in":
+                            df = df[df[field].isin(value if isinstance(value, list) else [value])]
 
             # Apply limit after client-side filtering
             if limit and len(df) > limit:

@@ -1,5 +1,6 @@
-# 金融股票分析配置 - Phase 1
-# 包含 Stock、DailyQuote、Industry 对象及其关系
+# 金融股票分析配置 - Phase 1 & Phase 2
+# Phase 1: Stock、DailyQuote、Industry 对象及其关系
+# Phase 2: FinancialIndicator、FinancialReport 对象及其关系
 
 datasources:
   - id: tushare_pro
@@ -98,7 +99,376 @@ ontology:
           type: number
           description: 该行业股票数量
 
+    # Phase 2: 财务指标
+    - name: FinancialIndicator
+      datasource: tushare_pro
+      api_name: fina_indicator
+      description: 财务指标数据
+      properties:
+        - name: ts_code
+          type: string
+          description: 股票代码
+        - name: end_date
+          type: string
+          description: 报告期（YYYYMMDD）
+        - name: ann_date
+          type: string
+          description: 公告日期（YYYYMMDD）
+        - name: eps
+          type: number
+          description: 基本每股收益
+        - name: dt_eps
+          type: number
+          description: 稀释每股收益
+        - name: total_revenue_ps
+          type: number
+          description: 每股营业总收入
+        - name: revenue_ps
+          type: number
+          description: 每股营业收入
+        - name: capital_rese_ps
+          type: number
+          description: 每股资本公积
+        - name: surplus_rese_ps
+          type: number
+          description: 每股盈余公积
+        - name: undist_profit_ps
+          type: number
+          description: 每股未分配利润
+        - name: extra_item
+          type: number
+          description: 非经常性损益
+        - name: profit_dedt
+          type: number
+          description: 扣除非经常性损益后的净利润
+        - name: gross_margin
+          type: number
+          description: 销售毛利率（%）
+        - name: current_ratio
+          type: number
+          description: 流动比率
+        - name: quick_ratio
+          type: number
+          description: 速动比率
+        - name: cash_ratio
+          type: number
+          description: 保守速动比率
+        - name: ar_turn
+          type: number
+          description: 应收账款周转率
+        - name: ca_turn
+          type: number
+          description: 流动资产周转率
+        - name: fa_turn
+          type: number
+          description: 固定资产周转率
+        - name: assets_turn
+          type: number
+          description: 总资产周转率
+        - name: op_income
+          type: number
+          description: 经营活动净收益
+        - name: ebit
+          type: number
+          description: 息税前利润
+        - name: ebitda
+          type: number
+          description: 息税折旧摊销前利润
+        - name: fcff
+          type: number
+          description: 企业自由现金流量
+        - name: fcfe
+          type: number
+          description: 股权自由现金流量
+        - name: netprofit_margin
+          type: number
+          description: 销售净利率（%）
+        - name: grossprofit_margin
+          type: number
+          description: 销售毛利率（%）
+        - name: cogs_of_sales
+          type: number
+          description: 销售成本率（%）
+        - name: expense_of_sales
+          type: number
+          description: 销售期间费用率（%）
+        - name: profit_to_gr
+          type: number
+          description: 净利润/营业总收入（%）
+        - name: saleexp_to_gr
+          type: number
+          description: 销售费用/营业总收入（%）
+        - name: adminexp_of_gr
+          type: number
+          description: 管理费用/营业总收入（%）
+        - name: finaexp_of_gr
+          type: number
+          description: 财务费用/营业总收入（%）
+        - name: impai_ttm
+          type: number
+          description: 资产减值损失/营业总收入（%）
+        - name: gc_of_gr
+          type: number
+          description: 营业总成本/营业总收入（%）
+        - name: op_of_gr
+          type: number
+          description: 营业利润/营业总收入（%）
+        - name: ebit_of_gr
+          type: number
+          description: 息税前利润/营业总收入（%）
+        - name: roe
+          type: number
+          description: 净资产收益率（%）
+        - name: roe_waa
+          type: number
+          description: 加权平均净资产收益率（%）
+        - name: roe_dt
+          type: number
+          description: 净资产收益率(扣除非经常损益)（%）
+        - name: roa
+          type: number
+          description: 总资产报酬率（%）
+        - name: npta
+          type: number
+          description: 总资产净利润（%）
+        - name: roic
+          type: number
+          description: 投入资本回报率（%）
+        - name: roe_yearly
+          type: number
+          description: 年化净资产收益率（%）
+        - name: roa_yearly
+          type: number
+          description: 年化总资产报酬率（%）
+        - name: debt_to_assets
+          type: number
+          description: 资产负债率（%）
+        - name: assets_to_eqt
+          type: number
+          description: 权益乘数
+        - name: dp_assets_to_eqt
+          type: number
+          description: 权益乘数(杜邦分析)
+        - name: ca_to_assets
+          type: number
+          description: 流动资产/总资产（%）
+        - name: nca_to_assets
+          type: number
+          description: 非流动资产/总资产（%）
+        - name: tbassets_to_totalassets
+          type: number
+          description: 有形资产/总资产（%）
+        - name: int_to_talcap
+          type: number
+          description: 带息债务/全部投入资本（%）
+        - name: eqt_to_talcapital
+          type: number
+          description: 归属于母公司的股东权益/全部投入资本（%）
+        - name: currentdebt_to_debt
+          type: number
+          description: 流动负债/负债合计（%）
+        - name: longdeb_to_debt
+          type: number
+          description: 非流动负债/负债合计（%）
+
+    # Phase 2: 财务报表（利润表）
+    - name: IncomeStatement
+      datasource: tushare_pro
+      api_name: income
+      description: 利润表数据
+      properties:
+        - name: ts_code
+          type: string
+          description: 股票代码
+        - name: end_date
+          type: string
+          description: 报告期（YYYYMMDD）
+        - name: ann_date
+          type: string
+          description: 公告日期（YYYYMMDD）
+        - name: f_ann_date
+          type: string
+          description: 实际公告日期（YYYYMMDD）
+        - name: report_type
+          type: string
+          description: 报告类型（1-合并报表/2-单季合并）
+        - name: comp_type
+          type: string
+          description: 公司类型（1-一般工商业/2-银行/3-保险/4-证券）
+        - name: total_revenue
+          type: number
+          description: 营业总收入
+        - name: revenue
+          type: number
+          description: 营业收入
+        - name: int_income
+          type: number
+          description: 利息收入
+        - name: prem_earned
+          type: number
+          description: 已赚保费
+        - name: comm_income
+          type: number
+          description: 手续费及佣金收入
+        - name: n_commis_income
+          type: number
+          description: 手续费及佣金净收入
+        - name: n_oth_income
+          type: number
+          description: 其他经营净收益
+        - name: n_oth_b_income
+          type: number
+          description: 加:其他业务净收益
+        - name: prem_income
+          type: number
+          description: 保险业务收入
+        - name: out_prem
+          type: number
+          description: 减:分出保费
+        - name: une_prem_reser
+          type: number
+          description: 提取未到期责任准备金
+        - name: reins_income
+          type: number
+          description: 其中:分保费收入
+        - name: n_sec_tb_income
+          type: number
+          description: 代理买卖证券业务净收入
+        - name: n_sec_uw_income
+          type: number
+          description: 证券承销业务净收入
+        - name: n_asset_mg_income
+          type: number
+          description: 受托客户资产管理业务净收入
+        - name: oth_b_income
+          type: number
+          description: 其他业务收入
+        - name: fv_value_chg_gain
+          type: number
+          description: 加:公允价值变动净收益
+        - name: invest_income
+          type: number
+          description: 加:投资净收益
+        - name: ass_invest_income
+          type: number
+          description: 其中:对联营企业和合营企业的投资收益
+        - name: forex_gain
+          type: number
+          description: 加:汇兑净收益
+        - name: total_cogs
+          type: number
+          description: 营业总成本
+        - name: oper_cost
+          type: number
+          description: 减:营业成本
+        - name: int_exp
+          type: number
+          description: 减:利息支出
+        - name: comm_exp
+          type: number
+          description: 减:手续费及佣金支出
+        - name: biz_tax_surchg
+          type: number
+          description: 减:营业税金及附加
+        - name: sell_exp
+          type: number
+          description: 减:销售费用
+        - name: admin_exp
+          type: number
+          description: 减:管理费用
+        - name: fin_exp
+          type: number
+          description: 减:财务费用
+        - name: assets_impair_loss
+          type: number
+          description: 减:资产减值损失
+        - name: prem_refund
+          type: number
+          description: 退保金
+        - name: compens_payout
+          type: number
+          description: 赔付总支出
+        - name: reser_insur_liab
+          type: number
+          description: 提取保险责任准备金
+        - name: div_payt
+          type: number
+          description: 保户红利支出
+        - name: reins_exp
+          type: number
+          description: 分保费用
+        - name: oper_exp
+          type: number
+          description: 营业支出
+        - name: compens_payout_refu
+          type: number
+          description: 减:摊回赔付支出
+        - name: insur_reser_refu
+          type: number
+          description: 减:摊回保险责任准备金
+        - name: reins_cost_refund
+          type: number
+          description: 减:摊回分保费用
+        - name: other_bus_cost
+          type: number
+          description: 其他业务成本
+        - name: operate_profit
+          type: number
+          description: 营业利润
+        - name: non_oper_income
+          type: number
+          description: 加:营业外收入
+        - name: non_oper_exp
+          type: number
+          description: 减:营业外支出
+        - name: nca_disploss
+          type: number
+          description: 其中:减:非流动资产处置净损失
+        - name: total_profit
+          type: number
+          description: 利润总额
+        - name: income_tax
+          type: number
+          description: 所得税费用
+        - name: n_income
+          type: number
+          description: 净利润(含少数股东损益)
+        - name: n_income_attr_p
+          type: number
+          description: 净利润(不含少数股东损益)
+        - name: minority_gain
+          type: number
+          description: 少数股东损益
+        - name: oth_compr_income
+          type: number
+          description: 其他综合收益
+        - name: t_compr_income
+          type: number
+          description: 综合收益总额
+        - name: compr_inc_attr_p
+          type: number
+          description: 归属于母公司(或股东)的综合收益总额
+        - name: compr_inc_attr_m_s
+          type: number
+          description: 归属于少数股东的综合收益总额
+        - name: ebit
+          type: number
+          description: 息税前利润
+        - name: ebitda
+          type: number
+          description: 息税折旧摊销前利润
+        - name: insurance_exp
+          type: number
+          description: 保险业务支出
+        - name: undist_profit
+          type: number
+          description: 年初未分配利润
+        - name: distable_profit
+          type: number
+          description: 可分配利润
+
   relationships:
+    # Phase 1 关系
     # Stock -> DailyQuote (一对多)
     - name: stock_daily_quotes
       description: 股票的日线行情数据
@@ -118,3 +488,24 @@ ontology:
       join_condition:
         from_field: industry
         to_field: industry
+
+    # Phase 2 关系
+    # Stock -> FinancialIndicator (一对多)
+    - name: stock_financial_indicators
+      description: 股票的财务指标数据
+      from_object: Stock
+      to_object: FinancialIndicator
+      type: one_to_many
+      join_condition:
+        from_field: ts_code
+        to_field: ts_code
+
+    # Stock -> IncomeStatement (一对多)
+    - name: stock_income_statements
+      description: 股票的利润表数据
+      from_object: Stock
+      to_object: IncomeStatement
+      type: one_to_many
+      join_condition:
+        from_field: ts_code
+        to_field: ts_code
