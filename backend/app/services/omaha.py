@@ -6,6 +6,9 @@ import yaml
 import sqlite3
 import pymysql
 import os
+import re
+import tushare as ts
+import pandas as pd
 
 from app.services.semantic import semantic_service
 from app.services.query_builder import SemanticQueryBuilder
@@ -27,6 +30,17 @@ class OmahaService:
     def parse_config(self, config_yaml: str) -> Dict[str, Any]:
         """Parse and validate Omaha configuration YAML."""
         try:
+            # Substitute environment variables in YAML before parsing
+            # Pattern: ${VAR_NAME} (uppercase only)
+            def substitute_env_vars(text: str) -> str:
+                """Replace ${VAR_NAME} patterns with environment variable values."""
+                pattern = r'\$\{([A-Z_][A-Z0-9_]*)\}'
+                def replacer(match):
+                    var_name = match.group(1)
+                    return os.environ.get(var_name, match.group(0))
+                return re.sub(pattern, replacer, text)
+
+            config_yaml = substitute_env_vars(config_yaml)
             config_dict = yaml.safe_load(config_yaml)
 
             if not isinstance(config_dict, dict):
@@ -219,8 +233,12 @@ class OmahaService:
                 return {"success": False, "error": f"Datasource '{datasource_id}' not found"}
 
             ds_type = ds_config.get("type")
-            if ds_type not in ("sqlite", "mysql"):
+            if ds_type not in ("sqlite", "mysql", "tushare"):
                 return {"success": False, "error": f"Unsupported datasource type: {ds_type}"}
+
+            # Handle Tushare datasource separately
+            if ds_type == "tushare":
+                return self._query_tushare(ds_config, obj_def, selected_columns, filters, limit)
 
             # Check if object uses custom query instead of table
             custom_query = obj_def.get("query")
@@ -371,6 +389,72 @@ class OmahaService:
             connect_timeout=10,
             charset="utf8mb4",
         )
+
+    def _query_tushare(
+        self,
+        ds_config: Dict[str, Any],
+        obj_def: Dict[str, Any],
+        selected_columns: Optional[List[str]],
+        filters: Optional[List[Dict[str, Any]]],
+        limit: int,
+    ) -> Dict[str, Any]:
+        """Query Tushare Pro API."""
+        try:
+            # Get token from datasource config
+            token = ds_config.get("connection", {}).get("token")
+            if not token:
+                return {"success": False, "error": "Tushare token not found in datasource config"}
+
+            # Initialize Tushare Pro API
+            pro = ts.pro_api(token)
+
+            # Get API name and params from object definition
+            api_name = obj_def.get("api_name")
+            if not api_name:
+                return {"success": False, "error": "Object must have 'api_name' field for Tushare datasource"}
+
+            # Build API parameters from default_filters and user filters
+            api_params = {}
+
+            # Apply default_filters first
+            default_filters = obj_def.get("default_filters", [])
+            if default_filters:
+                for f in default_filters:
+                    field = f.get("field")
+                    value = f.get("value")
+                    if field and value:
+                        api_params[field] = value
+
+            # Apply user-provided filters (can override defaults)
+            if filters:
+                for f in filters:
+                    field = f.get("field")
+                    value = f.get("value")
+                    if field and value:
+                        api_params[field] = value
+
+            # Add limit parameter
+            if limit:
+                api_params["limit"] = limit
+
+            # Call Tushare API
+            df = getattr(pro, api_name)(**api_params)
+
+            # Convert DataFrame to list of dicts
+            if df is None or df.empty:
+                return {"success": True, "data": [], "count": 0}
+
+            # Filter columns if specified
+            if selected_columns:
+                available_cols = [col for col in selected_columns if col in df.columns]
+                if available_cols:
+                    df = df[available_cols]
+
+            data = df.to_dict('records')
+            return {"success": True, "data": data, "count": len(data)}
+
+        except Exception as e:
+            return {"success": False, "error": f"Tushare query failed: {str(e)}"}
 
     def _execute_query(
         self, ds_config: Dict[str, Any], ds_type: str, query: str, params: List[Any]
