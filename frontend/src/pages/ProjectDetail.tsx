@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Tabs, Button, message, Space } from 'antd';
-import { SaveOutlined, MessageOutlined, DatabaseOutlined, AppstoreOutlined, KeyOutlined } from '@ant-design/icons';
+import { SaveOutlined, MessageOutlined, DatabaseOutlined, AppstoreOutlined, KeyOutlined, ApartmentOutlined } from '@ant-design/icons';
 import { projectService } from '@/services/project';
 import { ontologyService } from '@/services/ontology';
 import { Project } from '@/types';
 import CodeMirror from '@uiw/react-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
 import ObjectExplorer from './ObjectExplorer';
+import OntologyViewer from './OntologyViewer';
 import AssetList from './AssetList';
 import { ChatAgent } from './ChatAgent';
 import ApiKeyManager from '../components/ApiKeyManager';
@@ -128,6 +129,9 @@ const ProjectDetail: React.FC = () => {
             extensions={[yaml()]}
             onChange={(value) => setConfig(value)}
           />
+        </TabPane>
+        <TabPane tab={<span><ApartmentOutlined /> Ontology</span>} key="ontology">
+          <OntologyViewer configYaml={config} />
         </TabPane>
         <TabPane tab={<span><AppstoreOutlined /> Explorer</span>} key="explorer">
           <ObjectExplorer projectId={projectId} />

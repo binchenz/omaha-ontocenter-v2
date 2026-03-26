@@ -320,7 +320,11 @@ class SemanticQueryBuilder:
                 value = f.get("value")
 
                 op_upper = operator.upper()
-                if op_upper == "IN":
+                if op_upper == "IS NOT NULL":
+                    where_parts.append(f"{field} IS NOT NULL")
+                elif op_upper == "IS NULL":
+                    where_parts.append(f"{field} IS NULL")
+                elif op_upper == "IN":
                     values = [v.strip() for v in str(value).split(",")]
                     placeholders = ",".join([placeholder] * len(values))
                     where_parts.append(f"{field} IN ({placeholders})")

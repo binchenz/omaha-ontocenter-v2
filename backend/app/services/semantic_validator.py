@@ -65,11 +65,7 @@ class SemanticTypeValidator:
             return {"valid": True, "value": None, "formatted": None}
 
         try:
-            # Convert to Decimal for precise currency handling
-            if isinstance(value, (int, float, Decimal)):
-                decimal_value = Decimal(str(value))
-            else:
-                decimal_value = Decimal(str(value))
+            decimal_value = Decimal(str(value))
 
             currency = prop_def.get("currency", "CNY")
             currency_symbols = {
