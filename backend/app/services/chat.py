@@ -450,15 +450,24 @@ limit: 20
             return {"error": str(e)}
 
     def _screen_stocks(self, args: Dict[str, Any], config_yaml: str) -> Dict[str, Any]:
-        """Screen stocks by querying stock list then batch querying metrics."""
+        """Screen stocks with multi-object filtering (financial + valuation + technical)."""
         try:
             stock_filters = args.get("stock_filters", [])
-            metric_object = args.get("metric_object")
-            metric_columns = args.get("metric_columns", [])
-            metric_filters = args.get("metric_filters", [])
+            metric_objects = args.get("metric_objects", [])  # NEW: support multiple objects
             sort_by = args.get("sort_by")
             sort_order = args.get("sort_order", "desc")
             limit = min(args.get("limit", 10), 20)
+
+            # Backward compatibility: support old single-object format
+            if not metric_objects and args.get("metric_object"):
+                metric_objects = [{
+                    "object": args.get("metric_object"),
+                    "columns": args.get("metric_columns", []),
+                    "filters": args.get("metric_filters", [])
+                }]
+
+            if not metric_objects:
+                return {"error": "metric_objects is required"}
 
             # Step 1: Get stock list (max 200)
             stock_result = omaha_service.query_objects(
@@ -474,51 +483,58 @@ limit: 20
             if not stocks:
                 return {"data": [], "count": 0, "message": "没有找到符合条件的股票"}
 
-            # Step 2: Batch query metrics for each stock
+            # Step 2: Batch query all metric objects for each stock
             results = []
-            cols = [f"{metric_object}.{c}" for c in metric_columns]
-            cols.insert(0, f"{metric_object}.ts_code")
-
             for stock in stocks:
                 ts_code = stock.get("ts_code")
-                r = omaha_service.query_objects(
-                    config_yaml, metric_object,
-                    selected_columns=cols,
-                    filters=[{"field": "ts_code", "operator": "=", "value": ts_code}],
-                    limit=1
-                )
-                if r.get("success") and r.get("data"):
-                    row = r["data"][0]
-                    row["name"] = stock.get("name")
-                    row["industry"] = stock.get("industry")
+                row = {"ts_code": ts_code, "name": stock.get("name"), "industry": stock.get("industry")}
+
+                # Query each metric object and merge results
+                for metric_obj in metric_objects:
+                    obj_name = metric_obj.get("object")
+                    columns = metric_obj.get("columns", [])
+                    cols = [f"{obj_name}.{c}" for c in columns]
+
+                    r = omaha_service.query_objects(
+                        config_yaml, obj_name,
+                        selected_columns=cols,
+                        filters=[{"field": "ts_code", "operator": "=", "value": ts_code}],
+                        limit=1
+                    )
+                    if r.get("success") and r.get("data"):
+                        row.update(r["data"][0])
+
+                # Only include stocks that have data from all metric objects
+                if len(row) > 3:  # More than just ts_code, name, industry
                     results.append(row)
 
-            # Step 3: Apply metric filters client-side
-            for f in metric_filters:
-                field = f.get("field")
-                op = f.get("operator", ">=")
-                val = f.get("value")
-                filtered = []
-                for row in results:
-                    v = row.get(field)
-                    if v is None:
-                        continue
-                    try:
-                        v = float(v)
-                        val_f = float(val)
-                        if op in (">=", "=>") and v >= val_f:
-                            filtered.append(row)
-                        elif op == ">" and v > val_f:
-                            filtered.append(row)
-                        elif op in ("<=", "=<") and v <= val_f:
-                            filtered.append(row)
-                        elif op == "<" and v < val_f:
-                            filtered.append(row)
-                        elif op == "=" and v == val_f:
-                            filtered.append(row)
-                    except (TypeError, ValueError):
-                        pass
-                results = filtered
+            # Step 3: Apply all metric filters client-side
+            for metric_obj in metric_objects:
+                for f in metric_obj.get("filters", []):
+                    field = f.get("field")
+                    op = f.get("operator", ">=")
+                    val = f.get("value")
+                    filtered = []
+                    for row in results:
+                        v = row.get(field)
+                        if v is None:
+                            continue
+                        try:
+                            v = float(v)
+                            val_f = float(val)
+                            if op in (">=", "=>") and v >= val_f:
+                                filtered.append(row)
+                            elif op == ">" and v > val_f:
+                                filtered.append(row)
+                            elif op in ("<=", "=<") and v <= val_f:
+                                filtered.append(row)
+                            elif op == "<" and v < val_f:
+                                filtered.append(row)
+                            elif op == "=" and v == val_f:
+                                filtered.append(row)
+                        except (TypeError, ValueError):
+                            pass
+                    results = filtered
 
             # Step 4: Sort
             if sort_by and results:
