@@ -45,7 +45,7 @@ def _json_dumps(obj: Any) -> str:
 class ChatService:
     """Service for handling chat interactions with LLM."""
 
-    SYSTEM_TEMPLATE = """你是一个数据分析助手，帮助运营人员查询和分析拼便宜平台的商品数据。
+    SYSTEM_TEMPLATE = """你是一个专业的股票数据分析助手，帮助投资者查询和分析A股数据。
 
 ## 可用数据对象
 {ontology}
@@ -55,41 +55,77 @@ class ChatService:
 1. **思考**：分析用户问题，确定需要查询哪个对象、哪些字段
 2. **行动**：调用工具查询真实数据（不允许凭空回答数据类问题）
 3. **观察**：分析查询结果，提取关键信息
-4. **回答**：基于真实数据给出简洁结论（不要复述原始数据，要总结规律）
+4. **回答**：基于真实数据给出简洁结论
 
 ## 强制规则
 - 任何涉及数据的问题，必须先调用工具查询，不得直接回答
-- 查询结果要总结分析，不要直接罗列原始数据
-- 不确定字段名时，先调用 get_schema 获取字段定义
-- 查询时使用 "ObjectName.field_name" 格式，例如 "PriceComparison.sku_name"
-- gross_margin 是计算字段，可直接查询
+- 查询时 filters 中的 field 不需要加对象前缀，直接用字段名，如 "ts_code" 而不是 "Stock.ts_code"
+- selected_columns 中需要加对象前缀，如 "Stock.name"、"DailyQuote.close"
 - **查询一次后立即基于结果回答，不要反复查询**
+- 如果查询结果为空或不符合预期，直接告知用户，不要编造数据
 
-## 核心对象说明
-- **PriceComparison** 是核心对象（表：dm_ppy_platform_product_info_rel_ymd）
-  - platform_id 为空 = 自身记录（无竞品对比）
-  - platform_id 有值 = 与该竞品平台的价格对比
-  - price_advantage_flag: 1=有优势(我便宜), 2=无优势(我贵), 3=无竞品数据
-  - 查询竞品对比时必须过滤：platform_id != ''
+## 查询示例
 
-## 聚合查询示例
-**按城市统计优势品/劣势品：**
+**查询某只股票基本信息：**
 ```
-object_type: PriceComparison
-selected_columns: [
-  "PriceComparison.city",
-  "COUNT(DISTINCT CASE WHEN PriceComparison.price_advantage_flag = 1 THEN PriceComparison.sku_id END) as advantage_count",
-  "COUNT(DISTINCT CASE WHEN PriceComparison.price_advantage_flag = 2 THEN PriceComparison.sku_id END) as disadvantage_count"
-]
-filters: [{{field: "PriceComparison.platform_id", operator: "!=", value: ""}}]
+object_type: Stock
+filters: [{{"field": "ts_code", "operator": "=", "value": "000001.SZ"}}]
+selected_columns: ["Stock.ts_code", "Stock.name", "Stock.industry", "Stock.area"]
+limit: 1
+```
+
+**查询某只股票最近行情：**
+```
+object_type: DailyQuote
+filters: [{{"field": "ts_code", "operator": "=", "value": "000001.SZ"}}]
+selected_columns: ["DailyQuote.trade_date", "DailyQuote.close", "DailyQuote.pct_chg", "DailyQuote.vol"]
+limit: 10
+```
+
+**查询某只股票估值（PE/PB/市值）：**
+```
+object_type: ValuationMetric
+filters: [{{"field": "ts_code", "operator": "=", "value": "000001.SZ"}}]
+selected_columns: ["ValuationMetric.trade_date", "ValuationMetric.pe_ttm", "ValuationMetric.pb", "ValuationMetric.total_mv", "ValuationMetric.dv_ratio"]
+limit: 1
+```
+
+**查询某只股票财务指标：**
+```
+object_type: FinancialIndicator
+filters: [{{"field": "ts_code", "operator": "=", "value": "000001.SZ"}}]
+selected_columns: ["FinancialIndicator.end_date", "FinancialIndicator.roe", "FinancialIndicator.roa", "FinancialIndicator.gross_margin", "FinancialIndicator.debt_to_assets"]
+limit: 4
+```
+
+**按行业筛选股票：**
+```
+object_type: Stock
+filters: [{{"field": "industry", "operator": "=", "value": "银行"}}]
+selected_columns: ["Stock.ts_code", "Stock.name", "Stock.area"]
 limit: 20
 ```
 
 ## 可用工具
 - list_objects: 列出所有对象类型
 - get_schema: 获取对象字段定义
-- query_data: 执行数据查询（支持聚合函数）
+- query_data: 执行数据查询（单只股票或已知股票列表）
+- screen_stocks: **跨股票筛选**，用于"找出ROE>15%的股票"、"股息率最高的银行股"等场景
 - save_asset: 保存查询为资产
+
+## 工具选择原则
+- 查询**单只股票**的数据 → 用 query_data
+- 查询**多只股票**并按指标筛选/排序 → 用 screen_stocks
+- screen_stocks 示例：找出银行股中ROE最高的10只
+  ```
+  stock_filters: [{{"field": "industry", "operator": "=", "value": "银行"}}]
+  metric_object: "FinancialIndicator"
+  metric_columns: ["roe", "debt_to_assets", "gross_margin"]
+  metric_filters: [{{"field": "roe", "operator": ">=", "value": 8}}]
+  sort_by: "roe"
+  sort_order: "desc"
+  limit: 10
+  ```
 
 请用中文回答，基于真实数据，简洁清晰。"""
 
@@ -242,6 +278,52 @@ limit: 20
             {
                 "type": "function",
                 "function": {
+                    "name": "screen_stocks",
+                    "description": "跨股票筛选工具。先获取股票列表，再批量查询财务/估值数据，最后按条件过滤。适用于'找出ROE>15%的股票'、'股息率最高的10只银行股'等场景",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "stock_filters": {
+                                "type": "array",
+                                "items": {"type": "object"},
+                                "description": "股票基本信息过滤条件，如按行业筛选 [{\"field\": \"industry\", \"operator\": \"=\", \"value\": \"银行\"}]"
+                            },
+                            "metric_object": {
+                                "type": "string",
+                                "description": "要查询的指标对象，如 FinancialIndicator、ValuationMetric"
+                            },
+                            "metric_columns": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "要查询的指标字段，如 [\"roe\", \"debt_to_assets\"]"
+                            },
+                            "metric_filters": {
+                                "type": "array",
+                                "items": {"type": "object"},
+                                "description": "指标过滤条件，如 [{\"field\": \"roe\", \"operator\": \">=\", \"value\": 15}]"
+                            },
+                            "sort_by": {
+                                "type": "string",
+                                "description": "排序字段，如 \"roe\""
+                            },
+                            "sort_order": {
+                                "type": "string",
+                                "description": "排序方向：desc（降序）或 asc（升序）",
+                                "default": "desc"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "返回结果数量限制",
+                                "default": 10
+                            }
+                        },
+                        "required": ["metric_object", "metric_columns"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
                     "name": "save_asset",
                     "description": "保存查询配置为可重用的资产",
                     "parameters": {
@@ -346,6 +428,9 @@ limit: 20
                     result["note"] = f"数据已截断，仅显示前10条（共{result.get('count', '?')}条）"
                 return result
 
+            elif tool_name == "screen_stocks":
+                return self._screen_stocks(tool_args, config_yaml)
+
             elif tool_name == "save_asset":
                 # This would call the assets API internally
                 return {"message": "Asset saved (not implemented in this service)"}
@@ -360,6 +445,97 @@ limit: 20
 
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
+
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _screen_stocks(self, args: Dict[str, Any], config_yaml: str) -> Dict[str, Any]:
+        """Screen stocks by querying stock list then batch querying metrics."""
+        try:
+            stock_filters = args.get("stock_filters", [])
+            metric_object = args.get("metric_object")
+            metric_columns = args.get("metric_columns", [])
+            metric_filters = args.get("metric_filters", [])
+            sort_by = args.get("sort_by")
+            sort_order = args.get("sort_order", "desc")
+            limit = min(args.get("limit", 10), 20)
+
+            # Step 1: Get stock list (max 200)
+            stock_result = omaha_service.query_objects(
+                config_yaml, "Stock",
+                selected_columns=["Stock.ts_code", "Stock.name", "Stock.industry"],
+                filters=stock_filters,
+                limit=200
+            )
+            if not stock_result.get("success"):
+                return {"error": f"获取股票列表失败: {stock_result.get('error')}"}
+
+            stocks = stock_result.get("data", [])
+            if not stocks:
+                return {"data": [], "count": 0, "message": "没有找到符合条件的股票"}
+
+            # Step 2: Batch query metrics for each stock
+            results = []
+            cols = [f"{metric_object}.{c}" for c in metric_columns]
+            cols.insert(0, f"{metric_object}.ts_code")
+
+            for stock in stocks:
+                ts_code = stock.get("ts_code")
+                r = omaha_service.query_objects(
+                    config_yaml, metric_object,
+                    selected_columns=cols,
+                    filters=[{"field": "ts_code", "operator": "=", "value": ts_code}],
+                    limit=1
+                )
+                if r.get("success") and r.get("data"):
+                    row = r["data"][0]
+                    row["name"] = stock.get("name")
+                    row["industry"] = stock.get("industry")
+                    results.append(row)
+
+            # Step 3: Apply metric filters client-side
+            for f in metric_filters:
+                field = f.get("field")
+                op = f.get("operator", ">=")
+                val = f.get("value")
+                filtered = []
+                for row in results:
+                    v = row.get(field)
+                    if v is None:
+                        continue
+                    try:
+                        v = float(v)
+                        val_f = float(val)
+                        if op in (">=", "=>") and v >= val_f:
+                            filtered.append(row)
+                        elif op == ">" and v > val_f:
+                            filtered.append(row)
+                        elif op in ("<=", "=<") and v <= val_f:
+                            filtered.append(row)
+                        elif op == "<" and v < val_f:
+                            filtered.append(row)
+                        elif op == "=" and v == val_f:
+                            filtered.append(row)
+                    except (TypeError, ValueError):
+                        pass
+                results = filtered
+
+            # Step 4: Sort
+            if sort_by and results:
+                results.sort(
+                    key=lambda x: float(x.get(sort_by, 0) or 0),
+                    reverse=(sort_order == "desc")
+                )
+
+            # Step 5: Limit
+            results = results[:limit]
+
+            return {
+                "success": True,
+                "data": results,
+                "count": len(results),
+                "total_screened": len(stocks)
+            }
 
         except Exception as e:
             return {"error": str(e)}
