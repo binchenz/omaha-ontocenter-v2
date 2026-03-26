@@ -27,3 +27,4 @@ class User(Base):
     # Relationships
     projects = relationship("Project", back_populates="owner")
     query_history = relationship("QueryHistory", back_populates="user")
+    public_api_keys = relationship("PublicApiKey", back_populates="user")
