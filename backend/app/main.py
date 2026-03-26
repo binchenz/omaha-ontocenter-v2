@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.api import api_router
+from app.api import public_auth
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -24,6 +25,7 @@ app.add_middleware(
 
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(public_auth.router, prefix="/api/public/auth", tags=["public-auth"])
 
 
 @app.get("/")
