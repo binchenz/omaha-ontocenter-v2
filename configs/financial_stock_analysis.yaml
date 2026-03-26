@@ -1,0 +1,120 @@
+# 金融股票分析配置 - Phase 1
+# 包含 Stock、DailyQuote、Industry 对象及其关系
+
+datasources:
+  - id: tushare_pro
+    name: Tushare Pro API
+    type: tushare
+    connection:
+      token: ${TUSHARE_TOKEN}
+
+ontology:
+  objects:
+    # 核心对象：股票基本信息
+    - name: Stock
+      datasource: tushare_pro
+      api_name: stock_basic
+      description: 股票基本信息
+      default_filters:
+        - field: list_status
+          operator: "="
+          value: "L"
+      properties:
+        - name: ts_code
+          type: string
+          description: 股票代码（如 000001.SZ）
+        - name: symbol
+          type: string
+          description: 股票简称（如 000001）
+        - name: name
+          type: string
+          description: 股票名称（如 平安银行）
+        - name: area
+          type: string
+          description: 地域（如 深圳）
+        - name: industry
+          type: string
+          description: 所属行业（如 银行）
+        - name: market
+          type: string
+          description: 市场类型（主板/创业板/科创板）
+        - name: list_date
+          type: string
+          description: 上市日期（YYYYMMDD）
+        - name: list_status
+          type: string
+          description: 上市状态（L上市/D退市/P暂停上市）
+
+    # 日线行情
+    - name: DailyQuote
+      datasource: tushare_pro
+      api_name: daily
+      description: 股票日线行情数据
+      properties:
+        - name: ts_code
+          type: string
+          description: 股票代码
+        - name: trade_date
+          type: string
+          description: 交易日期（YYYYMMDD）
+        - name: open
+          type: number
+          description: 开盘价
+        - name: high
+          type: number
+          description: 最高价
+        - name: low
+          type: number
+          description: 最低价
+        - name: close
+          type: number
+          description: 收盘价
+        - name: pre_close
+          type: number
+          description: 昨收价
+        - name: change
+          type: number
+          description: 涨跌额
+        - name: pct_chg
+          type: number
+          description: 涨跌幅（%）
+        - name: vol
+          type: number
+          description: 成交量（手）
+        - name: amount
+          type: number
+          description: 成交额（千元）
+
+    # 行业分类（聚合查询）
+    - name: Industry
+      datasource: tushare_pro
+      api_name: stock_basic
+      description: 行业分类统计
+      properties:
+        - name: industry
+          type: string
+          description: 行业名称
+        - name: stock_count
+          type: number
+          description: 该行业股票数量
+
+  relationships:
+    # Stock -> DailyQuote (一对多)
+    - name: stock_daily_quotes
+      description: 股票的日线行情数据
+      from_object: Stock
+      to_object: DailyQuote
+      type: one_to_many
+      join_condition:
+        from_field: ts_code
+        to_field: ts_code
+
+    # Stock -> Industry (多对一)
+    - name: stock_industry
+      description: 股票所属行业
+      from_object: Stock
+      to_object: Industry
+      type: many_to_one
+      join_condition:
+        from_field: industry
+        to_field: industry
