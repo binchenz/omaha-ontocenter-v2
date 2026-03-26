@@ -12,6 +12,8 @@ import pandas as pd
 
 from app.services.semantic import semantic_service
 from app.services.query_builder import SemanticQueryBuilder
+from app.services.computed_property_engine import ComputedPropertyEngine
+from app.services.semantic_formatter import SemanticTypeFormatter
 
 
 def _find_by_name(items: List[Dict[str, Any]], name: str) -> Optional[Dict[str, Any]]:
@@ -501,17 +503,63 @@ class OmahaService:
             if limit and len(df) > limit:
                 df = df.head(limit)
 
+            # Apply computed properties if defined
+            computed_props = obj_def.get('computed_properties', [])
+            if computed_props and not df.empty:
+                try:
+                    engine = ComputedPropertyEngine()
+                    df = engine.compute_properties(df, computed_props)
+                except Exception as e:
+                    return {"success": False, "error": f"Computed property error: {str(e)}"}
+
             # Filter columns if specified
             if selected_columns:
                 available_cols = [col for col in selected_columns if col in df.columns]
                 if available_cols:
                     df = df[available_cols]
 
-            data = df.to_dict('records')
+            # Apply semantic type formatting
+            data = self._format_data_with_semantic_types(df, obj_def)
             return {"success": True, "data": data, "count": len(data)}
 
         except Exception as e:
             return {"success": False, "error": f"Tushare query failed: {str(e)}"}
+
+    def _format_data_with_semantic_types(
+        self, df: pd.DataFrame, obj_def: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Format data with semantic types."""
+        if df.empty:
+            return []
+
+        # Get property definitions
+        properties = obj_def.get('properties', [])
+        computed_props = obj_def.get('computed_properties', [])
+
+        # Build semantic type map
+        semantic_type_map = {}
+        for prop in properties:
+            if 'semantic_type' in prop:
+                semantic_type_map[prop['name']] = prop['semantic_type']
+
+        for prop in computed_props:
+            if 'semantic_type' in prop:
+                semantic_type_map[prop['name']] = prop['semantic_type']
+
+        # Convert to dict records
+        data = df.to_dict('records')
+
+        # Format each record
+        if semantic_type_map:
+            formatter = SemanticTypeFormatter()
+            for record in data:
+                for field, semantic_type in semantic_type_map.items():
+                    if field in record:
+                        record[field] = formatter.format_value(
+                            record[field], semantic_type
+                        )
+
+        return data
 
     def _compute_technical_indicators(
         self,

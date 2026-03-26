@@ -227,49 +227,69 @@ ontology:
       properties:
         - name: ts_code
           type: string
+          semantic_type: stock_code
           description: 股票代码
         - name: end_date
           type: string
+          semantic_type: date
           description: 报告期（YYYYMMDD），如20231231为2023年年报
         - name: eps
           type: number
+          semantic_type: number
           description: 每股收益（元），越高越好，反映每股盈利能力
         - name: roe
           type: number
+          semantic_type: percentage
           description: 净资产收益率（%），巴菲特最看重的指标，>15%为优质
         - name: roe_waa
           type: number
+          semantic_type: percentage
           description: 加权平均ROE（%），更准确的ROE计算方式
         - name: roa
           type: number
+          semantic_type: percentage
           description: 总资产报酬率（%），>5%表示资产利用效率较高
         - name: roic
           type: number
+          semantic_type: percentage
           description: 投入资本回报率（%），衡量资本配置效率
         - name: grossprofit_margin
           type: number
+          semantic_type: percentage
           description: 毛利率（%），越高说明产品竞争力越强，茅台>90%，普通制造业<30%
         - name: netprofit_margin
           type: number
+          semantic_type: percentage
           description: 净利率（%），扣除所有成本后的盈利比例
         - name: debt_to_assets
           type: number
+          semantic_type: percentage
           description: 资产负债率（%），>70%需警惕财务风险（银行除外）
         - name: current_ratio
           type: number
+          semantic_type: number
           description: 流动比率，>2表示短期偿债能力强
         - name: quick_ratio
           type: number
+          semantic_type: number
           description: 速动比率，>1表示短期偿债能力良好
         - name: assets_turn
           type: number
+          semantic_type: number
           description: 总资产周转率，越高说明资产利用效率越高
         - name: ebit
           type: number
+          semantic_type: currency_cny
           description: 息税前利润（元），排除财务杠杆影响的经营利润
         - name: fcff
           type: number
+          semantic_type: currency_cny
           description: 企业自由现金流（元），正值且持续增长是优质公司标志
+      computed_properties:
+        - name: financial_health_score
+          expression: "{roe} * 0.4 + {roa} * 0.3 + {grossprofit_margin} * 0.3"
+          semantic_type: percentage
+          description: 财务健康度评分（综合ROE、ROA、毛利率）
 
     # ============================================================
     # 利润表（精简版）
@@ -293,40 +313,61 @@ ontology:
       properties:
         - name: ts_code
           type: string
+          semantic_type: stock_code
           description: 股票代码
         - name: end_date
           type: string
+          semantic_type: date
           description: 报告期（YYYYMMDD）
         - name: report_type
           type: string
+          semantic_type: text
           description: 报告类型：1=合并报表，2=单季合并
         - name: total_revenue
           type: number
+          semantic_type: currency_cny
           description: 营业总收入（元），公司最顶层的收入规模
         - name: revenue
           type: number
+          semantic_type: currency_cny
           description: 营业收入（元），主营业务收入
         - name: total_cogs
           type: number
+          semantic_type: currency_cny
           description: 营业总成本（元）
         - name: operate_profit
           type: number
+          semantic_type: currency_cny
           description: 营业利润（元），主营业务产生的利润
         - name: total_profit
           type: number
+          semantic_type: currency_cny
           description: 利润总额（元），含营业外收支
         - name: n_income
           type: number
+          semantic_type: currency_cny
           description: 净利润（元），扣除所得税后的最终利润
         - name: n_income_attr_p
           type: number
+          semantic_type: currency_cny
           description: 归母净利润（元），归属于母公司股东的净利润，最常用
         - name: ebit
           type: number
+          semantic_type: currency_cny
           description: 息税前利润（元）
         - name: ebitda
           type: number
+          semantic_type: currency_cny
           description: 息税折旧摊销前利润（元），现金流分析常用
+      computed_properties:
+        - name: profit_margin
+          expression: "{n_income} / {total_revenue}"
+          semantic_type: percentage
+          description: 净利率（净利润/营业总收入）
+        - name: operating_margin
+          expression: "{operate_profit} / {total_revenue}"
+          semantic_type: percentage
+          description: 营业利润率（营业利润/营业总收入）
 
     # ============================================================
     # 板块分类（Phase 3 新增）

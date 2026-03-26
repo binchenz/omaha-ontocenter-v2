@@ -1,267 +1,157 @@
 """
-Unit tests for semantic type validation and formatting.
+测试 SemanticTypeValidator
 """
-import sys
-import os
 
-# Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from app.services.semantic_validator import semantic_type_validator
+import pytest
+from app.services.semantic_validator import SemanticTypeValidator
 
 
-def test_currency_validation():
-    """Test currency semantic type validation."""
-    prop_def = {
-        "semantic_type": "currency",
-        "currency": "CNY"
-    }
+class TestSemanticTypeValidator:
+    """测试语义类型验证器"""
 
-    # Valid currency values
-    result = semantic_type_validator.validate_property(100.50, prop_def)
-    assert result["valid"] == True
-    assert result["value"] == 100.50
-    assert result["formatted"] == "¥100.50"
+    def test_validate_valid_semantic_types(self):
+        """测试有效的语义类型"""
+        validator = SemanticTypeValidator()
 
-    result = semantic_type_validator.validate_property(0, prop_def)
-    assert result["valid"] == True
-    assert result["formatted"] == "¥0.00"
-
-    result = semantic_type_validator.validate_property(None, prop_def)
-    assert result["valid"] == True
-    assert result["value"] is None
-
-    # Invalid currency value
-    result = semantic_type_validator.validate_property("invalid", prop_def)
-    assert result["valid"] == False
-    assert "error" in result
-
-    print("✅ test_currency_validation passed")
-
-
-def test_percentage_validation():
-    """Test percentage semantic type validation."""
-    prop_def = {
-        "semantic_type": "percentage"
-    }
-
-    # Valid percentage values (0-1 range)
-    result = semantic_type_validator.validate_property(0.25, prop_def)
-    assert result["valid"] == True
-    assert result["value"] == 0.25
-    assert result["formatted"] == "25.00%"
-
-    result = semantic_type_validator.validate_property(0, prop_def)
-    assert result["valid"] == True
-    assert result["formatted"] == "0.00%"
-
-    result = semantic_type_validator.validate_property(1, prop_def)
-    assert result["valid"] == True
-    assert result["formatted"] == "100.00%"
-
-    # Out of range (warning but still valid)
-    result = semantic_type_validator.validate_property(1.5, prop_def)
-    assert result["valid"] == True
-    assert result["formatted"] == "150.00%"
-    assert "warning" in result
-
-    result = semantic_type_validator.validate_property(-0.1, prop_def)
-    assert result["valid"] == True
-    assert "warning" in result
-
-    # Invalid percentage value
-    result = semantic_type_validator.validate_property("invalid", prop_def)
-    assert result["valid"] == False
-    assert "error" in result
-
-    print("✅ test_percentage_validation passed")
-
-
-def test_enum_validation():
-    """Test enum semantic type validation."""
-    prop_def = {
-        "semantic_type": "enum",
-        "enum_values": [
-            {"value": "yjp", "label": "易久批"},
-            {"value": "xsj", "label": "鲜世纪"},
-            {"value": "jd_ws", "label": "京东万商"}
-        ]
-    }
-
-    # Valid enum values
-    result = semantic_type_validator.validate_property("yjp", prop_def)
-    assert result["valid"] == True
-    assert result["value"] == "yjp"
-    assert result["formatted"] == "yjp (易久批)"
-
-    result = semantic_type_validator.validate_property("xsj", prop_def)
-    assert result["valid"] == True
-    assert result["formatted"] == "xsj (鲜世纪)"
-
-    # Invalid enum value
-    result = semantic_type_validator.validate_property("invalid_platform", prop_def)
-    assert result["valid"] == False
-    assert "error" in result
-    assert "Allowed" in result["error"]
-
-    # Null value
-    result = semantic_type_validator.validate_property(None, prop_def)
-    assert result["valid"] == True
-    assert result["value"] is None
-
-    print("✅ test_enum_validation passed")
-
-
-def test_date_validation():
-    """Test date semantic type validation."""
-    prop_def = {
-        "semantic_type": "date"
-    }
-
-    # Valid date string
-    result = semantic_type_validator.validate_property("2026-03-16", prop_def)
-    assert result["valid"] == True
-    assert result["value"] == "2026-03-16"
-    assert result["formatted"] == "2026-03-16"
-
-    # Different date formats
-    result = semantic_type_validator.validate_property("2026/03/16", prop_def)
-    assert result["valid"] == True
-    assert result["formatted"] == "2026-03-16"
-
-    # Invalid date
-    result = semantic_type_validator.validate_property("invalid-date", prop_def)
-    assert result["valid"] == False
-    assert "error" in result
-
-    # Null value
-    result = semantic_type_validator.validate_property(None, prop_def)
-    assert result["valid"] == True
-    assert result["value"] is None
-
-    print("✅ test_date_validation passed")
-
-
-def test_id_validation():
-    """Test ID semantic type validation."""
-    prop_def = {
-        "semantic_type": "id"
-    }
-
-    # Valid ID values
-    result = semantic_type_validator.validate_property(12345, prop_def)
-    assert result["valid"] == True
-    assert result["value"] == 12345
-    assert result["formatted"] == "12345"
-
-    result = semantic_type_validator.validate_property("SKU-12345", prop_def)
-    assert result["valid"] == True
-    assert result["value"] == "SKU-12345"
-
-    # Invalid ID type
-    result = semantic_type_validator.validate_property(12.34, prop_def)
-    assert result["valid"] == False
-    assert "error" in result
-
-    # Null value
-    result = semantic_type_validator.validate_property(None, prop_def)
-    assert result["valid"] == True
-    assert result["value"] is None
-
-    print("✅ test_id_validation passed")
-
-
-def test_format_query_results():
-    """Test formatting complete query results."""
-    results = [
-        {
-            "sku_id": 12345,
-            "sku_name": "可口可乐",
-            "ppy_price": 3.50,
-            "gross_margin": 0.25,
-            "platform_id": "yjp",
-            "p_date": "2026-03-16"
-        },
-        {
-            "sku_id": 67890,
-            "sku_name": "雪碧",
-            "ppy_price": 3.00,
-            "gross_margin": 0.30,
-            "platform_id": "xsj",
-            "p_date": "2026-03-16"
-        }
-    ]
-
-    schema = {
-        "sku_id": {"semantic_type": "id"},
-        "sku_name": {"type": "string"},
-        "ppy_price": {"semantic_type": "currency", "currency": "CNY"},
-        "gross_margin": {"semantic_type": "percentage"},
-        "platform_id": {
-            "semantic_type": "enum",
-            "enum_values": [
-                {"value": "yjp", "label": "易久批"},
-                {"value": "xsj", "label": "鲜世纪"}
-            ]
-        },
-        "p_date": {"semantic_type": "date"}
-    }
-
-    formatted = semantic_type_validator.format_query_results(results, schema)
-
-    # Check formatted results
-    assert len(formatted["formatted_results"]) == 2
-    assert formatted["formatted_results"][0]["ppy_price"]["formatted"] == "¥3.50"
-    assert formatted["formatted_results"][0]["gross_margin"]["formatted"] == "25.00%"
-    assert formatted["formatted_results"][0]["platform_id"]["formatted"] == "yjp (易久批)"
-    assert formatted["formatted_results"][1]["platform_id"]["formatted"] == "xsj (鲜世纪)"
-
-    # Check no validation errors
-    assert len(formatted["validation_errors"]) == 0
-
-    print("✅ test_format_query_results passed")
-
-
-def test_format_query_results_with_errors():
-    """Test formatting query results with validation errors."""
-    results = [
-        {
-            "sku_id": 12345,
-            "ppy_price": "invalid_price",  # Invalid currency
-            "platform_id": "unknown_platform"  # Invalid enum
-        }
-    ]
-
-    schema = {
-        "sku_id": {"semantic_type": "id"},
-        "ppy_price": {"semantic_type": "currency", "currency": "CNY"},
-        "platform_id": {
-            "semantic_type": "enum",
-            "enum_values": [
-                {"value": "yjp", "label": "易久批"},
-                {"value": "xsj", "label": "鲜世纪"}
+        obj_config = {
+            'properties': [
+                {'name': 'roe', 'type': 'float', 'semantic_type': 'percentage'},
+                {'name': 'revenue', 'type': 'float', 'semantic_type': 'currency_cny'},
+                {'name': 'end_date', 'type': 'string', 'semantic_type': 'date'},
             ]
         }
-    }
 
-    formatted = semantic_type_validator.format_query_results(results, schema)
+        errors = validator.validate_object_config(obj_config)
+        assert len(errors) == 0
 
-    # Check validation errors
-    assert len(formatted["validation_errors"]) == 2
-    assert any(e["column"] == "ppy_price" for e in formatted["validation_errors"])
-    assert any(e["column"] == "platform_id" for e in formatted["validation_errors"])
+    def test_validate_invalid_semantic_type(self):
+        """测试无效的语义类型"""
+        validator = SemanticTypeValidator()
 
-    print("✅ test_format_query_results_with_errors passed")
+        obj_config = {
+            'properties': [
+                {'name': 'field1', 'semantic_type': 'invalid_type'},
+            ]
+        }
 
+        errors = validator.validate_object_config(obj_config)
+        assert len(errors) == 1
+        assert 'invalid_type' in errors[0]
+        assert 'field1' in errors[0]
 
-if __name__ == "__main__":
-    print("Running semantic type validation tests...\n")
-    test_currency_validation()
-    test_percentage_validation()
-    test_enum_validation()
-    test_date_validation()
-    test_id_validation()
-    test_format_query_results()
-    test_format_query_results_with_errors()
-    print("\n" + "="*80)
-    print("✅ All tests passed!")
+    def test_validate_computed_property_with_valid_dependencies(self):
+        """测试有效依赖的计算属性"""
+        validator = SemanticTypeValidator()
+
+        obj_config = {
+            'properties': [
+                {'name': 'revenue', 'type': 'float'},
+                {'name': 'cost', 'type': 'float'},
+            ],
+            'computed_properties': [
+                {
+                    'name': 'profit',
+                    'expression': '{revenue} - {cost}',
+                    'semantic_type': 'currency_cny'
+                }
+            ]
+        }
+
+        errors = validator.validate_object_config(obj_config)
+        assert len(errors) == 0
+
+    def test_validate_computed_property_with_missing_dependency(self):
+        """测试缺少依赖的计算属性"""
+        validator = SemanticTypeValidator()
+
+        obj_config = {
+            'properties': [
+                {'name': 'revenue', 'type': 'float'},
+            ],
+            'computed_properties': [
+                {
+                    'name': 'profit',
+                    'expression': '{revenue} - {cost}'  # cost 不存在
+                }
+            ]
+        }
+
+        errors = validator.validate_object_config(obj_config)
+        assert len(errors) == 1
+        assert 'cost' in errors[0]
+        assert 'profit' in errors[0]
+
+    def test_validate_nested_computed_properties(self):
+        """测试嵌套计算属性"""
+        validator = SemanticTypeValidator()
+
+        obj_config = {
+            'properties': [
+                {'name': 'revenue', 'type': 'float'},
+                {'name': 'cost', 'type': 'float'},
+            ],
+            'computed_properties': [
+                {'name': 'profit', 'expression': '{revenue} - {cost}'},
+                {'name': 'profit_margin', 'expression': '{profit} / {revenue}'}
+            ]
+        }
+
+        errors = validator.validate_object_config(obj_config)
+        assert len(errors) == 0
+
+    def test_validate_circular_dependency(self):
+        """测试循环依赖检测"""
+        validator = SemanticTypeValidator()
+
+        obj_config = {
+            'properties': [
+                {'name': 'a', 'type': 'float'},
+            ],
+            'computed_properties': [
+                {'name': 'b', 'expression': '{c} + 1'},
+                {'name': 'c', 'expression': '{b} + 1'}
+            ]
+        }
+
+        errors = validator.validate_object_config(obj_config)
+        assert len(errors) == 1
+        assert '循环依赖' in errors[0]
+
+    def test_validate_empty_expression(self):
+        """测试空表达式"""
+        validator = SemanticTypeValidator()
+
+        obj_config = {
+            'properties': [
+                {'name': 'a', 'type': 'float'},
+            ],
+            'computed_properties': [
+                {'name': 'b', 'expression': ''}
+            ]
+        }
+
+        errors = validator.validate_object_config(obj_config)
+        assert len(errors) == 1
+        assert 'expression 不能为空' in errors[0]
+
+    def test_validate_computed_property_with_invalid_semantic_type(self):
+        """测试计算属性的无效语义类型"""
+        validator = SemanticTypeValidator()
+
+        obj_config = {
+            'properties': [
+                {'name': 'a', 'type': 'float'},
+            ],
+            'computed_properties': [
+                {
+                    'name': 'b',
+                    'expression': '{a} * 2',
+                    'semantic_type': 'invalid_type'
+                }
+            ]
+        }
+
+        errors = validator.validate_object_config(obj_config)
+        assert len(errors) == 1
+        assert 'invalid_type' in errors[0]
+        assert 'b' in errors[0]
