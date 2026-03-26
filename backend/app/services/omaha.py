@@ -238,6 +238,9 @@ class OmahaService:
 
             # Handle Tushare datasource separately
             if ds_type == "tushare":
+                # Check for computed technical indicators
+                if obj_def.get("api_name") == "computed_technical":
+                    return self._compute_technical_indicators(ds_config, obj_def, filters, selected_columns, limit)
                 return self._query_tushare(ds_config, obj_def, selected_columns, filters, limit)
 
             # Check if object uses custom query instead of table
@@ -507,6 +510,100 @@ class OmahaService:
 
         except Exception as e:
             return {"success": False, "error": f"Tushare query failed: {str(e)}"}
+
+    def _compute_technical_indicators(
+        self,
+        ds_config: Dict[str, Any],
+        obj_def: Dict[str, Any],
+        filters: Optional[List[Dict[str, Any]]],
+        selected_columns: Optional[List[str]],
+        limit: int,
+    ) -> Dict[str, Any]:
+        """Compute technical indicators (MA, MACD, RSI, KDJ) from daily price data."""
+        try:
+            token = ds_config.get("connection", {}).get("token")
+            if not token:
+                return {"success": False, "error": "Tushare token not found"}
+
+            # Extract ts_code from filters (required)
+            ts_code = None
+            for f in (filters or []):
+                if f.get("field") == "ts_code":
+                    ts_code = f.get("value")
+                    break
+            if not ts_code:
+                return {"success": False, "error": "ts_code is required for TechnicalIndicator queries"}
+
+            # Fetch enough daily data to compute indicators (need at least 60 days)
+            pro = ts.pro_api(token)
+            df = pro.daily(ts_code=ts_code, limit=120)
+            if df is None or df.empty:
+                return {"success": True, "data": [], "count": 0}
+
+            # Sort ascending for calculation
+            df = df.sort_values("trade_date").reset_index(drop=True)
+            close = df["close"]
+
+            # MA indicators
+            df["ma5"] = close.rolling(5).mean().round(4)
+            df["ma10"] = close.rolling(10).mean().round(4)
+            df["ma20"] = close.rolling(20).mean().round(4)
+            df["ma60"] = close.rolling(60).mean().round(4)
+
+            # MACD (12, 26, 9)
+            ema12 = close.ewm(span=12, adjust=False).mean()
+            ema26 = close.ewm(span=26, adjust=False).mean()
+            df["macd_dif"] = (ema12 - ema26).round(4)
+            df["macd_dea"] = df["macd_dif"].ewm(span=9, adjust=False).mean().round(4)
+            df["macd_bar"] = ((df["macd_dif"] - df["macd_dea"]) * 2).round(4)
+
+            # RSI (14)
+            delta = close.diff()
+            gain = delta.clip(lower=0).rolling(14).mean()
+            loss = (-delta.clip(upper=0)).rolling(14).mean()
+            rs = gain / loss.replace(0, float("nan"))
+            df["rsi14"] = (100 - 100 / (1 + rs)).round(2)
+
+            # KDJ (9, 3, 3)
+            low_min = df["low"].rolling(9).min()
+            high_max = df["high"].rolling(9).max()
+            rsv = ((close - low_min) / (high_max - low_min).replace(0, float("nan")) * 100)
+            df["kdj_k"] = rsv.ewm(com=2, adjust=False).mean().round(2)
+            df["kdj_d"] = df["kdj_k"].ewm(com=2, adjust=False).mean().round(2)
+            df["kdj_j"] = (3 * df["kdj_k"] - 2 * df["kdj_d"]).round(2)
+
+            # Add signal columns
+            df["ma_signal"] = "neutral"
+            df.loc[df["ma5"] > df["ma20"], "ma_signal"] = "bullish"
+            df.loc[df["ma5"] < df["ma20"], "ma_signal"] = "bearish"
+
+            df["macd_signal"] = "neutral"
+            df.loc[df["macd_bar"] > 0, "macd_signal"] = "bullish"
+            df.loc[df["macd_bar"] < 0, "macd_signal"] = "bearish"
+
+            df["rsi_signal"] = "neutral"
+            df.loc[df["rsi14"] > 70, "rsi_signal"] = "overbought"
+            df.loc[df["rsi14"] < 30, "rsi_signal"] = "oversold"
+
+            # Sort descending (latest first) and limit
+            df = df.sort_values("trade_date", ascending=False).head(limit)
+
+            # Filter columns if specified
+            all_cols = ["ts_code", "trade_date", "close", "ma5", "ma10", "ma20", "ma60",
+                       "macd_dif", "macd_dea", "macd_bar", "rsi14",
+                       "kdj_k", "kdj_d", "kdj_j", "ma_signal", "macd_signal", "rsi_signal"]
+            if selected_columns:
+                cols = [c for c in selected_columns if c in df.columns]
+                if cols:
+                    df = df[cols]
+            else:
+                df = df[[c for c in all_cols if c in df.columns]]
+
+            data = df.to_dict("records")
+            return {"success": True, "data": data, "count": len(data)}
+
+        except Exception as e:
+            return {"success": False, "error": f"Technical indicator computation failed: {str(e)}"}
 
     def _execute_query(
         self, ds_config: Dict[str, Any], ds_type: str, query: str, params: List[Any]

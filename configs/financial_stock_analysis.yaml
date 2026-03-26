@@ -328,6 +328,82 @@ ontology:
           type: number
           description: 息税折旧摊销前利润（元），现金流分析常用
 
+    # ============================================================
+    # 技术指标（Phase 3 新增，基于日线数据计算）
+    # ============================================================
+    - name: TechnicalIndicator
+      datasource: tushare_pro
+      api_name: computed_technical
+      description: 股票技术指标（MA、MACD、RSI、KDJ），基于日线数据实时计算
+      business_context: |
+        技术指标是判断股票短期走势和买卖时机的工具，适合趋势交易者。
+        投资者常用场景：
+        - 判断股票是否处于上升趋势（MA5 > MA20 为金叉）
+        - 判断超买超卖（RSI > 70 超买，RSI < 30 超卖）
+        - 判断MACD金叉/死叉（macd_bar > 0 为多头）
+        - KDJ判断短期买卖点（J < 0 超卖，J > 100 超买）
+        关键指标解读：
+        - MA（均线）：MA5上穿MA20为金叉（买入信号），下穿为死叉（卖出信号）
+        - MACD：macd_bar > 0 且由负转正为金叉，是中期买入信号
+        - RSI：0-100之间，>70超买（可能回调），<30超卖（可能反弹）
+        - KDJ：J值最敏感，J<0为超卖，J>100为超买
+        - ma_signal: bullish=均线多头，bearish=均线空头
+        - macd_signal: bullish=MACD多头，bearish=MACD空头
+        - rsi_signal: overbought=超买，oversold=超卖，neutral=中性
+        注意：必须指定 ts_code 才能查询，系统会自动获取120天数据并计算指标
+      properties:
+        - name: ts_code
+          type: string
+          description: 股票代码
+        - name: trade_date
+          type: string
+          description: 交易日期（YYYYMMDD）
+        - name: close
+          type: number
+          description: 收盘价（元）
+        - name: ma5
+          type: number
+          description: 5日均线，短期趋势指标
+        - name: ma10
+          type: number
+          description: 10日均线，短期趋势指标
+        - name: ma20
+          type: number
+          description: 20日均线，中期趋势指标
+        - name: ma60
+          type: number
+          description: 60日均线，长期趋势指标
+        - name: macd_dif
+          type: number
+          description: MACD DIF线（快线），12日EMA - 26日EMA
+        - name: macd_dea
+          type: number
+          description: MACD DEA线（慢线），DIF的9日EMA
+        - name: macd_bar
+          type: number
+          description: MACD柱（能量柱），>0为多头，<0为空头，由负转正为金叉
+        - name: rsi14
+          type: number
+          description: RSI(14)，>70超买，<30超卖，50为多空分界线
+        - name: kdj_k
+          type: number
+          description: KDJ K值，与D值交叉产生买卖信号
+        - name: kdj_d
+          type: number
+          description: KDJ D值，较K值平滑
+        - name: kdj_j
+          type: number
+          description: KDJ J值，最敏感，<0超卖，>100超买
+        - name: ma_signal
+          type: string
+          description: 均线信号：bullish=多头排列，bearish=空头排列，neutral=中性
+        - name: macd_signal
+          type: string
+          description: MACD信号：bullish=多头，bearish=空头，neutral=中性
+        - name: rsi_signal
+          type: string
+          description: RSI信号：overbought=超买，oversold=超卖，neutral=中性
+
   relationships:
     - name: stock_daily_quotes
       description: 股票的日线行情数据
@@ -369,6 +445,15 @@ ontology:
       description: 股票的利润表数据
       from_object: Stock
       to_object: IncomeStatement
+      type: one_to_many
+      join_condition:
+        from_field: ts_code
+        to_field: ts_code
+
+    - name: stock_technical_indicators
+      description: 股票的技术指标（MA、MACD、RSI、KDJ）
+      from_object: Stock
+      to_object: TechnicalIndicator
       type: one_to_many
       join_condition:
         from_field: ts_code
