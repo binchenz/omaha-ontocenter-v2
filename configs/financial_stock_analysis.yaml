@@ -246,9 +246,9 @@ ontology:
         - name: roic
           type: number
           description: 投入资本回报率（%），衡量资本配置效率
-        - name: gross_margin
+        - name: grossprofit_margin
           type: number
-          description: 毛利率（%），越高说明产品竞争力越强
+          description: 毛利率（%），越高说明产品竞争力越强，茅台>90%，普通制造业<30%
         - name: netprofit_margin
           type: number
           description: 净利率（%），扣除所有成本后的盈利比例
