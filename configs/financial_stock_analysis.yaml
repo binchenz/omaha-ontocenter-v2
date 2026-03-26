@@ -370,6 +370,163 @@ ontology:
           description: 营业利润率（营业利润/营业总收入）
 
     # ============================================================
+    # 资产负债表（Phase 4.1 新增）
+    # ============================================================
+    - name: BalanceSheet
+      datasource: tushare_pro
+      api_name: balancesheet
+      description: 资产负债表数据（资产、负债、所有者权益）
+      business_context: |
+        资产负债表反映公司在某一时点的财务状况，是判断公司财务健康度的关键。
+        投资者常用场景：
+        - 查看公司资产规模（总资产越大说明公司越大）
+        - 分析负债结构（短期负债/长期负债比例）
+        - 判断偿债能力（流动资产/流动负债）
+        - 查看现金储备（货币资金是否充足）
+        关键指标解读：
+        - 总资产 = 流动资产 + 非流动资产
+        - 总负债 = 流动负债 + 非流动负债
+        - 所有者权益 = 总资产 - 总负债
+        - 资产负债率 = 总负债/总资产，>70%需警惕（银行除外）
+        - 流动比率 = 流动资产/流动负债，>2表示短期偿债能力强
+        查询方式：需要指定 ts_code，可用 start_date 指定起始报告期
+      properties:
+        - name: ts_code
+          type: string
+          semantic_type: stock_code
+          description: 股票代码
+        - name: end_date
+          type: string
+          semantic_type: date
+          description: 报告期（YYYYMMDD）
+        - name: report_type
+          type: string
+          semantic_type: text
+          description: 报告类型：1=合并报表，2=单季合并
+        - name: total_assets
+          type: number
+          semantic_type: currency_cny
+          description: 总资产（元），反映公司规模
+        - name: total_cur_assets
+          type: number
+          semantic_type: currency_cny
+          description: 流动资产（元），1年内可变现的资产
+        - name: total_nca
+          type: number
+          semantic_type: currency_cny
+          description: 非流动资产（元），长期资产如固定资产、无形资产
+        - name: money_cap
+          type: number
+          semantic_type: currency_cny
+          description: 货币资金（元），现金及银行存款，越多越安全
+        - name: accounts_receiv
+          type: number
+          semantic_type: currency_cny
+          description: 应收账款（元），过高说明回款慢
+        - name: inventories
+          type: number
+          semantic_type: currency_cny
+          description: 存货（元），过高可能积压
+        - name: total_liab
+          type: number
+          semantic_type: currency_cny
+          description: 总负债（元）
+        - name: total_cur_liab
+          type: number
+          semantic_type: currency_cny
+          description: 流动负债（元），1年内需偿还的债务
+        - name: total_ncl
+          type: number
+          semantic_type: currency_cny
+          description: 非流动负债（元），长期负债
+        - name: total_hldr_eqy_exc_min_int
+          type: number
+          semantic_type: currency_cny
+          description: 股东权益合计（元），归属于母公司的所有者权益
+        - name: total_hldr_eqy_inc_min_int
+          type: number
+          semantic_type: currency_cny
+          description: 股东权益合计（含少数股东权益）
+      computed_properties:
+        - name: debt_to_asset_ratio
+          expression: "{total_liab} / {total_assets}"
+          semantic_type: percentage
+          description: 资产负债率（总负债/总资产）
+        - name: current_ratio
+          expression: "{total_cur_assets} / {total_cur_liab}"
+          semantic_type: ratio
+          description: 流动比率（流动资产/流动负债）
+        - name: equity_ratio
+          expression: "{total_hldr_eqy_exc_min_int} / {total_assets}"
+          semantic_type: percentage
+          description: 股东权益比率（股东权益/总资产）
+
+    # ============================================================
+    # 现金流量表（Phase 4.1 新增）
+    # ============================================================
+    - name: CashFlow
+      datasource: tushare_pro
+      api_name: cashflow
+      description: 现金流量表数据（经营、投资、筹资活动现金流）
+      business_context: |
+        现金流量表反映公司的现金流入流出情况，是判断公司真实盈利质量的关键。
+        投资者常用场景：
+        - 判断公司是否真的赚到现金（经营现金流 vs 净利润）
+        - 查看公司投资活动（是否在扩张）
+        - 分析筹资活动（是否在融资或分红）
+        - 判断公司现金流健康度
+        关键指标解读：
+        - 经营现金流 > 净利润：说明利润质量高，真金白银
+        - 经营现金流 < 净利润：可能存在应收账款过多等问题
+        - 投资现金流为负：说明公司在投资扩张（买设备、并购等）
+        - 筹资现金流为正：说明公司在融资（发债、增发等）
+        - 筹资现金流为负：说明公司在分红或还债
+        - 自由现金流 = 经营现金流 - 资本支出，>0 说明公司有余钱
+        查询方式：需要指定 ts_code，可用 start_date 指定起始报告期
+      properties:
+        - name: ts_code
+          type: string
+          semantic_type: stock_code
+          description: 股票代码
+        - name: end_date
+          type: string
+          semantic_type: date
+          description: 报告期（YYYYMMDD）
+        - name: report_type
+          type: string
+          semantic_type: text
+          description: 报告类型：1=合并报表，2=单季合并
+        - name: n_cashflow_act
+          type: number
+          semantic_type: currency_cny
+          description: 经营活动现金流净额（元），主营业务产生的现金流
+        - name: n_cashflow_inv_act
+          type: number
+          semantic_type: currency_cny
+          description: 投资活动现金流净额（元），为负说明在投资扩张
+        - name: n_cash_flows_fnc_act
+          type: number
+          semantic_type: currency_cny
+          description: 筹资活动现金流净额（元），为正说明在融资
+        - name: c_cash_equ_end_period
+          type: number
+          semantic_type: currency_cny
+          description: 期末现金及现金等价物余额（元）
+        - name: c_cash_equ_beg_period
+          type: number
+          semantic_type: currency_cny
+          description: 期初现金及现金等价物余额（元）
+      computed_properties:
+        - name: cash_change
+          expression: "{c_cash_equ_end_period} - {c_cash_equ_beg_period}"
+          semantic_type: currency_cny
+          description: 现金净增加额（期末现金 - 期初现金）
+        - name: total_cashflow
+          expression: "{n_cashflow_act} + {n_cashflow_inv_act} + {n_cash_flows_fnc_act}"
+          semantic_type: currency_cny
+          description: 三大活动现金流合计
+
+    # ============================================================
     # 板块分类（Phase 3 新增）
     # ============================================================
     - name: Sector
@@ -540,6 +697,24 @@ ontology:
       description: 股票的利润表数据
       from_object: Stock
       to_object: IncomeStatement
+      type: one_to_many
+      join_condition:
+        from_field: ts_code
+        to_field: ts_code
+
+    - name: stock_balance_sheets
+      description: 股票的资产负债表数据
+      from_object: Stock
+      to_object: BalanceSheet
+      type: one_to_many
+      join_condition:
+        from_field: ts_code
+        to_field: ts_code
+
+    - name: stock_cash_flows
+      description: 股票的现金流量表数据
+      from_object: Stock
+      to_object: CashFlow
       type: one_to_many
       join_condition:
         from_field: ts_code
