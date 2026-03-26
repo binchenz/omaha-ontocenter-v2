@@ -5,23 +5,15 @@
 """
 
 import sys
-import os
-
-# 设置环境变量
-os.environ.setdefault('DATABASE_URL', 'sqlite:///./omaha.db')
-os.environ.setdefault('SECRET_KEY', 'test-secret-key')
-os.environ.setdefault('DATAHUB_GMS_URL', 'http://localhost:8080')
-
 sys.path.insert(0, 'backend')
+
+from backend.tests.test_utils import setup_test_environment, print_section, load_config
+
+# Setup test environment BEFORE importing app modules
+setup_test_environment()
 
 from app.services.omaha import OmahaService
 import tushare as ts
-
-
-def print_section(title):
-    print(f"\n{'='*80}")
-    print(f"  {title}")
-    print(f"{'='*80}\n")
 
 
 def test_default_filters_applied():
@@ -52,8 +44,7 @@ def test_default_filters_applied():
     # 3. 通过 OmahaService 查询（应该自动应用 default_filters）
     print("3️⃣ 通过 OmahaService 查询（应该自动应用 default_filters）:")
     service = OmahaService()
-    with open("configs/financial_stock_analysis.yaml", "r", encoding="utf-8") as f:
-        config_yaml = f.read()
+    config_yaml = load_config()
 
     result = service.query_objects(
         config_yaml=config_yaml,
@@ -95,8 +86,7 @@ def test_user_override():
     print_section("测试 2: 用户过滤条件覆盖 default_filters")
 
     service = OmahaService()
-    with open("configs/financial_stock_analysis.yaml", "r", encoding="utf-8") as f:
-        config_yaml = f.read()
+    config_yaml = load_config()
 
     print("🔍 测试：用户指定 list_status='D' 查询退市股票...")
     result = service.query_objects(
@@ -124,8 +114,7 @@ def test_combined_filters():
     print_section("测试 3: default_filters 与用户过滤条件组合")
 
     service = OmahaService()
-    with open("configs/financial_stock_analysis.yaml", "r", encoding="utf-8") as f:
-        config_yaml = f.read()
+    config_yaml = load_config()
 
     print("🔍 测试：查询银行行业的股票...")
     print("   预期：应该只返回上市状态的银行股（default_filters + 用户过滤条件）")

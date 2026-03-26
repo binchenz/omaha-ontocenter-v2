@@ -5,23 +5,15 @@ Phase 4.1 测试 - 完整财务报表
 """
 
 import sys
-import os
-
-# 设置环境变量
-os.environ.setdefault('DATABASE_URL', 'sqlite:///./omaha.db')
-os.environ.setdefault('SECRET_KEY', 'test-secret-key')
-os.environ.setdefault('DATAHUB_GMS_URL', 'http://localhost:8080')
-
 sys.path.insert(0, 'backend')
 
+from backend.tests.test_utils import setup_test_environment, print_section, load_config
+
+# Setup test environment BEFORE importing app modules
+setup_test_environment()
+
 from app.services.omaha import OmahaService
-import json
-
-
-def print_section(title):
-    print(f"\n{'='*80}")
-    print(f"  {title}")
-    print(f"{'='*80}\n")
+import re
 
 
 def test_balance_sheet():
@@ -29,10 +21,7 @@ def test_balance_sheet():
     print_section("场景 1: 资产负债表查询 - 平安银行 (000001.SZ)")
 
     service = OmahaService()
-
-    # 读取配置文件
-    with open("configs/financial_stock_analysis.yaml", "r", encoding="utf-8") as f:
-        config_yaml = f.read()
+    config_yaml = load_config()
 
     result = service.query_objects(
         config_yaml=config_yaml,
@@ -67,10 +56,7 @@ def test_cash_flow():
     print_section("场景 2: 现金流量表查询 - 平安银行 (000001.SZ)")
 
     service = OmahaService()
-
-    # 读取配置文件
-    with open("configs/financial_stock_analysis.yaml", "r", encoding="utf-8") as f:
-        config_yaml = f.read()
+    config_yaml = load_config()
 
     result = service.query_objects(
         config_yaml=config_yaml,
@@ -105,10 +91,7 @@ def test_complete_financial_analysis():
 
     service = OmahaService()
     ts_code = "000001.SZ"
-
-    # 读取配置文件
-    with open("configs/financial_stock_analysis.yaml", "r", encoding="utf-8") as f:
-        config_yaml = f.read()
+    config_yaml = load_config()
 
     # 查询利润表
     income = service.query_objects(
