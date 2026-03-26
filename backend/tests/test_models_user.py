@@ -47,3 +47,16 @@ def test_user_with_inviter(db_session):
     db_session.commit()
 
     assert invited.invited_by == inviter.id
+
+
+def test_user_without_inviter(db_session):
+    """Test user without inviter (nullable case)."""
+    user = User(
+        email="user@example.com",
+        username="user",
+        hashed_password="hashed"
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    assert user.invited_by is None
