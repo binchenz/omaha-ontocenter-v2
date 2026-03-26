@@ -6,6 +6,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app.main import app
 from app.database import Base, get_db
+from app.models.user import User
+from app.core.security import get_password_hash
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
@@ -22,6 +24,19 @@ def db():
     finally:
         db.close()
         Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def test_user(db):
+    user = User(
+        username="testuser",
+        email="test@example.com",
+        hashed_password=get_password_hash("testpass123")
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @pytest.fixture
