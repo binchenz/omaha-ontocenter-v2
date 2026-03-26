@@ -418,6 +418,7 @@ class OmahaService:
             supported_params = {
                 "stock_basic": ["ts_code", "name", "exchange", "market", "list_status", "is_hs"],
                 "daily": ["ts_code", "trade_date", "start_date", "end_date"],
+                "daily_basic": ["ts_code", "trade_date", "start_date", "end_date"],
                 "fina_indicator": ["ts_code", "ann_date", "start_date", "end_date", "period"],
                 "income": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
                 "balancesheet": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],

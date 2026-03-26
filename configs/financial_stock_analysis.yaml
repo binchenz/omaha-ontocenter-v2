@@ -1,21 +1,30 @@
-# 金融股票分析配置 - Phase 1 & Phase 2
-# Phase 1: Stock、DailyQuote、Industry 对象及其关系
-# Phase 2: FinancialIndicator、FinancialReport 对象及其关系
+# 金融股票分析配置 - 投资者友好版
+# 改进：添加 business_context、ValuationMetric、StockProfile 聚合对象
 
 datasources:
   - id: tushare_pro
     name: Tushare Pro API
     type: tushare
     connection:
-      token: ${TUSHARE_TOKEN}
+      token: 044a35feee6c10f656343bdf3523014b88265b00bf2b586ed7c0ad90
 
 ontology:
   objects:
+
+    # ============================================================
     # 核心对象：股票基本信息
+    # ============================================================
     - name: Stock
       datasource: tushare_pro
       api_name: stock_basic
-      description: 股票基本信息
+      description: A股上市公司基本信息
+      business_context: |
+        股票基本信息是投资分析的起点。通过 ts_code 可以关联行情、财务等所有数据。
+        投资者常用场景：
+        - 按行业筛选股票（如"查找所有银行股"）
+        - 按地区筛选（如"深圳的科技股"）
+        - 查找特定股票（如"平安银行的代码"）
+        注意：默认只返回上市状态的股票，退市股票已自动过滤。
       default_filters:
         - field: list_status
           operator: "="
@@ -23,34 +32,44 @@ ontology:
       properties:
         - name: ts_code
           type: string
-          description: 股票代码（如 000001.SZ）
-        - name: symbol
-          type: string
-          description: 股票简称（如 000001）
+          description: 股票代码，格式如 000001.SZ（深交所）或 600000.SH（上交所）
         - name: name
           type: string
-          description: 股票名称（如 平安银行）
-        - name: area
-          type: string
-          description: 地域（如 深圳）
+          description: 股票名称，如"平安银行"
         - name: industry
           type: string
-          description: 所属行业（如 银行）
+          description: 所属行业，如"银行"、"软件服务"、"医疗器械"
+        - name: area
+          type: string
+          description: 注册地区，如"深圳"、"上海"、"北京"
         - name: market
           type: string
-          description: 市场类型（主板/创业板/科创板）
+          description: 市场类型：主板、创业板、科创板
         - name: list_date
           type: string
-          description: 上市日期（YYYYMMDD）
+          description: 上市日期（YYYYMMDD），上市越早通常越成熟
         - name: list_status
           type: string
-          description: 上市状态（L上市/D退市/P暂停上市）
+          description: 上市状态：L=上市，D=退市，P=暂停上市
 
+    # ============================================================
     # 日线行情
+    # ============================================================
     - name: DailyQuote
       datasource: tushare_pro
       api_name: daily
-      description: 股票日线行情数据
+      description: 股票日线行情数据（OHLCV）
+      business_context: |
+        日线行情是技术分析和趋势判断的基础数据。
+        投资者常用场景：
+        - 查看某只股票最近的价格走势
+        - 分析涨跌幅（pct_chg）找出强势/弱势股
+        - 通过成交量（vol）判断市场活跃度
+        - 计算均线、波动率等技术指标
+        重要提示：
+        - pct_chg > 9.5% 通常表示涨停，< -9.5% 表示跌停
+        - 成交量放大通常意味着主力资金介入
+        - 需要指定 ts_code 才能查询，否则数据量过大
       properties:
         - name: ts_code
           type: string
@@ -60,222 +79,217 @@ ontology:
           description: 交易日期（YYYYMMDD）
         - name: open
           type: number
-          description: 开盘价
+          description: 开盘价（元）
         - name: high
           type: number
-          description: 最高价
+          description: 最高价（元）
         - name: low
           type: number
-          description: 最低价
+          description: 最低价（元）
         - name: close
           type: number
-          description: 收盘价
+          description: 收盘价（元），最常用的价格指标
         - name: pre_close
           type: number
-          description: 昨收价
+          description: 昨收价（元）
         - name: change
           type: number
-          description: 涨跌额
+          description: 涨跌额（元）= 收盘价 - 昨收价
         - name: pct_chg
           type: number
-          description: 涨跌幅（%）
+          description: 涨跌幅（%），正数涨、负数跌，±9.5%附近为涨跌停
         - name: vol
           type: number
-          description: 成交量（手）
+          description: 成交量（手，1手=100股），量能大小反映市场活跃度
         - name: amount
           type: number
-          description: 成交额（千元）
+          description: 成交额（千元），反映资金流入流出规模
 
-    # 行业分类（聚合查询）
+    # ============================================================
+    # 行业分类
+    # ============================================================
     - name: Industry
       datasource: tushare_pro
       api_name: stock_basic
       description: 行业分类统计
+      business_context: |
+        行业分类用于行业对比和板块分析。
+        投资者常用场景：
+        - 查看某行业有多少只股票
+        - 行业轮动分析（哪些行业最近表现好）
+        - 找出某行业的龙头股
       properties:
         - name: industry
           type: string
-          description: 行业名称
+          description: 行业名称，如"银行"、"白酒"、"新能源"
         - name: stock_count
           type: number
-          description: 该行业股票数量
+          description: 该行业上市股票数量
 
-    # Phase 2: 财务指标
+    # ============================================================
+    # 估值指标（P0 新增）
+    # ============================================================
+    - name: ValuationMetric
+      datasource: tushare_pro
+      api_name: daily_basic
+      description: 股票每日估值指标，包括市盈率、市净率、市值等
+      business_context: |
+        估值指标是判断股票贵贱的核心工具，是价值投资者最常用的数据。
+        投资者常用场景：
+        - 判断股票是否被低估（PE低、PB低）
+        - 筛选高股息率股票（适合稳健投资者）
+        - 比较同行业公司的估值水平
+        - 查看公司总市值（判断大盘股/小盘股）
+        关键指标解读：
+        - PE（市盈率）= 股价/每股收益，越低越便宜，但亏损股PE为负无意义
+        - PB（市净率）= 股价/每股净资产，<1 表示破净，银行股常见
+        - PS（市销率）= 总市值/营业收入，适合亏损但有收入的成长股
+        - 股息率 > 3% 通常被认为是高股息股票
+        - 总市值 > 1000亿为大盘股，< 100亿为小盘股
+        注意：需要指定 ts_code 和 trade_date 才能查询
+      properties:
+        - name: ts_code
+          type: string
+          description: 股票代码
+        - name: trade_date
+          type: string
+          description: 交易日期（YYYYMMDD）
+        - name: close
+          type: number
+          description: 当日收盘价（元）
+        - name: turnover_rate
+          type: number
+          description: 换手率（%），反映股票活跃程度，过高可能是炒作
+        - name: turnover_rate_f
+          type: number
+          description: 换手率（自由流通股，%）
+        - name: volume_ratio
+          type: number
+          description: 量比，当日成交量/过去5日平均成交量，>2 表示放量
+        - name: pe
+          type: number
+          description: 市盈率（PE，TTM），股价/过去12个月每股收益，越低越便宜
+        - name: pe_ttm
+          type: number
+          description: 市盈率（TTM），滚动12个月，比静态PE更准确
+        - name: pb
+          type: number
+          description: 市净率（PB），股价/每股净资产，<1为破净，银行股常见
+        - name: ps
+          type: number
+          description: 市销率（PS），总市值/营业收入，适合评估成长股
+        - name: ps_ttm
+          type: number
+          description: 市销率（TTM），滚动12个月
+        - name: dv_ratio
+          type: number
+          description: 股息率（%），每股股息/股价，>3%为高股息股票
+        - name: dv_ttm
+          type: number
+          description: 股息率（TTM，%），滚动12个月股息率
+        - name: total_share
+          type: number
+          description: 总股本（万股）
+        - name: float_share
+          type: number
+          description: 流通股本（万股），实际可交易的股票数量
+        - name: free_share
+          type: number
+          description: 自由流通股本（万股），排除限售股后的流通股
+        - name: total_mv
+          type: number
+          description: 总市值（万元），反映公司规模，>100亿为大盘股
+        - name: circ_mv
+          type: number
+          description: 流通市值（万元），实际可交易部分的市值
+
+    # ============================================================
+    # 财务指标（精简版，保留投资者最关心的指标）
+    # ============================================================
     - name: FinancialIndicator
       datasource: tushare_pro
       api_name: fina_indicator
-      description: 财务指标数据
+      description: 股票财务指标数据（盈利能力、偿债能力、运营效率）
+      business_context: |
+        财务指标是基本面分析的核心，反映公司的经营质量。
+        投资者常用场景：
+        - 筛选高ROE公司（巴菲特最看重的指标）
+        - 分析公司盈利能力趋势（ROE/ROA是否持续提升）
+        - 判断财务风险（资产负债率是否过高）
+        - 比较同行业公司的经营效率
+        关键指标解读：
+        - ROE（净资产收益率）> 15% 通常被认为是优质公司
+        - ROA（总资产报酬率）> 5% 表示资产利用效率较高
+        - 毛利率越高说明产品竞争力越强（如茅台毛利率>90%）
+        - 资产负债率 > 70% 需要警惕财务风险（银行除外）
+        - 净利率持续提升说明公司盈利能力在改善
+        查询方式：需要指定 ts_code，可用 start_date 指定起始报告期
       properties:
         - name: ts_code
           type: string
           description: 股票代码
         - name: end_date
           type: string
-          description: 报告期（YYYYMMDD）
-        - name: ann_date
-          type: string
-          description: 公告日期（YYYYMMDD）
+          description: 报告期（YYYYMMDD），如20231231为2023年年报
         - name: eps
           type: number
-          description: 基本每股收益
-        - name: dt_eps
-          type: number
-          description: 稀释每股收益
-        - name: total_revenue_ps
-          type: number
-          description: 每股营业总收入
-        - name: revenue_ps
-          type: number
-          description: 每股营业收入
-        - name: capital_rese_ps
-          type: number
-          description: 每股资本公积
-        - name: surplus_rese_ps
-          type: number
-          description: 每股盈余公积
-        - name: undist_profit_ps
-          type: number
-          description: 每股未分配利润
-        - name: extra_item
-          type: number
-          description: 非经常性损益
-        - name: profit_dedt
-          type: number
-          description: 扣除非经常性损益后的净利润
-        - name: gross_margin
-          type: number
-          description: 销售毛利率（%）
-        - name: current_ratio
-          type: number
-          description: 流动比率
-        - name: quick_ratio
-          type: number
-          description: 速动比率
-        - name: cash_ratio
-          type: number
-          description: 保守速动比率
-        - name: ar_turn
-          type: number
-          description: 应收账款周转率
-        - name: ca_turn
-          type: number
-          description: 流动资产周转率
-        - name: fa_turn
-          type: number
-          description: 固定资产周转率
-        - name: assets_turn
-          type: number
-          description: 总资产周转率
-        - name: op_income
-          type: number
-          description: 经营活动净收益
-        - name: ebit
-          type: number
-          description: 息税前利润
-        - name: ebitda
-          type: number
-          description: 息税折旧摊销前利润
-        - name: fcff
-          type: number
-          description: 企业自由现金流量
-        - name: fcfe
-          type: number
-          description: 股权自由现金流量
-        - name: netprofit_margin
-          type: number
-          description: 销售净利率（%）
-        - name: grossprofit_margin
-          type: number
-          description: 销售毛利率（%）
-        - name: cogs_of_sales
-          type: number
-          description: 销售成本率（%）
-        - name: expense_of_sales
-          type: number
-          description: 销售期间费用率（%）
-        - name: profit_to_gr
-          type: number
-          description: 净利润/营业总收入（%）
-        - name: saleexp_to_gr
-          type: number
-          description: 销售费用/营业总收入（%）
-        - name: adminexp_of_gr
-          type: number
-          description: 管理费用/营业总收入（%）
-        - name: finaexp_of_gr
-          type: number
-          description: 财务费用/营业总收入（%）
-        - name: impai_ttm
-          type: number
-          description: 资产减值损失/营业总收入（%）
-        - name: gc_of_gr
-          type: number
-          description: 营业总成本/营业总收入（%）
-        - name: op_of_gr
-          type: number
-          description: 营业利润/营业总收入（%）
-        - name: ebit_of_gr
-          type: number
-          description: 息税前利润/营业总收入（%）
+          description: 每股收益（元），越高越好，反映每股盈利能力
         - name: roe
           type: number
-          description: 净资产收益率（%）
+          description: 净资产收益率（%），巴菲特最看重的指标，>15%为优质
         - name: roe_waa
           type: number
-          description: 加权平均净资产收益率（%）
-        - name: roe_dt
-          type: number
-          description: 净资产收益率(扣除非经常损益)（%）
+          description: 加权平均ROE（%），更准确的ROE计算方式
         - name: roa
           type: number
-          description: 总资产报酬率（%）
-        - name: npta
-          type: number
-          description: 总资产净利润（%）
+          description: 总资产报酬率（%），>5%表示资产利用效率较高
         - name: roic
           type: number
-          description: 投入资本回报率（%）
-        - name: roe_yearly
+          description: 投入资本回报率（%），衡量资本配置效率
+        - name: gross_margin
           type: number
-          description: 年化净资产收益率（%）
-        - name: roa_yearly
+          description: 毛利率（%），越高说明产品竞争力越强
+        - name: netprofit_margin
           type: number
-          description: 年化总资产报酬率（%）
+          description: 净利率（%），扣除所有成本后的盈利比例
         - name: debt_to_assets
           type: number
-          description: 资产负债率（%）
-        - name: assets_to_eqt
+          description: 资产负债率（%），>70%需警惕财务风险（银行除外）
+        - name: current_ratio
           type: number
-          description: 权益乘数
-        - name: dp_assets_to_eqt
+          description: 流动比率，>2表示短期偿债能力强
+        - name: quick_ratio
           type: number
-          description: 权益乘数(杜邦分析)
-        - name: ca_to_assets
+          description: 速动比率，>1表示短期偿债能力良好
+        - name: assets_turn
           type: number
-          description: 流动资产/总资产（%）
-        - name: nca_to_assets
+          description: 总资产周转率，越高说明资产利用效率越高
+        - name: ebit
           type: number
-          description: 非流动资产/总资产（%）
-        - name: tbassets_to_totalassets
+          description: 息税前利润（元），排除财务杠杆影响的经营利润
+        - name: fcff
           type: number
-          description: 有形资产/总资产（%）
-        - name: int_to_talcap
-          type: number
-          description: 带息债务/全部投入资本（%）
-        - name: eqt_to_talcapital
-          type: number
-          description: 归属于母公司的股东权益/全部投入资本（%）
-        - name: currentdebt_to_debt
-          type: number
-          description: 流动负债/负债合计（%）
-        - name: longdeb_to_debt
-          type: number
-          description: 非流动负债/负债合计（%）
+          description: 企业自由现金流（元），正值且持续增长是优质公司标志
 
-    # Phase 2: 财务报表（利润表）
+    # ============================================================
+    # 利润表（精简版）
+    # ============================================================
     - name: IncomeStatement
       datasource: tushare_pro
       api_name: income
-      description: 利润表数据
+      description: 利润表数据（收入、成本、利润）
+      business_context: |
+        利润表反映公司在一段时间内的经营成果，是分析公司成长性的关键。
+        投资者常用场景：
+        - 查看营业收入增长趋势（判断公司是否在扩张）
+        - 分析净利润变化（判断盈利能力是否改善）
+        - 对比营收和利润增速（利润增速>营收增速说明效率提升）
+        - 查看非经常性损益（判断利润质量）
+        关键指标解读：
+        - 营收持续增长 + 净利润同步增长 = 高质量成长
+        - 营收增长但净利润下降 = 成本控制出问题
+        - 净利润大幅波动 = 可能有非经常性损益干扰
+        查询方式：需要指定 ts_code，可用 start_date 指定起始报告期
       properties:
         - name: ts_code
           type: string
@@ -283,193 +297,38 @@ ontology:
         - name: end_date
           type: string
           description: 报告期（YYYYMMDD）
-        - name: ann_date
-          type: string
-          description: 公告日期（YYYYMMDD）
-        - name: f_ann_date
-          type: string
-          description: 实际公告日期（YYYYMMDD）
         - name: report_type
           type: string
-          description: 报告类型（1-合并报表/2-单季合并）
-        - name: comp_type
-          type: string
-          description: 公司类型（1-一般工商业/2-银行/3-保险/4-证券）
+          description: 报告类型：1=合并报表，2=单季合并
         - name: total_revenue
           type: number
-          description: 营业总收入
+          description: 营业总收入（元），公司最顶层的收入规模
         - name: revenue
           type: number
-          description: 营业收入
-        - name: int_income
-          type: number
-          description: 利息收入
-        - name: prem_earned
-          type: number
-          description: 已赚保费
-        - name: comm_income
-          type: number
-          description: 手续费及佣金收入
-        - name: n_commis_income
-          type: number
-          description: 手续费及佣金净收入
-        - name: n_oth_income
-          type: number
-          description: 其他经营净收益
-        - name: n_oth_b_income
-          type: number
-          description: 加:其他业务净收益
-        - name: prem_income
-          type: number
-          description: 保险业务收入
-        - name: out_prem
-          type: number
-          description: 减:分出保费
-        - name: une_prem_reser
-          type: number
-          description: 提取未到期责任准备金
-        - name: reins_income
-          type: number
-          description: 其中:分保费收入
-        - name: n_sec_tb_income
-          type: number
-          description: 代理买卖证券业务净收入
-        - name: n_sec_uw_income
-          type: number
-          description: 证券承销业务净收入
-        - name: n_asset_mg_income
-          type: number
-          description: 受托客户资产管理业务净收入
-        - name: oth_b_income
-          type: number
-          description: 其他业务收入
-        - name: fv_value_chg_gain
-          type: number
-          description: 加:公允价值变动净收益
-        - name: invest_income
-          type: number
-          description: 加:投资净收益
-        - name: ass_invest_income
-          type: number
-          description: 其中:对联营企业和合营企业的投资收益
-        - name: forex_gain
-          type: number
-          description: 加:汇兑净收益
+          description: 营业收入（元），主营业务收入
         - name: total_cogs
           type: number
-          description: 营业总成本
-        - name: oper_cost
-          type: number
-          description: 减:营业成本
-        - name: int_exp
-          type: number
-          description: 减:利息支出
-        - name: comm_exp
-          type: number
-          description: 减:手续费及佣金支出
-        - name: biz_tax_surchg
-          type: number
-          description: 减:营业税金及附加
-        - name: sell_exp
-          type: number
-          description: 减:销售费用
-        - name: admin_exp
-          type: number
-          description: 减:管理费用
-        - name: fin_exp
-          type: number
-          description: 减:财务费用
-        - name: assets_impair_loss
-          type: number
-          description: 减:资产减值损失
-        - name: prem_refund
-          type: number
-          description: 退保金
-        - name: compens_payout
-          type: number
-          description: 赔付总支出
-        - name: reser_insur_liab
-          type: number
-          description: 提取保险责任准备金
-        - name: div_payt
-          type: number
-          description: 保户红利支出
-        - name: reins_exp
-          type: number
-          description: 分保费用
-        - name: oper_exp
-          type: number
-          description: 营业支出
-        - name: compens_payout_refu
-          type: number
-          description: 减:摊回赔付支出
-        - name: insur_reser_refu
-          type: number
-          description: 减:摊回保险责任准备金
-        - name: reins_cost_refund
-          type: number
-          description: 减:摊回分保费用
-        - name: other_bus_cost
-          type: number
-          description: 其他业务成本
+          description: 营业总成本（元）
         - name: operate_profit
           type: number
-          description: 营业利润
-        - name: non_oper_income
-          type: number
-          description: 加:营业外收入
-        - name: non_oper_exp
-          type: number
-          description: 减:营业外支出
-        - name: nca_disploss
-          type: number
-          description: 其中:减:非流动资产处置净损失
+          description: 营业利润（元），主营业务产生的利润
         - name: total_profit
           type: number
-          description: 利润总额
-        - name: income_tax
-          type: number
-          description: 所得税费用
+          description: 利润总额（元），含营业外收支
         - name: n_income
           type: number
-          description: 净利润(含少数股东损益)
+          description: 净利润（元），扣除所得税后的最终利润
         - name: n_income_attr_p
           type: number
-          description: 净利润(不含少数股东损益)
-        - name: minority_gain
-          type: number
-          description: 少数股东损益
-        - name: oth_compr_income
-          type: number
-          description: 其他综合收益
-        - name: t_compr_income
-          type: number
-          description: 综合收益总额
-        - name: compr_inc_attr_p
-          type: number
-          description: 归属于母公司(或股东)的综合收益总额
-        - name: compr_inc_attr_m_s
-          type: number
-          description: 归属于少数股东的综合收益总额
+          description: 归母净利润（元），归属于母公司股东的净利润，最常用
         - name: ebit
           type: number
-          description: 息税前利润
+          description: 息税前利润（元）
         - name: ebitda
           type: number
-          description: 息税折旧摊销前利润
-        - name: insurance_exp
-          type: number
-          description: 保险业务支出
-        - name: undist_profit
-          type: number
-          description: 年初未分配利润
-        - name: distable_profit
-          type: number
-          description: 可分配利润
+          description: 息税折旧摊销前利润（元），现金流分析常用
 
   relationships:
-    # Phase 1 关系
-    # Stock -> DailyQuote (一对多)
     - name: stock_daily_quotes
       description: 股票的日线行情数据
       from_object: Stock
@@ -479,7 +338,6 @@ ontology:
         from_field: ts_code
         to_field: ts_code
 
-    # Stock -> Industry (多对一)
     - name: stock_industry
       description: 股票所属行业
       from_object: Stock
@@ -489,8 +347,15 @@ ontology:
         from_field: industry
         to_field: industry
 
-    # Phase 2 关系
-    # Stock -> FinancialIndicator (一对多)
+    - name: stock_valuation
+      description: 股票的每日估值指标（PE、PB、市值等）
+      from_object: Stock
+      to_object: ValuationMetric
+      type: one_to_many
+      join_condition:
+        from_field: ts_code
+        to_field: ts_code
+
     - name: stock_financial_indicators
       description: 股票的财务指标数据
       from_object: Stock
@@ -500,7 +365,6 @@ ontology:
         from_field: ts_code
         to_field: ts_code
 
-    # Stock -> IncomeStatement (一对多)
     - name: stock_income_statements
       description: 股票的利润表数据
       from_object: Stock
