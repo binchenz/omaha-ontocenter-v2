@@ -163,3 +163,20 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
     "select": ["end_date", "roe", "netprofit_margin", "financial_health_score"]
   }'
 ```
+
+## 13. Find Best Performing Quarters (Sort by DuPont ROE)
+
+```bash
+curl -X POST http://69.5.23.70/api/public/v1/query \
+  -H "Authorization: Bearer omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "object_type": "FinancialIndicator",
+    "filters": {"ts_code": "000001.SZ"},
+    "limit": 5,
+    "format": true,
+    "order_by": "dupont_roe",
+    "order": "desc",
+    "select": ["end_date", "roe", "dupont_roe", "financial_health_score"]
+  }'
+```

@@ -53,10 +53,15 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
 - `date` - Formats as "2025-12-31"
 
 **Computed Properties**: Calculated fields defined in ontology (use `format: true` to see them):
-- FinancialIndicator: `financial_health_score`, `profitability_score`, `leverage_ratio`
+- FinancialIndicator: `financial_health_score`, `profitability_score`, `leverage_ratio`, `dupont_roe`, `asset_efficiency`
 - BalanceSheet: `debt_to_asset_ratio`, `equity_ratio`, `current_ratio`
 - CashFlow: `cash_change`, `total_cashflow`
 - IncomeStatement: `profit_margin`, `operating_efficiency`
+
+**Key Computed Properties Explained:**
+- `dupont_roe`: DuPont ROE = Net Profit Margin × Asset Turnover × Equity Multiplier
+- `financial_health_score`: Comprehensive score combining ROE and net profit margin
+- `asset_efficiency`: Asset turnover rate as percentage
 
 **Default Filters**: Automatically applied from ontology (e.g., Stock queries exclude retired stocks)
 
