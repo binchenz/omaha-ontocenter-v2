@@ -200,3 +200,24 @@ class CacheService:
             }
             for r in records
         ]
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息"""
+        try:
+            stats = {
+                "stocks": self.db.query(CachedStock).count(),
+                "financial_indicators": self.db.query(CachedFinancialIndicator).count(),
+            }
+
+            # 尝试获取财务报表统计（如果表存在）
+            try:
+                stats["income_statements"] = self.db.query(CachedIncomeStatement).count()
+                stats["balance_sheets"] = self.db.query(CachedBalanceSheet).count()
+                stats["cash_flows"] = self.db.query(CachedCashFlow).count()
+            except Exception:
+                # 表不存在时跳过
+                pass
+
+            return stats
+        except Exception as e:
+            return {"error": str(e)}

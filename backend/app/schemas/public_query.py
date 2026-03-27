@@ -19,6 +19,7 @@ class QueryResponse(BaseModel):
     count: int
     limit: int
     offset: int
+    execution_time_ms: Optional[int] = None
 
 
 class ObjectInfo(BaseModel):

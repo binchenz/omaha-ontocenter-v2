@@ -142,7 +142,8 @@ def query_data(
         data=data,
         count=len(data),
         limit=request.limit,
-        offset=request.offset
+        offset=request.offset,
+        execution_time_ms=execution_time_ms
     )
 
 
