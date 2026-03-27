@@ -22,7 +22,7 @@ from app.services.ontology_cache_service import OntologyCacheService
 
 router = APIRouter()
 
-RATE_LIMIT = 100  # queries per hour
+RATE_LIMIT = 1000  # queries per hour
 
 
 def check_rate_limit(user: User, db: Session):
