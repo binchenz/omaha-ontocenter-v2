@@ -202,10 +202,15 @@ ontology:
         - name: circ_mv
           type: number
           description: 流通市值（万元），实际可交易部分的市值
-
-    # ============================================================
-    # 财务指标（精简版，保留投资者最关心的指标）
-    # ============================================================
+      computed_properties:
+        - name: market_cap_billion
+          expression: "{total_mv} / 100000"
+          semantic_type: number
+          description: 总市值（亿元）
+        - name: free_float_ratio
+          expression: "{float_share} / {total_share}"
+          semantic_type: percentage
+          description: 流通比例（流通股/总股本）
     - name: FinancialIndicator
       datasource: tushare_pro
       api_name: fina_indicator
@@ -671,6 +676,15 @@ ontology:
         - name: rsi_signal
           type: string
           description: RSI信号：overbought=超买，oversold=超卖，neutral=中性
+      computed_properties:
+        - name: trend_score
+          expression: "({macd_bar} * 10) + ({rsi14} - 50)"
+          semantic_type: number
+          description: 综合趋势评分（MACD能量柱 + RSI偏离中性）
+        - name: ma_gap
+          expression: "({ma5} - {ma20}) / {ma20} * 100"
+          semantic_type: percentage
+          description: 短期均线偏离度（MA5偏离MA20的百分比）
 
   relationships:
     - name: stock_daily_quotes
