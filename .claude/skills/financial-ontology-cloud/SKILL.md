@@ -51,6 +51,14 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
   -d '{"object_type": "FinancialIndicator", "filters": {"ts_code": "000001.SZ"}, "limit": 5, "format": true}'
 ```
 
+Aggregate query (statistics):
+```bash
+curl -X POST http://69.5.23.70/api/public/v1/aggregate \
+  -H "Authorization: Bearer omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM" \
+  -H "Content-Type: application/json" \
+  -d '{"object_type": "DailyQuote", "filters": {"ts_code": "000001.SZ"}, "aggregations": [{"field": "close", "function": "avg"}, {"field": "close", "function": "max"}]}'
+```
+
 ## Ontology Features
 
 **Semantic Types**: Data is automatically formatted based on semantic types defined in the ontology:
@@ -81,6 +89,7 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
 
 ## Query Parameters
 
+**Query Endpoint** (`/query`):
 - `object_type` (required): Object type to query
 - `filters` (optional): Filter conditions (e.g., `{"industry": "银行"}`)
 - `limit` (optional): Result limit (default: 100, max: 1000)
@@ -89,6 +98,25 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
 - `order_by` (optional): Field name to sort by (supports computed properties)
 - `order` (optional): Sort order - "asc" or "desc" (default: "desc")
 - `select` (optional): List of field names to return (default: all fields)
+
+**Aggregate Endpoint** (`/aggregate`):
+- `object_type` (required): Object type to query
+- `filters` (optional): Filter conditions
+- `aggregations` (required): List of aggregations, each with:
+  - `field`: Field name to aggregate
+  - `function`: Aggregation function - "count", "avg", "max", "min", "sum"
+
+**Aggregate Functions**:
+- `count`: Count non-null values
+- `avg`: Average of numeric values
+- `max`: Maximum value
+- `min`: Minimum value
+- `sum`: Sum of numeric values
+
+**Example Aggregations**:
+- Count stocks by industry: `{"object_type": "Stock", "filters": {"industry": "银行"}, "aggregations": [{"field": "ts_code", "function": "count"}]}`
+- Average stock price: `{"object_type": "DailyQuote", "filters": {"ts_code": "000001.SZ"}, "aggregations": [{"field": "close", "function": "avg"}]}`
+- Market cap statistics: `{"object_type": "ValuationMetric", "filters": {"ts_code": "000001.SZ"}, "aggregations": [{"field": "total_mv", "function": "avg"}, {"field": "total_mv", "function": "max"}]}`
 
 ## Rate Limiting
 
