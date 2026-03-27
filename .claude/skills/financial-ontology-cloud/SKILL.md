@@ -60,6 +60,8 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
 
 **Computed Properties**: Calculated fields defined in ontology (use `format: true` to see them):
 - FinancialIndicator: `financial_health_score`, `profitability_score`, `leverage_ratio`, `dupont_roe`, `asset_efficiency`
+- ValuationMetric: `market_cap_billion`, `free_float_ratio`
+- TechnicalIndicator: `trend_score`, `ma_gap`
 - BalanceSheet: `debt_to_asset_ratio`, `equity_ratio`, `current_ratio`
 - CashFlow: `cash_change`, `total_cashflow`
 - IncomeStatement: `profit_margin`, `operating_efficiency`
@@ -68,6 +70,10 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
 - `dupont_roe`: DuPont ROE = Net Profit Margin × Asset Turnover × Equity Multiplier
 - `financial_health_score`: Comprehensive score combining ROE and net profit margin
 - `asset_efficiency`: Asset turnover rate as percentage
+- `market_cap_billion`: Total market cap in billions (亿元)
+- `free_float_ratio`: Percentage of shares that are freely tradable
+- `trend_score`: Composite trend indicator combining MACD and RSI
+- `ma_gap`: Short-term moving average deviation from long-term MA
 
 **Default Filters**: Automatically applied from ontology (e.g., Stock queries exclude retired stocks)
 
@@ -86,7 +92,7 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
 
 ## Rate Limiting
 
-- 100 queries per hour per API token
-- HTTP 429 response when limit exceeded
+- **Unlimited queries** - No rate limit restrictions
+- Optimized for high-frequency data access
 
 See `examples.md` for more query patterns.
