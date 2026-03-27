@@ -43,7 +43,7 @@ def list_objects(
     db: Session = Depends(get_db)
 ):
     """List available objects."""
-    check_rate_limit(user, db)
+    # check_rate_limit(user, db)  # Rate limit disabled
 
     log = PublicQueryLog(
         user_id=user.id,
@@ -72,7 +72,7 @@ def get_schema(
     db: Session = Depends(get_db)
 ):
     """Get object schema."""
-    check_rate_limit(user, db)
+    # check_rate_limit(user, db)  # Rate limit disabled
 
     if object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
         raise HTTPException(status_code=404, detail="Object type not found")
@@ -100,7 +100,7 @@ def query_data(
     db: Session = Depends(get_db)
 ):
     """Query data with rate limiting."""
-    check_rate_limit(user, db)
+    # check_rate_limit(user, db)  # Rate limit disabled
 
     if request.object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
         raise HTTPException(status_code=400, detail="Unsupported object type")
@@ -145,7 +145,7 @@ def aggregate_data(
     db: Session = Depends(get_db)
 ):
     """Aggregate data with statistical functions."""
-    check_rate_limit(user, db)
+    # check_rate_limit(user, db)  # Rate limit disabled
 
     if request.object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
         raise HTTPException(status_code=400, detail="Unsupported object type")
