@@ -287,9 +287,17 @@ ontology:
           description: 企业自由现金流（元），正值且持续增长是优质公司标志
       computed_properties:
         - name: financial_health_score
-          expression: "{roe} * 0.4 + {roa} * 0.3 + {grossprofit_margin} * 0.3"
+          expression: "{roe} * 0.5 + {netprofit_margin} * 0.5"
           semantic_type: percentage
-          description: 财务健康度评分（综合ROE、ROA、毛利率）
+          description: 财务健康度评分（综合ROE、净利率）
+        - name: profitability_score
+          expression: "{roe} * 0.6 + {netprofit_margin} * 0.4"
+          semantic_type: percentage
+          description: 盈利能力评分（侧重ROE）
+        - name: leverage_ratio
+          expression: "{debt_to_assets} / 100"
+          semantic_type: number
+          description: 杠杆率（资产负债率转为倍数）
 
     # ============================================================
     # 利润表（精简版）

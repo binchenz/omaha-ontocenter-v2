@@ -16,7 +16,7 @@ from app.schemas.public_query import (
     ObjectInfo,
     SchemaResponse,
 )
-from app.services.cache_service import CacheService
+from app.services.ontology_cache_service import OntologyCacheService
 
 router = APIRouter()
 
@@ -54,7 +54,11 @@ def list_objects(
 
     return ObjectListResponse(
         objects=[
-            ObjectInfo(object_type="Stock", description="Stock information")
+            ObjectInfo(object_type="Stock", description="Stock information"),
+            ObjectInfo(object_type="FinancialIndicator", description="Financial indicators (ROE, ROA, margins, debt ratio)"),
+            ObjectInfo(object_type="IncomeStatement", description="Income statement data"),
+            ObjectInfo(object_type="BalanceSheet", description="Balance sheet data"),
+            ObjectInfo(object_type="CashFlow", description="Cash flow statement data"),
         ]
     )
 
@@ -68,11 +72,11 @@ def get_schema(
     """Get object schema."""
     check_rate_limit(user, db)
 
-    if object_type != "Stock":
+    if object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
         raise HTTPException(status_code=404, detail="Object type not found")
 
-    cache_service = CacheService(db)
-    schema = cache_service.get_stock_schema()
+    cache_service = OntologyCacheService(db)
+    schema = cache_service.get_object_schema(object_type)
 
     log = PublicQueryLog(
         user_id=user.id,
@@ -96,15 +100,19 @@ def query_data(
     """Query data with rate limiting."""
     check_rate_limit(user, db)
 
-    if request.object_type != "Stock":
+    if request.object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
         raise HTTPException(status_code=400, detail="Unsupported object type")
 
     start_time = time.time()
-    cache_service = CacheService(db)
-    data = cache_service.query_stocks(
+    cache_service = OntologyCacheService(db)
+    data = cache_service.query_objects(
+        object_type=request.object_type,
         filters=request.filters,
         limit=request.limit,
-        offset=request.offset
+        offset=request.offset,
+        format_output=request.format,
+        order_by=request.order_by,
+        order=request.order
     )
     execution_time_ms = int((time.time() - start_time) * 1000)
 

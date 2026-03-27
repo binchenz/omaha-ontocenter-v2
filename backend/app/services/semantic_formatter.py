@@ -49,7 +49,7 @@ class SemanticTypeFormatter:
         """格式化百分比"""
         try:
             num = float(value)
-            return f"{num * 100:.2f}%"
+            return f"{num:.2f}%"
         except (ValueError, TypeError):
             return str(value)
 
@@ -93,3 +93,31 @@ class SemanticTypeFormatter:
             return f"{num:.2f}"
         except (ValueError, TypeError):
             return str(value)
+
+    @staticmethod
+    def compute_property(expression: str, data: dict) -> Any:
+        """计算属性值
+        
+        Args:
+            expression: 计算表达式，如 "{roe} * 0.4 + {roa} * 0.3"
+            data: 数据字典
+            
+        Returns:
+            计算结果
+        """
+        try:
+            # 替换表达式中的字段引用
+            import re
+            expr = expression
+            for match in re.finditer(r'\{(\w+)\}', expression):
+                field = match.group(1)
+                value = data.get(field)
+                # 处理 None 和空字符串
+                if value is None or value == '' or str(value).lower() == 'nan':
+                    return None
+                expr = expr.replace(f'{{{field}}}', str(float(value)))
+            # 安全计算表达式
+            result = eval(expr, {"__builtins__": {}}, {})
+            return float(result)
+        except Exception:
+            return None

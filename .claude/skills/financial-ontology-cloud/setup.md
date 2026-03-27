@@ -1,30 +1,57 @@
 # Setup Guide
 
-## Step 1: Get Invite
+## API Access
 
-Contact the administrator for access to https://ontocenter.example.com
-
-## Step 2: Register Account
-
-Create an account at the provided URL.
-
-## Step 3: Get API Key
-
-Navigate to Settings → API Keys and generate a new key.
-
-## Step 4: Set Environment Variable
-
-```bash
-export ONTOCENTER_API_KEY="your-api-key-here"
+The Omaha OntoCenter Cloud API is available at:
+```
+http://69.5.23.70/api/public/v1
 ```
 
-Add to `~/.zshrc` or `~/.bashrc` for persistence.
+## Authentication
+
+Use the provided API token in the Authorization header:
+```bash
+Authorization: Bearer omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM
+```
+
+## Optional: Set Environment Variable
+
+For convenience, set the token as an environment variable:
+
+```bash
+export OMAHA_API_TOKEN="omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM"
+```
+
+Add to `~/.zshrc` or `~/.bashrc` for persistence:
+```bash
+echo 'export OMAHA_API_TOKEN="omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Then use in commands:
+```bash
+curl -H "Authorization: Bearer $OMAHA_API_TOKEN" \
+  http://69.5.23.70/api/public/v1/objects
+```
 
 ## Test Connection
 
 ```bash
-curl -H "X-API-Key: $ONTOCENTER_API_KEY" \
-  https://ontocenter.example.com/api/v1/query/objects
+curl -H "Authorization: Bearer omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM" \
+  http://69.5.23.70/api/public/v1/objects
 ```
 
-Expected: JSON list of available objects.
+Expected response:
+```json
+{
+  "objects": [
+    {"object_type": "Stock", "description": "Stock information"},
+    {"object_type": "FinancialIndicator", "description": "Financial indicators (ROE, ROA, margins, debt ratio)"}
+  ]
+}
+```
+
+## Rate Limits
+
+- 100 queries per hour per API token
+- HTTP 429 response when exceeded
