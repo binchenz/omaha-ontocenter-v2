@@ -298,6 +298,14 @@ ontology:
           expression: "{debt_to_assets} / 100"
           semantic_type: number
           description: 杠杆率（资产负债率转为倍数）
+        - name: dupont_roe
+          expression: "{netprofit_margin} * {assets_turn} * {assets_to_eqt}"
+          semantic_type: percentage
+          description: 杜邦ROE（净利率×资产周转率×权益乘数）
+        - name: asset_efficiency
+          expression: "{assets_turn} * 100"
+          semantic_type: percentage
+          description: 资产使用效率（资产周转率×100）
 
     # ============================================================
     # 利润表（精简版）
