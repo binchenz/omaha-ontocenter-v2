@@ -19,10 +19,22 @@ from app.schemas.public_query import (
     AggregateResponse,
 )
 from app.services.ontology_cache_service import OntologyCacheService
+import yaml
+import os
 
 router = APIRouter()
 
 RATE_LIMIT = 1000  # queries per hour
+
+# Load ontology config
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+config_path = os.path.join(backend_dir, 'configs/financial_stock_analysis.yaml')
+with open(config_path, 'r') as f:
+    ONTOLOGY_CONFIG = yaml.safe_load(f)
+
+def get_available_objects():
+    """Get list of available objects from ontology config."""
+    return [obj['name'] for obj in ONTOLOGY_CONFIG['ontology']['objects']]
 
 
 def check_rate_limit(user: User, db: Session):
@@ -54,15 +66,11 @@ def list_objects(
     db.add(log)
     db.commit()
 
-    return ObjectListResponse(
-        objects=[
-            ObjectInfo(object_type="Stock", description="Stock information"),
-            ObjectInfo(object_type="FinancialIndicator", description="Financial indicators (ROE, ROA, margins, debt ratio)"),
-            ObjectInfo(object_type="IncomeStatement", description="Income statement data"),
-            ObjectInfo(object_type="BalanceSheet", description="Balance sheet data"),
-            ObjectInfo(object_type="CashFlow", description="Cash flow statement data"),
-        ]
-    )
+    objects = [
+        ObjectInfo(object_type=obj['name'], description=obj.get('description', ''))
+        for obj in ONTOLOGY_CONFIG['ontology']['objects']
+    ]
+    return ObjectListResponse(objects=objects)
 
 
 @router.get("/schema/{object_type}", response_model=SchemaResponse)
@@ -74,7 +82,7 @@ def get_schema(
     """Get object schema."""
     # check_rate_limit(user, db)  # Rate limit disabled
 
-    if object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
+    if object_type not in get_available_objects():
         raise HTTPException(status_code=404, detail="Object type not found")
 
     cache_service = OntologyCacheService(db)
@@ -102,7 +110,7 @@ def query_data(
     """Query data with rate limiting."""
     # check_rate_limit(user, db)  # Rate limit disabled
 
-    if request.object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
+    if request.object_type not in get_available_objects():
         raise HTTPException(status_code=400, detail="Unsupported object type")
 
     start_time = time.time()
@@ -147,7 +155,7 @@ def aggregate_data(
     """Aggregate data with statistical functions."""
     # check_rate_limit(user, db)  # Rate limit disabled
 
-    if request.object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
+    if request.object_type not in get_available_objects():
         raise HTTPException(status_code=400, detail="Unsupported object type")
 
     start_time = time.time()
