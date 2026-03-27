@@ -16,10 +16,16 @@ http://69.5.23.70/api/public/v1
 ## Available Objects
 
 - `Stock` - Stock information (ts_code, name, industry, area, list_date)
+- `DailyQuote` - Daily OHLCV data (open, high, low, close, volume)
+- `Industry` - Industry classification statistics
+- `ValuationMetric` - Daily valuation metrics (PE, PB, market cap)
 - `FinancialIndicator` - Financial indicators (ROE, ROA, profit margins, debt ratio)
 - `IncomeStatement` - Income statement data (revenue, profit)
 - `BalanceSheet` - Balance sheet data (assets, liabilities, equity)
 - `CashFlow` - Cash flow statement data (operating, investing, financing cash flows)
+- `Sector` - Sector/concept classification (AI, semiconductor, new energy)
+- `SectorMember` - Sector membership (stock-sector relationships)
+- `TechnicalIndicator` - Technical indicators (MA, MACD, RSI, KDJ)
 
 ## Common Queries
 
