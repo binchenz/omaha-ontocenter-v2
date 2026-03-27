@@ -11,6 +11,7 @@ class QueryRequest(BaseModel):
     format: bool = Field(False, description="Apply semantic formatting (percentage, currency)")
     order_by: Optional[str] = Field(None, description="Field to sort by")
     order: Optional[str] = Field("desc", description="Sort order: asc or desc")
+    select: Optional[List[str]] = Field(None, description="Fields to return (default: all)")
 
 
 class QueryResponse(BaseModel):

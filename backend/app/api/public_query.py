@@ -112,7 +112,8 @@ def query_data(
         offset=request.offset,
         format_output=request.format,
         order_by=request.order_by,
-        order=request.order
+        order=request.order,
+        select=request.select
     )
     execution_time_ms = int((time.time() - start_time) * 1000)
 

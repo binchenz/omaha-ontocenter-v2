@@ -71,6 +71,7 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
 - `format` (optional): Apply semantic formatting - percentages, currency, dates (default: false)
 - `order_by` (optional): Field name to sort by (supports computed properties)
 - `order` (optional): Sort order - "asc" or "desc" (default: "desc")
+- `select` (optional): List of field names to return (default: all fields)
 
 ## Rate Limiting
 

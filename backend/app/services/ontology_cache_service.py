@@ -27,7 +27,8 @@ class OntologyCacheService:
         offset: int = 0,
         format_output: bool = False,
         order_by: Optional[str] = None,
-        order: str = "desc"
+        order: str = "desc",
+        select: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """Query objects through OmahaService with ontology support."""
         # Convert dict filters to list format for OmahaService
@@ -62,7 +63,11 @@ class OntologyCacheService:
             try:
                 data = sorted(data, key=lambda x: (x.get(order_by) is None, x.get(order_by, 0)), reverse=reverse)
             except:
-                pass  # Skip sorting if field doesn't exist or can't be compared
+                pass
+
+        # Apply field selection if requested
+        if select and data:
+            data = [{k: v for k, v in record.items() if k in select} for record in data]
 
         return data
 

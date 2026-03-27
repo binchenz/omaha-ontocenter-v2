@@ -134,3 +134,32 @@ curl -X POST http://69.5.23.70/api/public/v1/query \
     "order": "asc"
   }'
 ```
+
+## 11. Select Specific Fields (Reduce Data Transfer)
+
+```bash
+curl -X POST http://69.5.23.70/api/public/v1/query \
+  -H "Authorization: Bearer omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "object_type": "Stock",
+    "filters": {"industry": "银行"},
+    "limit": 10,
+    "select": ["ts_code", "name", "list_date"]
+  }'
+```
+
+## 12. Combine Select + Format + Computed Properties
+
+```bash
+curl -X POST http://69.5.23.70/api/public/v1/query \
+  -H "Authorization: Bearer omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "object_type": "FinancialIndicator",
+    "filters": {"ts_code": "000001.SZ"},
+    "limit": 5,
+    "format": true,
+    "select": ["end_date", "roe", "netprofit_margin", "financial_health_score"]
+  }'
+```
