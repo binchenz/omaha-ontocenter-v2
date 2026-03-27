@@ -104,6 +104,23 @@ ontology:
         - name: amount
           type: number
           description: 成交额（千元），反映资金流入流出规模
+      computed_properties:
+        - name: price_volatility
+          expression: "({high} - {low}) / {close} * 100"
+          semantic_type: percentage
+          description: 当日价格波动率（振幅），反映股价波动程度
+        - name: volume_amount_ratio
+          expression: "{amount} / {vol}"
+          semantic_type: number
+          description: 量价比（成交额/成交量），反映平均成交价格
+        - name: is_limit_up
+          expression: "{pct_chg} > 9.5"
+          semantic_type: number
+          description: 是否涨停（1=是，0=否）
+        - name: is_limit_down
+          expression: "{pct_chg} < -9.5"
+          semantic_type: number
+          description: 是否跌停（1=是，0=否）
 
     # ============================================================
     # 行业分类
