@@ -399,11 +399,11 @@ ontology:
           description: 息税折旧摊销前利润（元），现金流分析常用
       computed_properties:
         - name: profit_margin
-          expression: "{n_income} / {total_revenue}"
+          expression: "{n_income} / {total_revenue} * 100"
           semantic_type: percentage
-          description: 净利率（净利润/营业总收入）
+          description: 净利率（净利润/营业总收入），如32.43%
         - name: operating_margin
-          expression: "{operate_profit} / {total_revenue}"
+          expression: "{operate_profit} / {total_revenue} * 100"
           semantic_type: percentage
           description: 营业利润率（营业利润/营业总收入）
 
@@ -487,15 +487,15 @@ ontology:
           description: 股东权益合计（含少数股东权益）
       computed_properties:
         - name: debt_to_asset_ratio
-          expression: "{total_liab} / {total_assets}"
+          expression: "{total_liab} / {total_assets} * 100"
           semantic_type: percentage
-          description: 资产负债率（总负债/总资产）
+          description: 资产负债率（总负债/总资产），如91.00%
         - name: current_ratio
           expression: "{total_cur_assets} / {total_cur_liab}"
-          semantic_type: ratio
-          description: 流动比率（流动资产/流动负债）
+          semantic_type: number
+          description: 流动比率（流动资产/流动负债），>2表示偿债能力强
         - name: equity_ratio
-          expression: "{total_hldr_eqy_exc_min_int} / {total_assets}"
+          expression: "{total_hldr_eqy_exc_min_int} / {total_assets} * 100"
           semantic_type: percentage
           description: 股东权益比率（股东权益/总资产）
 
