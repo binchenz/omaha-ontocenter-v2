@@ -159,3 +159,46 @@ class OntologyCacheService:
                 for cp in obj_def.get('computed_properties', [])
             ]
         }
+
+    def aggregate_objects(
+        self,
+        object_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        aggregations: List[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
+        """Aggregate data with functions like count, avg, max, min."""
+        # Get raw data without formatting
+        filter_list = []
+        if filters:
+            for field, value in filters.items():
+                filter_list.append({"field": field, "operator": "=", "value": value})
+
+        result = self.omaha.query_objects(
+            config_yaml=self.config_yaml,
+            object_type=object_type,
+            filters=filter_list,
+            limit=10000
+        )
+
+        data = result.get("data", [])
+
+        results = {}
+        for agg in aggregations:
+            field = agg.get("field")
+            func = agg.get("function", "count").lower()
+
+            if func == "count":
+                results[f"{field}_{func}"] = len([d for d in data if d.get(field) is not None])
+            else:
+                values = [d.get(field) for d in data if d.get(field) is not None and isinstance(d.get(field), (int, float))]
+                if values:
+                    if func == "avg":
+                        results[f"{field}_{func}"] = round(sum(values) / len(values), 2)
+                    elif func == "max":
+                        results[f"{field}_{func}"] = max(values)
+                    elif func == "min":
+                        results[f"{field}_{func}"] = min(values)
+                    elif func == "sum":
+                        results[f"{field}_{func}"] = sum(values)
+
+        return {"results": results, "count": len(data)}

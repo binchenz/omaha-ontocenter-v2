@@ -15,6 +15,8 @@ from app.schemas.public_query import (
     ObjectListResponse,
     ObjectInfo,
     SchemaResponse,
+    AggregateRequest,
+    AggregateResponse,
 )
 from app.services.ontology_cache_service import OntologyCacheService
 
@@ -134,3 +136,38 @@ def query_data(
         limit=request.limit,
         offset=request.offset
     )
+
+
+@router.post("/aggregate", response_model=AggregateResponse)
+def aggregate_data(
+    request: AggregateRequest,
+    user: User = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    """Aggregate data with statistical functions."""
+    check_rate_limit(user, db)
+
+    if request.object_type not in ("Stock", "FinancialIndicator", "IncomeStatement", "BalanceSheet", "CashFlow"):
+        raise HTTPException(status_code=400, detail="Unsupported object type")
+
+    start_time = time.time()
+    cache_service = OntologyCacheService(db)
+    result = cache_service.aggregate_objects(
+        object_type=request.object_type,
+        filters=request.filters,
+        aggregations=request.aggregations
+    )
+    execution_time_ms = int((time.time() - start_time) * 1000)
+
+    log = PublicQueryLog(
+        user_id=user.id,
+        query_type="aggregate",
+        object_type=request.object_type,
+        filters=request.filters,
+        result_count=result["count"],
+        execution_time_ms=execution_time_ms
+    )
+    db.add(log)
+    db.commit()
+
+    return AggregateResponse(**result)

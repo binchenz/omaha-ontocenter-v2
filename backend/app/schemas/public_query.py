@@ -50,3 +50,14 @@ class SchemaResponse(BaseModel):
     business_context: Optional[str] = None
     fields: List[FieldInfo]
     computed_properties: Optional[List[ComputedPropertyInfo]] = None
+
+
+class AggregateRequest(BaseModel):
+    object_type: str = Field(..., description="Object type to query")
+    filters: Optional[Dict[str, Any]] = Field(None, description="Query filters")
+    aggregations: List[Dict[str, str]] = Field(..., description="Aggregations: [{field, function}]")
+
+
+class AggregateResponse(BaseModel):
+    results: Dict[str, Any]
+    count: int
