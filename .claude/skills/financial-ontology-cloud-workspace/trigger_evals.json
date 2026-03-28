@@ -1,0 +1,22 @@
+[
+  {"query": "帮我查一下平安银行最近的财务指标，ROE和净利润率怎么样", "should_trigger": true},
+  {"query": "茅台现在估值贵不贵？PE和PB是多少", "should_trigger": true},
+  {"query": "我想找银行股里面估值最低的5只，按PB排序", "should_trigger": true},
+  {"query": "比亚迪最近一年的营收和净利润趋势怎么样", "should_trigger": true},
+  {"query": "帮我把000001.SZ加到自选股，备注等待回调", "should_trigger": true},
+  {"query": "查一下招商银行的技术面，MACD和RSI信号怎么样", "should_trigger": true},
+  {"query": "我想看看A股里面ROE超过20%的公司有哪些", "should_trigger": true},
+  {"query": "600519.SH最近5天的收盘价和成交量", "should_trigger": true},
+  {"query": "帮我分析一下牧原股份的资产负债表，负债率高不高", "should_trigger": true},
+  {"query": "查下我的自选股列表", "should_trigger": true},
+  {"query": "帮我写一个Python脚本来爬取股票数据", "should_trigger": false},
+  {"query": "解释一下什么是市盈率PE", "should_trigger": false},
+  {"query": "帮我用pandas分析这个CSV文件里的股票数据", "should_trigger": false},
+  {"query": "美股苹果公司最新财报怎么样", "should_trigger": false},
+  {"query": "帮我写一个量化交易策略的回测代码", "should_trigger": false},
+  {"query": "港股腾讯现在多少钱", "should_trigger": false},
+  {"query": "帮我用matplotlib画一个K线图", "should_trigger": false},
+  {"query": "什么是DuPont分析法", "should_trigger": false},
+  {"query": "帮我查一下上证指数今天涨跌", "should_trigger": false},
+  {"query": "我有一个Excel表格里面有股票代码，帮我批量查询", "should_trigger": false}
+]

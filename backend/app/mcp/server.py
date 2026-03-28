@@ -74,7 +74,7 @@ async def list_tools() -> list[types.Tool]:
                     "selected_columns": {"type": "array", "items": {"type": "string"}},
                     "filters": {"type": "array", "items": {"type": "object"}},
                     "joins": {"type": "array", "items": {"type": "object"}},
-                    "limit": {"type": "integer", "default": 100},
+                    "limit": {"type": "integer"},
                 },
                 "required": ["object_type"],
             },
@@ -133,7 +133,7 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
             selected_columns=arguments.get("selected_columns"),
             filters=arguments.get("filters"),
             joins=arguments.get("joins"),
-            limit=arguments.get("limit", 100),
+            limit=arguments.get("limit"),
         )
     elif name in ("save_asset", "list_assets", "get_lineage"):
         db = SessionLocal()

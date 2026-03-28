@@ -2,7 +2,7 @@
 API package.
 """
 from fastapi import APIRouter
-from app.api import auth, projects, datahub, ontology, query, assets, chat, api_keys, semantic
+from app.api import auth, projects, datahub, ontology, query, assets, chat, api_keys, semantic, watchlist
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
 api_router.include_router(chat.router, tags=["chat"])
 api_router.include_router(api_keys.router, prefix="/projects", tags=["api-keys"])
 api_router.include_router(semantic.router, prefix="", tags=["semantic"])
+api_router.include_router(watchlist.router, prefix="/watchlist", tags=["watchlist"])

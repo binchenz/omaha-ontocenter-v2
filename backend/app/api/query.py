@@ -45,7 +45,7 @@ class QueryObjectsRequest(BaseModel):
     selected_columns: Optional[List[str]] = None
     filters: Optional[List[Dict[str, Any]]] = None
     joins: Optional[List[Dict[str, Any]]] = None
-    limit: int = 100
+    limit: Optional[int] = None
 
 
 class QueryObjectsResponse(BaseModel):

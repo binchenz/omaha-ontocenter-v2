@@ -232,7 +232,7 @@ class OmahaService:
         selected_columns: Optional[List[str]] = None,
         filters: Optional[List[Dict[str, Any]]] = None,
         joins: Optional[List[Dict[str, Any]]] = None,
-        limit: int = 100,
+        limit: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Query objects using Omaha Core."""
         try:
@@ -343,7 +343,8 @@ class OmahaService:
                 query += f" WHERE {where_clause}"
 
         # Apply limit
-        query += f" LIMIT {limit}"
+        if limit is not None:
+            query += f" LIMIT {limit}"
 
         return query, params
 
@@ -374,7 +375,8 @@ class OmahaService:
             if where_clause:
                 query += f" WHERE {where_clause}"
 
-        query += f" LIMIT {limit}"
+        if limit is not None:
+            query += f" LIMIT {limit}"
         return query, params
 
     def _connect_sqlite(self, ds_config: Dict[str, Any]) -> sqlite3.Connection:
@@ -467,7 +469,8 @@ class OmahaService:
                     })
 
             # Request more data if we need to filter client-side
-            api_params["limit"] = limit * 10 if client_filters else limit
+            if limit is not None:
+                api_params["limit"] = limit * 10 if client_filters else limit
 
             # Call Tushare API
             df = getattr(pro, api_name)(**api_params)
@@ -491,7 +494,7 @@ class OmahaService:
                     df = df[_DF_OPS[operator](df[field], value)]
 
             # Apply limit after client-side filtering
-            if limit and len(df) > limit:
+            if limit is not None and len(df) > limit:
                 df = df.head(limit)
 
             # Apply computed properties if defined
@@ -619,7 +622,9 @@ class OmahaService:
             df.loc[df["rsi14"] < 30, "rsi_signal"] = "oversold"
 
             # Sort descending (latest first) and limit
-            df = df.sort_values("trade_date", ascending=False).head(limit)
+            df = df.sort_values("trade_date", ascending=False)
+            if limit is not None:
+                df = df.head(limit)
 
             # Filter columns if specified
             all_cols = ["ts_code", "trade_date", "close", "ma5", "ma10", "ma20", "ma60",

@@ -62,3 +62,20 @@ class AggregateRequest(BaseModel):
 class AggregateResponse(BaseModel):
     results: Dict[str, Any]
     count: int
+
+
+class WatchlistAddRequest(BaseModel):
+    ts_code: str = Field(..., description="Stock code, e.g. 000001.SZ")
+    note: Optional[str] = Field(None, description="Optional note")
+
+
+class WatchlistItemResponse(BaseModel):
+    id: int
+    ts_code: str
+    note: Optional[str] = None
+    added_at: str
+
+
+class WatchlistListResponse(BaseModel):
+    items: List[WatchlistItemResponse]
+    count: int

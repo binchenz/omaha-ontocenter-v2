@@ -217,9 +217,23 @@ Run backend tests from the `backend/` directory. Run integration tests from the 
 
 See `LOCAL_SETUP.md` and `RUNNING.md` for detailed setup instructions.
 
+## MCP Server
+
+The backend includes a Model Context Protocol (MCP) server implementation in `app/mcp/`:
+- **server.py**: MCP server setup and tool registration
+- **tools.py**: MCP tool implementations for ontology queries
+- **auth.py**: Authentication for MCP connections
+
+Run the MCP server standalone:
+```bash
+cd backend
+python -m app.mcp.server
+```
+
 ## Recent Features
 
 - Chat API with LLM integration and function calling
+- MCP server for Claude Code integration
 - Asset management endpoints
 - Multi-datasource query execution
 - YAML-based ontology configuration with validation

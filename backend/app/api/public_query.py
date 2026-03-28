@@ -8,6 +8,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models.user import User
 from app.models.public_query_log import PublicQueryLog
+from app.models.watchlist import Watchlist
 from app.api.public_deps import verify_api_key
 from app.schemas.public_query import (
     QueryRequest,
@@ -17,6 +18,9 @@ from app.schemas.public_query import (
     SchemaResponse,
     AggregateRequest,
     AggregateResponse,
+    WatchlistAddRequest,
+    WatchlistItemResponse,
+    WatchlistListResponse,
 )
 from app.services.ontology_cache_service import OntologyCacheService
 import yaml
@@ -29,6 +33,9 @@ RATE_LIMIT = 1000  # queries per hour
 # Load ontology config
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 config_path = os.path.join(backend_dir, 'configs/financial_stock_analysis.yaml')
+if not os.path.exists(config_path):
+    # fallback: one level up from backend_dir
+    config_path = os.path.join(os.path.dirname(backend_dir), 'configs/financial_stock_analysis.yaml')
 with open(config_path, 'r') as f:
     ONTOLOGY_CONFIG = yaml.safe_load(f)
 
@@ -180,3 +187,70 @@ def aggregate_data(
     db.commit()
 
     return AggregateResponse(**result)
+
+
+@router.get("/watchlist", response_model=WatchlistListResponse)
+def get_watchlist(
+    user: User = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    """Get user's watchlist."""
+    items = db.query(Watchlist).filter(Watchlist.user_id == user.id).all()
+    return WatchlistListResponse(
+        items=[
+            WatchlistItemResponse(
+                id=item.id,
+                ts_code=item.ts_code,
+                note=item.note,
+                added_at=item.added_at.isoformat()
+            )
+            for item in items
+        ],
+        count=len(items)
+    )
+
+
+@router.post("/watchlist", response_model=WatchlistItemResponse, status_code=201)
+def add_watchlist(
+    request: WatchlistAddRequest,
+    user: User = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    """Add stock to watchlist."""
+    from sqlalchemy.exc import IntegrityError
+
+    item = Watchlist(user_id=user.id, ts_code=request.ts_code, note=request.note)
+    db.add(item)
+    try:
+        db.commit()
+        db.refresh(item)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Stock already in watchlist")
+
+    return WatchlistItemResponse(
+        id=item.id,
+        ts_code=item.ts_code,
+        note=item.note,
+        added_at=item.added_at.isoformat()
+    )
+
+
+@router.delete("/watchlist/{item_id}", status_code=204)
+def remove_watchlist(
+    item_id: int,
+    user: User = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    """Remove stock from watchlist."""
+    item = db.query(Watchlist).filter(
+        Watchlist.id == item_id,
+        Watchlist.user_id == user.id
+    ).first()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+
+    db.delete(item)
+    db.commit()
+    return None

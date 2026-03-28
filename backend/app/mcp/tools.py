@@ -48,7 +48,7 @@ def query_data(
     selected_columns: Optional[List[str]] = None,
     filters: Optional[List[Dict[str, Any]]] = None,
     joins: Optional[List[Dict[str, Any]]] = None,
-    limit: int = 100,
+    limit: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Query objects from the datasource defined in the config."""
     return omaha_service.query_objects(

@@ -17,7 +17,11 @@ class SemanticTypeFormatter:
         'date',
         'stock_code',
         'text',
-        'number'
+        'number',
+        'ratio',
+        'growth_rate',
+        'score',
+        'multiplier'
     }
 
     @staticmethod
@@ -39,6 +43,10 @@ class SemanticTypeFormatter:
             'currency_cny': SemanticTypeFormatter._format_currency_cny,
             'date': SemanticTypeFormatter._format_date,
             'number': SemanticTypeFormatter._format_number,
+            'ratio': SemanticTypeFormatter._format_ratio,
+            'growth_rate': SemanticTypeFormatter._format_growth_rate,
+            'score': SemanticTypeFormatter._format_score,
+            'multiplier': SemanticTypeFormatter._format_multiplier,
         }
 
         formatter = formatters.get(semantic_type)
@@ -93,6 +101,38 @@ class SemanticTypeFormatter:
             return f"{num:.2f}"
         except (ValueError, TypeError):
             return str(value)
+
+    @staticmethod
+    def _format_with_suffix(value: Any, precision: int, suffix: str, sign: bool = False) -> str:
+        """通用格式化方法：转换为浮点数并添加后缀"""
+        try:
+            num = float(value)
+            formatted = f"{num:.{precision}f}"
+            if sign and num > 0:
+                formatted = f"+{formatted}"
+            return f"{formatted}{suffix}"
+        except (ValueError, TypeError):
+            return str(value)
+
+    @staticmethod
+    def _format_ratio(value: Any) -> str:
+        """格式化比率（如市盈率、市净率）"""
+        return SemanticTypeFormatter._format_with_suffix(value, 2, "x")
+
+    @staticmethod
+    def _format_growth_rate(value: Any) -> str:
+        """格式化增长率（带正负号的百分比）"""
+        return SemanticTypeFormatter._format_with_suffix(value, 2, "%", sign=True)
+
+    @staticmethod
+    def _format_score(value: Any) -> str:
+        """格式化评分（0-100分）"""
+        return SemanticTypeFormatter._format_with_suffix(value, 1, "分")
+
+    @staticmethod
+    def _format_multiplier(value: Any) -> str:
+        """格式化倍数（如市销率、市现率）"""
+        return SemanticTypeFormatter._format_with_suffix(value, 2, "倍")
 
     @staticmethod
     def compute_property(expression: str, data: dict) -> Any:

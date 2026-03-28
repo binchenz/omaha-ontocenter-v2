@@ -1,74 +1,73 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '@/services/auth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Register: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const onFinish = async (values: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
     setLoading(true);
     try {
-      await authService.register(values);
-      message.success('Registration successful! Please login.');
+      await authService.register({ email, username, full_name: fullName, password });
       navigate('/login');
-    } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Registration failed');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Registration failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
-      <Card title="Register" style={{ width: 400 }}>
-        <Form name="register" onFinish={onFinish} autoComplete="off">
-          <Form.Item
-            name="email"
-            rules={[
-              { required: true, message: 'Please input your email!' },
-              { type: 'email', message: 'Please enter a valid email!' },
-            ]}
-          >
-            <Input prefix={<MailOutlined />} placeholder="Email" />
-          </Form.Item>
-
-          <Form.Item
-            name="username"
-            rules={[
-              { required: true, message: 'Please input your username!' },
-              { min: 3, message: 'Username must be at least 3 characters!' },
-            ]}
-          >
-            <Input prefix={<UserOutlined />} placeholder="Username" />
-          </Form.Item>
-
-          <Form.Item name="full_name">
-            <Input placeholder="Full Name (optional)" />
-          </Form.Item>
-
-          <Form.Item
-            name="password"
-            rules={[
-              { required: true, message: 'Please input your password!' },
-              { min: 8, message: 'Password must be at least 8 characters!' },
-            ]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="Password" />
-          </Form.Item>
-
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>
-              Register
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <Card className="w-96 bg-surface border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white text-center">Register</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="email" className="text-slate-300">Email *</Label>
+              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)}
+                required className="bg-background border-white/10 text-white" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="username" className="text-slate-300">Username *</Label>
+              <Input id="username" value={username} onChange={e => setUsername(e.target.value)}
+                required minLength={3} className="bg-background border-white/10 text-white" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="fullName" className="text-slate-300">Full Name</Label>
+              <Input id="fullName" value={fullName} onChange={e => setFullName(e.target.value)}
+                className="bg-background border-white/10 text-white" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="password" className="text-slate-300">Password *</Label>
+              <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)}
+                required className="bg-background border-white/10 text-white" />
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90">
+              {loading ? 'Registering...' : 'Register'}
             </Button>
-          </Form.Item>
-
-          <div style={{ textAlign: 'center' }}>
-            Already have an account? <a href="/login">Login</a>
-          </div>
-        </Form>
+            <p className="text-center text-sm text-slate-400">
+              Already have an account?{' '}
+              <Link to="/login" className="text-primary hover:underline">Login</Link>
+            </p>
+          </form>
+        </CardContent>
       </Card>
     </div>
   );

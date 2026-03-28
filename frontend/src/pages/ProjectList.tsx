@@ -1,171 +1,129 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Space, Modal, Form, Input, message, Card } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { projectService } from '@/services/project';
 import { Project } from '@/types';
 
 const ProjectList: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [form] = Form.useForm();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Project | null>(null);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
+  useEffect(() => { loadProjects(); }, []);
 
   const loadProjects = async () => {
     setLoading(true);
-    try {
-      const data = await projectService.list();
-      setProjects(data);
-    } catch (error: any) {
-      message.error('Failed to load projects');
-    } finally {
-      setLoading(false);
-    }
+    try { setProjects(await projectService.list()); }
+    catch { /* error handled silently */ }
+    finally { setLoading(false); }
   };
 
-  const handleCreate = () => {
-    setEditingProject(null);
-    form.resetFields();
-    setModalVisible(true);
-  };
-
-  const handleEdit = (project: Project) => {
-    setEditingProject(project);
-    form.setFieldsValue(project);
-    setModalVisible(true);
-  };
+  const openCreate = () => { setEditing(null); setName(''); setDescription(''); setModalOpen(true); };
+  const openEdit = (p: Project) => { setEditing(p); setName(p.name); setDescription(p.description || ''); setModalOpen(true); };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
-      title: 'Are you sure you want to delete this project?',
-      onOk: async () => {
-        try {
-          await projectService.delete(id);
-          message.success('Project deleted successfully');
-          loadProjects();
-        } catch (error: any) {
-          message.error('Failed to delete project');
-        }
-      },
-    });
+    if (!window.confirm('Delete this project?')) return;
+    await projectService.delete(id);
+    loadProjects();
   };
 
-  const handleSubmit = async (values: any) => {
-    try {
-      if (editingProject) {
-        await projectService.update(editingProject.id, values);
-        message.success('Project updated successfully');
-      } else {
-        await projectService.create(values);
-        message.success('Project created successfully');
-      }
-      setModalVisible(false);
-      loadProjects();
-    } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Operation failed');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editing) {
+      await projectService.update(editing.id, { name, description });
+    } else {
+      await projectService.create({ name, description });
     }
+    setModalOpen(false);
+    loadProjects();
   };
-
-  const columns = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-    },
-    {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-    },
-    {
-      title: 'Created At',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (text: string) => new Date(text).toLocaleString(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: Project) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/projects/${record.id}`)}
-          >
-            Configure
-          </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            Edit
-          </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.id)}
-          >
-            Delete
-          </Button>
-        </Space>
-      ),
-    },
-  ];
 
   return (
-    <Card
-      title="Projects"
-      extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-          New Project
+    <Card className="bg-surface border-white/10">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-white">Projects</CardTitle>
+        <Button onClick={openCreate} size="sm" className="bg-primary hover:bg-primary/90">
+          <Plus size={16} className="mr-2" /> New Project
         </Button>
-      }
-    >
-      <Table
-        columns={columns}
-        dataSource={projects}
-        rowKey="id"
-        loading={loading}
-      />
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <p className="text-slate-400 text-sm">Loading...</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-white/10">
+                <TableHead className="text-slate-400">Name</TableHead>
+                <TableHead className="text-slate-400">Description</TableHead>
+                <TableHead className="text-slate-400">Created</TableHead>
+                <TableHead className="text-slate-400">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projects.map(p => (
+                <TableRow key={p.id} className="border-white/10 hover:bg-white/5">
+                  <TableCell className="text-white font-medium">{p.name}</TableCell>
+                  <TableCell className="text-slate-400">{p.description}</TableCell>
+                  <TableCell className="text-slate-400 font-mono text-xs">
+                    {new Date(p.created_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/projects/${p.id}`)}>
+                        <Settings size={14} />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>
+                        <Pencil size={14} />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}
+                        className="text-red-400 hover:text-red-300">
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
 
-      <Modal
-        title={editingProject ? 'Edit Project' : 'Create Project'}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        footer={null}
-      >
-        <Form form={form} onFinish={handleSubmit} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[{ required: true, message: 'Please input project name!' }]}
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={4} />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                {editingProject ? 'Update' : 'Create'}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="bg-surface border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit Project' : 'Create Project'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-slate-300">Name *</Label>
+              <Input value={name} onChange={e => setName(e.target.value)} required
+                className="bg-background border-white/10 text-white" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-slate-300">Description</Label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90">
+                {editing ? 'Update' : 'Create'}
               </Button>
-              <Button onClick={() => setModalVisible(false)}>Cancel</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
