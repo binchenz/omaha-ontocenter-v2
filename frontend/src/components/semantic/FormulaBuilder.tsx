@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, Button, Input, Space, Tag, Alert, Typography } from 'antd';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { SemanticObject } from '../../types/semantic';
-
-const { Text } = Typography;
 
 interface FormulaBuilderProps {
   open: boolean;
@@ -23,9 +23,7 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
   const [testResult, setTestResult] = useState<{ sql: string | null; error: string | null } | null>(null);
   const [testing, setTesting] = useState(false);
 
-  const availableFields = objectMeta
-    ? Object.keys(objectMeta.base_properties)
-    : [];
+  const availableFields = objectMeta ? Object.keys(objectMeta.base_properties) : [];
 
   const appendToFormula = (token: string) => {
     setFormula(prev => prev ? `${prev} ${token}` : token);
@@ -43,70 +41,68 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
   };
 
   return (
-    <Modal
-      title={`公式构建器 — ${objectName}`}
-      open={open}
-      onCancel={onCancel}
-      onOk={() => onSave(formula)}
-      okText="保存"
-      cancelText="取消"
-      width={600}
-    >
-      <Space direction="vertical" style={{ width: '100%' }}>
-        <div>
-          <Text strong>可用字段：</Text>
-          <div style={{ marginTop: 8 }}>
-            {availableFields.map(field => (
-              <Tag
-                key={field}
-                color="blue"
-                style={{ cursor: 'pointer', marginBottom: 4 }}
-                onClick={() => appendToFormula(field)}
-              >
-                {field}
-              </Tag>
-            ))}
+    <Dialog open={open} onOpenChange={open => { if (!open) onCancel(); }}>
+      <DialogContent className="bg-surface border-white/10 text-white max-w-xl">
+        <DialogHeader>
+          <DialogTitle>公式构建器 — {objectName}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-slate-300 text-xs font-medium mb-2">可用字段：</p>
+            <div className="flex flex-wrap gap-1">
+              {availableFields.map(field => (
+                <Badge key={field} variant="secondary"
+                  className="cursor-pointer hover:bg-blue-500/30 text-xs"
+                  onClick={() => appendToFormula(field)}>
+                  {field}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div>
-          <Text strong>运算符：</Text>
-          <div style={{ marginTop: 8 }}>
-            {OPERATORS.map(op => (
-              <Tag
-                key={op}
-                color="default"
-                style={{ cursor: 'pointer', marginBottom: 4, fontFamily: 'monospace' }}
-                onClick={() => appendToFormula(op)}
-              >
-                {op}
-              </Tag>
-            ))}
+          <div>
+            <p className="text-slate-300 text-xs font-medium mb-2">运算符：</p>
+            <div className="flex flex-wrap gap-1">
+              {OPERATORS.map(op => (
+                <Badge key={op} variant="outline"
+                  className="cursor-pointer hover:bg-white/10 text-xs font-mono"
+                  onClick={() => appendToFormula(op)}>
+                  {op}
+                </Badge>
+              ))}
+            </div>
           </div>
+
+          <div>
+            <p className="text-slate-300 text-xs font-medium mb-2">公式：</p>
+            <textarea
+              value={formula}
+              onChange={e => { setFormula(e.target.value); setTestResult(null); }}
+              rows={3}
+              placeholder="点击字段和运算符构建公式，或直接输入"
+              className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-white font-mono resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <Button variant="outline" onClick={handleTest} disabled={testing || !formula.trim()}
+            className="text-slate-300 border-white/10">
+            {testing ? '测试中...' : '测试公式'}
+          </Button>
+
+          {testResult && (
+            <div className={`rounded-md px-3 py-2 text-xs ${testResult.error ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+              {testResult.error ? testResult.error : `SQL: ${testResult.sql}`}
+            </div>
+          )}
         </div>
 
-        <div>
-          <Text strong>公式：</Text>
-          <Input.TextArea
-            value={formula}
-            onChange={e => { setFormula(e.target.value); setTestResult(null); }}
-            rows={3}
-            style={{ fontFamily: 'monospace', marginTop: 8 }}
-            placeholder="点击字段和运算符构建公式，或直接输入"
-          />
+        <div className="flex gap-2 justify-end">
+          <Button variant="ghost" onClick={onCancel}>取消</Button>
+          <Button onClick={() => onSave(formula)} className="bg-primary hover:bg-primary/90">保存</Button>
         </div>
-
-        <Button onClick={handleTest} loading={testing} disabled={!formula.trim()}>
-          测试公式
-        </Button>
-
-        {testResult && (
-          testResult.error
-            ? <Alert type="error" message={testResult.error} />
-            : <Alert type="success" message={`SQL: ${testResult.sql}`} />
-        )}
-      </Space>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 };
 

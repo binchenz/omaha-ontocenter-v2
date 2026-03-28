@@ -1,64 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import {
-  Card,
-  Select,
-  Button,
-  Table,
-  message,
-  Space,
-  Checkbox,
-  Input,
-  Row,
-  Col,
-  Divider,
-  Modal,
-  Form,
-} from 'antd';
-import { SearchOutlined, PlusOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
+import { Search, Plus, Trash2, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { queryService } from '@/services/query';
 import { assetService } from '@/services/asset';
-
-const { Option } = Select;
 
 interface ObjectExplorerProps {
   projectId?: number;
 }
 
-interface Filter {
-  field: string;
-  operator: string;
-  value: string;
-}
-
-interface Column {
-  name: string;
-  type: string;
-  description: string;
-}
-
+interface Filter { field: string; operator: string; value: string; }
+interface Column { name: string; type: string; description: string; }
 interface Relationship {
-  name: string;
-  description: string;
-  from_object: string;
-  to_object: string;
-  type: string;
-  join_condition: { from_field: string; to_field: string };
-  direction: string;
+  name: string; description: string; from_object: string; to_object: string;
+  type: string; join_condition: { from_field: string; to_field: string }; direction: string;
 }
+interface JoinConfig { relationship_name: string; join_type: string; relationship: Relationship; }
 
-interface JoinConfig {
-  relationship_name: string;
-  join_type: string;
-  relationship: Relationship;
-}
+const OPERATORS = ['=', '>', '<', '>=', '<=', '!=', 'LIKE', 'IN'];
 
 const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectId }) => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const projectId = propProjectId || (id ? parseInt(id) : undefined);
 
-  // State
   const [objectTypes, setObjectTypes] = useState<string[]>([]);
   const [selectedType, setSelectedType] = useState<string>('');
   const [allColumns, setAllColumns] = useState<Column[]>([]);
@@ -71,42 +40,20 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
   const [selectedJoinType, setSelectedJoinType] = useState<string>('LEFT');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showSaveAssetModal, setShowSaveAssetModal] = useState(false);
-  const [saveAssetForm] = Form.useForm();
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveDesc, setSaveDesc] = useState('');
 
-  useEffect(() => {
-    loadObjectTypes();
-  }, [projectId]);
-
-  useEffect(() => {
-    if (selectedType) {
-      loadObjectSchema();
-      loadRelationships();
-    }
-  }, [selectedType]);
-
-  // Load asset configuration if passed from AssetList
+  useEffect(() => { loadObjectTypes(); }, [projectId]);
+  useEffect(() => { if (selectedType) { loadObjectSchema(); loadRelationships(); } }, [selectedType]);
   useEffect(() => {
     const state = location.state as { assetConfig?: any };
     if (state?.assetConfig) {
       const config = state.assetConfig;
       setSelectedType(config.object_type);
-      if (config.selected_columns) {
-        setSelectedColumns(config.selected_columns);
-      }
-      if (config.filters) {
-        setFilters(config.filters);
-      }
-      if (config.joins) {
-        // Load joins - will need to fetch relationship details
-        setJoins(
-          config.joins.map((j: any) => ({
-            relationship_name: j.relationship_name,
-            join_type: j.join_type,
-            relationship: {} as Relationship, // Will be populated when relationships load
-          }))
-        );
-      }
+      if (config.selected_columns) setSelectedColumns(config.selected_columns);
+      if (config.filters) setFilters(config.filters);
+      if (config.joins) setJoins(config.joins.map((j: any) => ({ ...j, relationship: {} as Relationship })));
     }
   }, [location.state]);
 
@@ -115,9 +62,7 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
     try {
       const result = await queryService.listObjectTypes(projectId);
       setObjectTypes(result.objects || []);
-    } catch (error: any) {
-      message.error('Failed to load object types');
-    }
+    } catch {}
   };
 
   const loadRelationships = async () => {
@@ -125,9 +70,7 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
     try {
       const result = await queryService.getRelationships(projectId, selectedType);
       setAvailableRelationships(result.relationships || []);
-    } catch (error: any) {
-      message.error('Failed to load relationships');
-    }
+    } catch {}
   };
 
   const loadObjectSchema = async () => {
@@ -136,359 +79,235 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
       const result = await queryService.getObjectSchema(projectId, selectedType);
       if (result.success && result.columns) {
         setAllColumns(result.columns);
-        setSelectedColumns(result.columns.map((col) => col.name));
+        setSelectedColumns(result.columns.map((col: Column) => col.name));
       }
-    } catch (error: any) {
-      message.error('Failed to load schema');
-    }
+    } catch {}
   };
 
-  const getValidFilters = () => filters.filter((f) => f.field && f.operator && f.value);
-
-  const getJoinPayload = () =>
-    joins.length > 0
-      ? joins.map((j) => ({ relationship_name: j.relationship_name, join_type: j.join_type }))
-      : undefined;
+  const getValidFilters = () => filters.filter(f => f.field && f.operator && f.value);
+  const getJoinPayload = () => joins.length > 0
+    ? joins.map(j => ({ relationship_name: j.relationship_name, join_type: j.join_type }))
+    : undefined;
 
   const handleQuery = async () => {
-    if (!projectId || !selectedType) return;
-    if (selectedColumns.length === 0) {
-      message.warning('Please select at least one column');
-      return;
-    }
-
+    if (!projectId || !selectedType || selectedColumns.length === 0) return;
     setLoading(true);
     try {
-      const result = await queryService.queryObjects(
-        projectId,
-        selectedType,
-        selectedColumns,
-        getValidFilters(),
-        getJoinPayload(),
-        100
-      );
-
-      if (result.success && result.data) {
-        setData(result.data);
-        message.success(`Found ${result.count} records`);
-      } else {
-        message.error(result.error || 'Query failed');
-      }
-    } catch (error: any) {
-      message.error('Failed to query objects');
+      const result = await queryService.queryObjects(projectId, selectedType, selectedColumns, getValidFilters(), getJoinPayload(), 100);
+      if (result.success && result.data) setData(result.data);
     } finally {
       setLoading(false);
     }
   };
 
-  const addFilter = () => {
-    setFilters([...filters, { field: '', operator: '=', value: '' }]);
-  };
-
-  const removeFilter = (index: number) => {
-    setFilters(filters.filter((_, i) => i !== index));
-  };
-
-  const updateFilter = (index: number, key: keyof Filter, value: string) => {
-    const newFilters = [...filters];
-    newFilters[index][key] = value;
-    setFilters(newFilters);
-  };
-
-  const addJoin = () => {
-    setShowJoinModal(true);
-    setSelectedRelationship('');
-    setSelectedJoinType('LEFT');
-  };
+  const addFilter = () => setFilters(f => [...f, { field: '', operator: '=', value: '' }]);
+  const removeFilter = (i: number) => setFilters(f => f.filter((_, idx) => idx !== i));
+  const updateFilter = (i: number, key: keyof Filter, value: string) =>
+    setFilters(f => f.map((item, idx) => idx === i ? { ...item, [key]: value } : item));
 
   const confirmJoin = () => {
-    if (!selectedRelationship) {
-      message.warning('Please select a relationship');
-      return;
-    }
+    if (!selectedRelationship) return;
     const relationship = availableRelationships.find(r => r.name === selectedRelationship);
     if (!relationship) return;
-
-    setJoins([...joins, {
-      relationship_name: selectedRelationship,
-      join_type: selectedJoinType,
-      relationship
-    }]);
+    setJoins(j => [...j, { relationship_name: selectedRelationship, join_type: selectedJoinType, relationship }]);
     setShowJoinModal(false);
-    message.success('JOIN added successfully');
   };
 
-  const removeJoin = (index: number) => {
-    setJoins(joins.filter((_, i) => i !== index));
+  const handleSaveAsset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectId || !selectedType || !saveName) return;
+    await assetService.saveAsset(projectId, {
+      name: saveName, description: saveDesc,
+      query_config: {
+        object_type: selectedType, selected_columns: selectedColumns,
+        filters: getValidFilters(), joins: joins.map(j => ({ relationship_name: j.relationship_name, join_type: j.join_type })),
+      },
+      row_count: data.length,
+    });
+    setShowSaveModal(false); setSaveName(''); setSaveDesc('');
   };
 
-  const handleSaveAsset = async (values: { name: string; description?: string }) => {
-    if (!projectId || !selectedType) {
-      message.error('No query to save');
-      return;
-    }
-
-    try {
-      await assetService.saveAsset(projectId, {
-        name: values.name,
-        description: values.description,
-        query_config: {
-          object_type: selectedType,
-          selected_columns: selectedColumns,
-          filters: getValidFilters(),
-          joins: joins.map((j) => ({
-            relationship_name: j.relationship_name,
-            join_type: j.join_type,
-          })),
-        },
-        row_count: data.length,
-      });
-      message.success('Asset saved successfully');
-      setShowSaveAssetModal(false);
-      saveAssetForm.resetFields();
-    } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Failed to save asset');
-    }
-  };
+  const columns = data.length > 0 ? Object.keys(data[0]) : selectedColumns;
 
   if (objectTypes.length === 0) {
     return (
-      <Card title="Object Explorer">
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <p>Object Explorer will be available here after configuration is saved.</p>
-        </div>
+      <Card className="bg-surface border-white/10">
+        <CardContent className="py-12 text-center text-slate-400 text-sm">
+          Object Explorer will be available after configuration is saved.
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <div>
-      <Card title="Object Explorer" style={{ marginBottom: 16 }}>
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          {/* Object Selector */}
-          <Row gutter={16}>
-            <Col span={12}>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="Select object type"
-                value={selectedType}
-                onChange={setSelectedType}
-              >
-                {objectTypes.map((type) => (
-                  <Option key={type} value={type}>
-                    {type}
-                  </Option>
-                ))}
-              </Select>
-            </Col>
-            <Col span={12}>
-              <Space style={{ width: '100%' }}>
-                <Button
-                  type="primary"
-                  icon={<SearchOutlined />}
-                  onClick={handleQuery}
-                  disabled={!selectedType || selectedColumns.length === 0}
-                  loading={loading}
-                  style={{ flex: 1 }}
-                >
-                  Query
-                </Button>
-                <Button
-                  icon={<SaveOutlined />}
-                  onClick={() => setShowSaveAssetModal(true)}
-                  disabled={!selectedType || data.length === 0}
-                >
-                  Save as Asset
-                </Button>
-              </Space>
-            </Col>
-          </Row>
+    <div className="space-y-4">
+      <Card className="bg-surface border-white/10">
+        <CardHeader><CardTitle className="text-white text-base">Object Explorer</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-3">
+            <select value={selectedType} onChange={e => setSelectedType(e.target.value)}
+              className="flex-1 rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-white">
+              <option value="">Select object type</option>
+              {objectTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <Button onClick={handleQuery} disabled={!selectedType || selectedColumns.length === 0 || loading}
+              className="bg-primary hover:bg-primary/90">
+              <Search size={14} className="mr-2" /> {loading ? 'Querying...' : 'Query'}
+            </Button>
+            <Button variant="ghost" onClick={() => setShowSaveModal(true)}
+              disabled={!selectedType || data.length === 0} className="text-slate-400">
+              <Save size={14} className="mr-2" /> Save Asset
+            </Button>
+          </div>
 
           {selectedType && (
             <>
-              <Divider orientation="left">Select Columns</Divider>
               <div>
-                <Space style={{ marginBottom: 8 }}>
-                  <Button size="small" onClick={() => setSelectedColumns(allColumns.map((col) => col.name))}>
-                    Select All
-                  </Button>
-                  <Button size="small" onClick={() => setSelectedColumns([])}>
-                    Clear All
-                  </Button>
-                </Space>
-                <Checkbox.Group
-                  style={{ width: '100%' }}
-                  value={selectedColumns}
-                  onChange={(values) => setSelectedColumns(values as string[])}
-                >
-                  <Row>
-                    {allColumns.map((col) => (
-                      <Col span={8} key={col.name}>
-                        <Checkbox value={col.name}>{col.name}</Checkbox>
-                      </Col>
-                    ))}
-                  </Row>
-                </Checkbox.Group>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-slate-300 text-xs">Columns</Label>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" className="text-xs h-6 text-primary"
+                      onClick={() => setSelectedColumns(allColumns.map(c => c.name))}>All</Button>
+                    <Button variant="ghost" size="sm" className="text-xs h-6 text-slate-400"
+                      onClick={() => setSelectedColumns([])}>None</Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {allColumns.map(col => (
+                    <label key={col.name} className="flex items-center gap-1 text-xs text-slate-300 cursor-pointer">
+                      <input type="checkbox" checked={selectedColumns.includes(col.name)}
+                        onChange={e => setSelectedColumns(prev =>
+                          e.target.checked ? [...prev, col.name] : prev.filter(c => c !== col.name)
+                        )} />
+                      {col.name}
+                    </label>
+                  ))}
+                </div>
               </div>
 
-              <Divider orientation="left">Join Objects</Divider>
               <div>
-                {joins.map((join, index) => (
-                  <Space key={index} style={{ marginBottom: 8, width: '100%' }}>
-                    <span style={{ width: 150 }}>
-                      {join.relationship.to_object}
-                    </span>
-                    <span style={{ width: 100 }}>
-                      {join.join_type} JOIN
-                    </span>
-                    <span style={{ flex: 1, color: '#888' }}>
-                      {join.relationship.description}
-                    </span>
-                    <Button
-                      icon={<DeleteOutlined />}
-                      onClick={() => removeJoin(index)}
-                      danger
-                    />
-                  </Space>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-slate-300 text-xs">Joins</Label>
+                  <Button variant="ghost" size="sm" className="text-xs h-6 text-primary"
+                    onClick={() => setShowJoinModal(true)} disabled={availableRelationships.length === 0}>
+                    <Plus size={12} className="mr-1" /> Add JOIN
+                  </Button>
+                </div>
+                {joins.map((j, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                    <span className="text-slate-300">{j.relationship.to_object}</span>
+                    <span>{j.join_type} JOIN</span>
+                    <Button variant="ghost" size="sm" className="h-5 text-red-400 ml-auto"
+                      onClick={() => setJoins(jj => jj.filter((_, idx) => idx !== i))}>
+                      <Trash2 size={11} />
+                    </Button>
+                  </div>
                 ))}
-                <Button icon={<PlusOutlined />} onClick={addJoin} disabled={availableRelationships.length === 0}>
-                  Add JOIN
-                </Button>
               </div>
 
-              <Divider orientation="left">Filters</Divider>
               <div>
-                {filters.map((filter, index) => (
-                  <Space key={index} style={{ marginBottom: 8, width: '100%' }}>
-                    <Select
-                      style={{ width: 150 }}
-                      placeholder="Field"
-                      value={filter.field || undefined}
-                      onChange={(v) => updateFilter(index, 'field', v)}
-                    >
-                      {allColumns.map((col) => (
-                        <Option key={col.name} value={col.name}>
-                          {col.name}
-                        </Option>
-                      ))}
-                    </Select>
-
-                    <Select
-                      style={{ width: 100 }}
-                      placeholder="Operator"
-                      value={filter.operator}
-                      onChange={(v) => updateFilter(index, 'operator', v)}
-                    >
-                      <Option value="=">=</Option>
-                      <Option value=">">{'>'}</Option>
-                      <Option value="<">{'<'}</Option>
-                      <Option value=">=">{'≥'}</Option>
-                      <Option value="<=">{'≤'}</Option>
-                      <Option value="!=">≠</Option>
-                      <Option value="LIKE">LIKE</Option>
-                      <Option value="IN">IN</Option>
-                    </Select>
-
-                    <Input
-                      style={{ width: 200 }}
-                      placeholder="Value"
-                      value={filter.value}
-                      onChange={(e) => updateFilter(index, 'value', e.target.value)}
-                    />
-
-                    <Button
-                      icon={<DeleteOutlined />}
-                      onClick={() => removeFilter(index)}
-                      danger
-                    />
-                  </Space>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-slate-300 text-xs">Filters</Label>
+                  <Button variant="ghost" size="sm" className="text-xs h-6 text-primary" onClick={addFilter}>
+                    <Plus size={12} className="mr-1" /> Add Filter
+                  </Button>
+                </div>
+                {filters.map((f, i) => (
+                  <div key={i} className="flex gap-2 mb-2">
+                    <select value={f.field} onChange={e => updateFilter(i, 'field', e.target.value)}
+                      className="rounded border border-white/10 bg-background px-2 py-1 text-xs text-white flex-1">
+                      <option value="">Field</option>
+                      {allColumns.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    </select>
+                    <select value={f.operator} onChange={e => updateFilter(i, 'operator', e.target.value)}
+                      className="rounded border border-white/10 bg-background px-2 py-1 text-xs text-white w-20">
+                      {OPERATORS.map(op => <option key={op} value={op}>{op}</option>)}
+                    </select>
+                    <Input value={f.value} onChange={e => updateFilter(i, 'value', e.target.value)}
+                      placeholder="value" className="bg-background border-white/10 text-white text-xs h-7 flex-1" />
+                    <Button variant="ghost" size="sm" className="h-7 text-red-400" onClick={() => removeFilter(i)}>
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
                 ))}
-                <Button icon={<PlusOutlined />} onClick={addFilter}>
-                  Add Filter
-                </Button>
               </div>
             </>
           )}
-        </Space>
+        </CardContent>
       </Card>
 
-      <Modal
-        title="Add JOIN"
-        open={showJoinModal}
-        onOk={confirmJoin}
-        onCancel={() => setShowJoinModal(false)}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <div>
-            <label>Relationship:</label>
-            <Select
-              style={{ width: '100%', marginTop: 8 }}
-              placeholder="Select relationship"
-              value={selectedRelationship}
-              onChange={setSelectedRelationship}
-            >
-              {availableRelationships.map((rel) => (
-                <Option key={rel.name} value={rel.name}>
-                  {rel.to_object} - {rel.description}
-                </Option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label>Join Type:</label>
-            <Select
-              style={{ width: '100%', marginTop: 8 }}
-              value={selectedJoinType}
-              onChange={setSelectedJoinType}
-            >
-              <Option value="LEFT">LEFT JOIN</Option>
-              <Option value="INNER">INNER JOIN</Option>
-              <Option value="RIGHT">RIGHT JOIN</Option>
-            </Select>
-          </div>
-        </Space>
-      </Modal>
-
-      <Modal
-        title="Save as Asset"
-        open={showSaveAssetModal}
-        onOk={() => saveAssetForm.submit()}
-        onCancel={() => {
-          setShowSaveAssetModal(false);
-          saveAssetForm.resetFields();
-        }}
-      >
-        <Form form={saveAssetForm} onFinish={handleSaveAsset} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Asset Name"
-            rules={[{ required: true, message: 'Please enter asset name' }]}
-          >
-            <Input placeholder="Enter asset name" />
-          </Form.Item>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={4} placeholder="Enter asset description (optional)" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
       {data.length > 0 && (
-        <Card title={`Results (${data.length} rows)`}>
-          <Table
-            columns={selectedColumns.map((colName) => ({
-              title: colName,
-              dataIndex: colName,
-              key: colName,
-              ellipsis: true,
-            }))}
-            dataSource={data}
-            loading={loading}
-            rowKey={(_record, index) => index!}
-            pagination={{ pageSize: 50 }}
-            scroll={{ x: true }}
-          />
+        <Card className="bg-surface border-white/10 overflow-auto">
+          <CardHeader><CardTitle className="text-white text-sm">Results ({data.length} rows)</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="border-b border-white/10">
+                  {columns.map(c => <th key={c} className="px-3 py-2 text-left text-slate-400">{c}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((row, i) => (
+                  <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                    {columns.map(c => <td key={c} className="px-3 py-2 text-slate-300">{String(row[c] ?? '')}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
         </Card>
       )}
+
+      <Dialog open={showJoinModal} onOpenChange={setShowJoinModal}>
+        <DialogContent className="bg-surface border-white/10 text-white">
+          <DialogHeader><DialogTitle>Add JOIN</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-slate-300">Relationship</Label>
+              <select value={selectedRelationship} onChange={e => setSelectedRelationship(e.target.value)}
+                className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-white">
+                <option value="">Select relationship</option>
+                {availableRelationships.map(r => <option key={r.name} value={r.name}>{r.to_object} - {r.description}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-slate-300">Join Type</Label>
+              <select value={selectedJoinType} onChange={e => setSelectedJoinType(e.target.value)}
+                className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-white">
+                <option value="LEFT">LEFT JOIN</option>
+                <option value="INNER">INNER JOIN</option>
+                <option value="RIGHT">RIGHT JOIN</option>
+              </select>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" onClick={() => setShowJoinModal(false)}>Cancel</Button>
+              <Button onClick={confirmJoin} className="bg-primary hover:bg-primary/90">Add</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSaveModal} onOpenChange={setShowSaveModal}>
+        <DialogContent className="bg-surface border-white/10 text-white">
+          <DialogHeader><DialogTitle>Save as Asset</DialogTitle></DialogHeader>
+          <form onSubmit={handleSaveAsset} className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-slate-300">Asset Name *</Label>
+              <Input value={saveName} onChange={e => setSaveName(e.target.value)} required
+                className="bg-background border-white/10 text-white" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-slate-300">Description</Label>
+              <textarea value={saveDesc} onChange={e => setSaveDesc(e.target.value)} rows={3}
+                className="w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="ghost" onClick={() => setShowSaveModal(false)}>Cancel</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90">Save</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

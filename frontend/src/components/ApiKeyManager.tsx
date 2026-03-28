@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Input, Tag, Space, message, Alert, Typography, Tooltip } from 'antd';
-import { PlusOutlined, DeleteOutlined, CopyOutlined, KeyOutlined } from '@ant-design/icons';
+import { Plus, Trash2, Copy, Key } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { apiKeyService, ApiKey, ApiKeyCreated } from '../services/apiKeyService';
-
-const { Text } = Typography;
 
 interface ApiKeyManagerProps {
   projectId: number;
@@ -17,17 +20,13 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ projectId }) => {
   const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    loadKeys();
-  }, [projectId]);
+  useEffect(() => { loadKeys(); }, [projectId]);
 
   const loadKeys = async () => {
     setLoading(true);
     try {
       const data = await apiKeyService.list(projectId);
       setKeys(data);
-    } catch {
-      message.error('加载 API Key 失败');
     } finally {
       setLoading(false);
     }
@@ -41,76 +40,34 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ projectId }) => {
       setCreatedKey(created);
       setNewKeyName('');
       loadKeys();
-    } catch {
-      message.error('创建 API Key 失败');
     } finally {
       setCreating(false);
     }
   };
 
   const handleRevoke = async (keyId: number) => {
-    try {
-      await apiKeyService.revoke(projectId, keyId);
-      message.success('API Key 已撤销');
-      loadKeys();
-    } catch {
-      message.error('撤销失败');
-    }
+    if (!window.confirm('撤销此 API Key？')) return;
+    await apiKeyService.revoke(projectId, keyId);
+    loadKeys();
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    message.success('已复制到剪贴板');
   };
 
-  const columns = [
-    { title: '名称', dataIndex: 'name', key: 'name' },
-    {
-      title: '前缀', dataIndex: 'key_prefix', key: 'key_prefix',
-      render: (v: string) => <Text code>omaha_*_{v}...</Text>
-    },
-    {
-      title: '状态', dataIndex: 'is_active', key: 'is_active',
-      render: (v: boolean) => v ? <Tag color="green">有效</Tag> : <Tag color="red">已撤销</Tag>
-    },
-    {
-      title: '创建时间', dataIndex: 'created_at', key: 'created_at',
-      render: (v: string) => new Date(v).toLocaleString('zh-CN')
-    },
-    {
-      title: '操作', key: 'action',
-      render: (_: unknown, record: ApiKey) => (
-        record.is_active ? (
-          <Button
-            danger size="small" icon={<DeleteOutlined />}
-            onClick={() => handleRevoke(record.id)}
-          >
-            撤销
-          </Button>
-        ) : null
-      )
-    },
-  ];
+  const closeModal = () => { setCreateModalOpen(false); setCreatedKey(null); setNewKeyName(''); };
 
   return (
-    <div style={{ padding: 16 }}>
-      <Space style={{ marginBottom: 16 }}>
-        <Button
-          type="primary" icon={<PlusOutlined />}
-          onClick={() => setCreateModalOpen(true)}
-        >
-          生成 API Key
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <Button size="sm" onClick={() => setCreateModalOpen(true)} className="bg-primary hover:bg-primary/90">
+          <Plus size={14} className="mr-2" /> 生成 API Key
         </Button>
-      </Space>
+      </div>
 
-      <Alert
-        type="info"
-        style={{ marginBottom: 16 }}
-        message="API Key 用于连接外部 Agent（如 Claude Desktop）"
-        description={
-          <div>
-            <div>配置 Claude Desktop：在 <Text code>claude_desktop_config.json</Text> 中添加：</div>
-            <pre style={{ fontSize: 12, marginTop: 8, background: '#f5f5f5', padding: 8 }}>{`{
+      <div className="rounded-md border border-white/10 bg-background p-3 text-xs text-slate-400 space-y-1">
+        <p>API Key 用于连接外部 Agent（如 Claude Desktop）。在 <code className="font-mono text-slate-300">claude_desktop_config.json</code> 中添加：</p>
+        <pre className="bg-surface rounded p-2 text-slate-300 overflow-auto">{`{
   "mcpServers": {
     "omaha": {
       "command": "/opt/homebrew/bin/python3.11",
@@ -119,54 +76,78 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ projectId }) => {
     }
   }
 }`}</pre>
-          </div>
-        }
-        showIcon
-      />
+      </div>
 
-      <Table
-        columns={columns}
-        dataSource={keys.map(k => ({ ...k, key: k.id }))}
-        loading={loading}
-        pagination={false}
-        size="small"
-      />
+      {loading ? (
+        <p className="text-slate-400 text-sm">Loading...</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/10">
+              <TableHead className="text-slate-400">名称</TableHead>
+              <TableHead className="text-slate-400">前缀</TableHead>
+              <TableHead className="text-slate-400">状态</TableHead>
+              <TableHead className="text-slate-400">创建时间</TableHead>
+              <TableHead className="text-slate-400"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {keys.map(k => (
+              <TableRow key={k.id} className="border-white/10 hover:bg-white/5">
+                <TableCell className="text-white">{k.name}</TableCell>
+                <TableCell className="text-slate-400 font-mono text-xs">omaha_*_{k.key_prefix}...</TableCell>
+                <TableCell>
+                  <Badge variant={k.is_active ? 'default' : 'destructive'}>
+                    {k.is_active ? '有效' : '已撤销'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-slate-400 text-xs">{new Date(k.created_at).toLocaleString('zh-CN')}</TableCell>
+                <TableCell>
+                  {k.is_active && (
+                    <Button variant="ghost" size="sm" onClick={() => handleRevoke(k.id)} className="text-red-400 hover:text-red-300">
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
 
-      <Modal
-        title={<><KeyOutlined /> 生成新 API Key</>}
-        open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); setCreatedKey(null); setNewKeyName(''); }}
-        footer={null}
-      >
-        {!createdKey ? (
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Text>为这个 Key 起一个名字（如 "claude-desktop"）：</Text>
-            <Input
-              value={newKeyName}
-              onChange={e => setNewKeyName(e.target.value)}
-              placeholder="Key 名称"
-              onPressEnter={handleCreate}
-            />
-            <Button type="primary" loading={creating} onClick={handleCreate} disabled={!newKeyName.trim()}>
-              生成
-            </Button>
-          </Space>
-        ) : (
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Alert type="warning" message="请立即复制此 Key，关闭后将无法再次查看！" showIcon />
-            <Text strong>你的 API Key：</Text>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Text code style={{ flex: 1, wordBreak: 'break-all' }}>{createdKey.key}</Text>
-              <Tooltip title="复制">
-                <Button icon={<CopyOutlined />} onClick={() => copyToClipboard(createdKey.key)} />
-              </Tooltip>
+      <Dialog open={createModalOpen} onOpenChange={closeModal}>
+        <DialogContent className="bg-surface border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Key size={16} /> 生成新 API Key</DialogTitle>
+          </DialogHeader>
+          {!createdKey ? (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-slate-300">Key 名称（如 "claude-desktop"）</Label>
+                <Input value={newKeyName} onChange={e => setNewKeyName(e.target.value)}
+                  placeholder="Key 名称" onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                  className="bg-background border-white/10 text-white" />
+              </div>
+              <Button onClick={handleCreate} disabled={creating || !newKeyName.trim()} className="bg-primary hover:bg-primary/90">
+                {creating ? '生成中...' : '生成'}
+              </Button>
             </div>
-            <Button onClick={() => { setCreateModalOpen(false); setCreatedKey(null); }}>
-              我已保存，关闭
-            </Button>
-          </Space>
-        )}
-      </Modal>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-yellow-400 text-sm">请立即复制此 Key，关闭后将无法再次查看！</p>
+              <div className="flex gap-2 items-center">
+                <code className="flex-1 text-xs font-mono bg-background border border-white/10 rounded px-3 py-2 text-slate-300 break-all">
+                  {createdKey.key}
+                </code>
+                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(createdKey.key)} className="text-primary">
+                  <Copy size={14} />
+                </Button>
+              </div>
+              <Button onClick={closeModal} variant="ghost" className="text-slate-300">我已保存，关闭</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

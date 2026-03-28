@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Layout, Button, message, Spin, Typography } from 'antd';
-import { SaveOutlined } from '@ant-design/icons';
+import { Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { semanticApi } from '../services/semanticApi';
 import { SemanticConfig, SemanticObject } from '../types/semantic';
 import ObjectList from '../components/semantic/ObjectList';
 import PropertyEditor from '../components/semantic/PropertyEditor';
 import AgentPreview from '../components/semantic/AgentPreview';
-
-const { Sider, Content, Header } = Layout;
-const { Title } = Typography;
 
 const SemanticEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,11 +16,10 @@ const SemanticEditor: React.FC = () => {
   const [selectedObject, setSelectedObject] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [localObjects, setLocalObjects] = useState<Record<string, SemanticObject>>({});
 
-  useEffect(() => {
-    loadConfig();
-  }, [projectId]);
+  useEffect(() => { loadConfig(); }, [projectId]);
 
   const loadConfig = async () => {
     setLoading(true);
@@ -34,7 +30,7 @@ const SemanticEditor: React.FC = () => {
       const names = Object.keys(data.parsed.objects || {});
       if (names.length > 0) setSelectedObject(names[0]);
     } catch {
-      message.error('加载语义配置失败');
+      setSaveMsg({ type: 'error', text: '加载语义配置失败' });
     } finally {
       setLoading(false);
     }
@@ -43,11 +39,13 @@ const SemanticEditor: React.FC = () => {
   const handleSave = async () => {
     if (!semanticConfig) return;
     setSaving(true);
+    setSaveMsg(null);
     try {
       await semanticApi.save(projectId, semanticConfig.config);
-      message.success('语义配置已保存');
+      setSaveMsg({ type: 'success', text: '语义配置已保存' });
+      setTimeout(() => setSaveMsg(null), 3000);
     } catch {
-      message.error('保存失败');
+      setSaveMsg({ type: 'error', text: '保存失败' });
     } finally {
       setSaving(false);
     }
@@ -67,29 +65,42 @@ const SemanticEditor: React.FC = () => {
     setLocalObjects(prev => ({ ...prev, [selectedObject]: updated }));
   };
 
-  if (loading) return <Spin style={{ margin: '40px auto', display: 'block' }} />;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const objectNames = Object.keys(localObjects);
 
   return (
-    <Layout style={{ height: '100vh' }}>
-      <Header style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Title level={4} style={{ margin: 0 }}>语义层编辑器</Title>
-        <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>
-          保存
-        </Button>
-      </Header>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-surface">
+        <span className="text-white font-medium text-sm">语义层编辑器</span>
+        <div className="flex items-center gap-3">
+          {saveMsg && (
+            <span className={`text-xs ${saveMsg.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+              {saveMsg.text}
+            </span>
+          )}
+          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 h-8 text-xs">
+            <Save size={13} className="mr-1.5" /> {saving ? '保存中...' : '保存'}
+          </Button>
+        </div>
+      </div>
 
-      <Layout>
-        <Sider width={220} theme="light" style={{ borderRight: '1px solid #f0f0f0', overflow: 'auto' }}>
-          <ObjectList
-            objects={objectNames}
-            selected={selectedObject}
-            onSelect={setSelectedObject}
-          />
-        </Sider>
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: object list */}
+        <div className="w-52 border-r border-white/10 overflow-y-auto shrink-0">
+          <ObjectList objects={objectNames} selected={selectedObject} onSelect={setSelectedObject} />
+        </div>
 
-        <Content style={{ overflow: 'auto' }}>
+        {/* Center: property editor */}
+        <div className="flex-1 overflow-y-auto">
           <PropertyEditor
             objectName={selectedObject || ''}
             objectMeta={selectedObject ? localObjects[selectedObject] : null}
@@ -97,16 +108,17 @@ const SemanticEditor: React.FC = () => {
             onTestFormula={handleTestFormula}
             onChange={handleObjectChange}
           />
-        </Content>
+        </div>
 
-        <Sider width={300} theme="light" style={{ borderLeft: '1px solid #f0f0f0', overflow: 'auto', padding: 8 }}>
+        {/* Right: agent preview */}
+        <div className="w-72 border-l border-white/10 overflow-y-auto shrink-0 p-3">
           <AgentPreview
             objectName={selectedObject || ''}
             objectMeta={selectedObject ? localObjects[selectedObject] : null}
           />
-        </Sider>
-      </Layout>
-    </Layout>
+        </div>
+      </div>
+    </div>
   );
 };
 

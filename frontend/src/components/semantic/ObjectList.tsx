@@ -1,8 +1,6 @@
 import React from 'react';
-import { List, Typography } from 'antd';
-import { DatabaseOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { Database } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ObjectListProps {
   objects: string[];
@@ -12,23 +10,23 @@ interface ObjectListProps {
 
 const ObjectList: React.FC<ObjectListProps> = ({ objects, selected, onSelect }) => {
   return (
-    <List
-      size="small"
-      dataSource={objects}
-      renderItem={name => (
-        <List.Item
+    <div>
+      {objects.map(name => (
+        <div
+          key={name}
           onClick={() => onSelect(name)}
-          style={{
-            cursor: 'pointer',
-            backgroundColor: selected === name ? '#e6f7ff' : undefined,
-            padding: '8px 16px',
-          }}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 cursor-pointer text-sm border-l-2 transition-colors',
+            selected === name
+              ? 'bg-primary/10 text-primary border-primary font-medium'
+              : 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent'
+          )}
         >
-          <DatabaseOutlined style={{ marginRight: 8, color: '#1890ff' }} />
-          <Text strong={selected === name}>{name}</Text>
-        </List.Item>
-      )}
-    />
+          <Database size={14} className="shrink-0" />
+          {name}
+        </div>
+      ))}
+    </div>
   );
 };
 

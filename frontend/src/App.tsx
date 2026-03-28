@@ -4,10 +4,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ProjectList from './pages/ProjectList';
 import ProjectDetail from './pages/ProjectDetail';
-import ObjectExplorer from './pages/ObjectExplorer';
-import AssetList from './pages/AssetList';
-import { ChatAgent } from './pages/ChatAgent';
-import SemanticEditor from './pages/SemanticEditor';
+import Watchlist from './pages/Watchlist';
 import MainLayout from './components/Layout/MainLayout';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -28,10 +25,7 @@ const App: React.FC = () => {
           <Route index element={<Navigate to="/projects" replace />} />
           <Route path="projects" element={<ProjectList />} />
           <Route path="projects/:id" element={<ProjectDetail />} />
-          <Route path="projects/:id/explorer" element={<ObjectExplorer />} />
-          <Route path="projects/:id/assets" element={<AssetList />} />
-          <Route path="projects/:projectId/chat" element={<ChatAgent />} />
-          <Route path="projects/:id/semantic" element={<SemanticEditor />} />
+          <Route path="watchlist" element={<Watchlist />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,123 +1,100 @@
 import React from 'react';
-import { Card, Typography, Tag } from 'antd';
-import { BarChartOutlined } from '@ant-design/icons';
+import { BarChart2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { SemanticObject } from '../../types/semantic';
-
-const { Text, Paragraph } = Typography;
 
 interface AgentPreviewProps {
   objectName: string;
   objectMeta: SemanticObject | null;
 }
 
+const levelMap: Record<string, string> = {
+  master_data: '主数据', city_level: '城市级', store_level: '门店级', transaction: '交易级',
+};
+
 const AgentPreview: React.FC<AgentPreviewProps> = ({ objectName, objectMeta }) => {
   if (!objectMeta) {
-    return <Card title="Agent 上下文预览"><Text type="secondary">请选择一个对象</Text></Card>;
+    return (
+      <div className="border border-white/10 rounded-md p-4 bg-surface">
+        <p className="text-slate-400 text-sm">请选择一个对象</p>
+      </div>
+    );
   }
 
-  // 级别映射
-  const levelMap: Record<string, string> = {
-    master_data: '主数据',
-    city_level: '城市级',
-    store_level: '门店级',
-    transaction: '交易级',
-  };
-
   return (
-    <Card title="Agent 上下文预览" size="small">
-      <Paragraph>
-        <Text strong>{objectName}</Text>
-        {objectMeta.description && <Text type="secondary">（{objectMeta.description}）</Text>}
-      </Paragraph>
-
-      {/* 数据粒度区块 */}
-      {objectMeta.granularity && (
-        <div style={{
-          background: '#f5f5f5',
-          padding: '12px',
-          borderRadius: '4px',
-          marginBottom: '12px'
-        }}>
-          <Paragraph style={{ marginBottom: 8 }}>
-            <BarChartOutlined style={{ marginRight: 6 }} />
-            <Text strong>数据粒度:</Text>
-          </Paragraph>
-
-          {objectMeta.granularity.dimensions && objectMeta.granularity.dimensions.length > 0 && (
-            <div style={{ marginBottom: 8 }}>
-              <Text type="secondary">维度: </Text>
-              {objectMeta.granularity.dimensions.map((dim, idx) => (
-                <Tag key={idx} color="blue" style={{ marginBottom: 4 }}>
-                  {dim}
-                </Tag>
-              ))}
-            </div>
-          )}
-
-          {objectMeta.granularity.level && (
-            <div style={{ marginBottom: 8 }}>
-              <Text type="secondary">级别: </Text>
-              <Tag color="green">
-                {levelMap[objectMeta.granularity.level] || objectMeta.granularity.level}
-              </Tag>
-            </div>
-          )}
-
-          {objectMeta.granularity.description && (
-            <div>
-              <Text type="secondary">说明: </Text>
-              <Text>{objectMeta.granularity.description}</Text>
-            </div>
-          )}
+    <div className="border border-white/10 rounded-md bg-surface">
+      <div className="px-4 py-3 border-b border-white/10 text-xs text-slate-400 font-medium">Agent 上下文预览</div>
+      <div className="p-4 space-y-4 text-sm">
+        <div>
+          <span className="text-white font-semibold">{objectName}</span>
+          {objectMeta.description && <span className="text-slate-400 ml-2">（{objectMeta.description}）</span>}
         </div>
-      )}
 
-      <Paragraph>
-        <Text strong>字段：</Text>
-      </Paragraph>
-
-      {Object.entries(objectMeta.base_properties).map(([name, prop]) => (
-        <div key={name} style={{ marginLeft: 12, marginBottom: 4 }}>
-          <Text code>{name}</Text>
-          {prop.semantic_type === 'currency' && <Tag color="gold" style={{ marginLeft: 4 }}>货币 {prop.currency}</Tag>}
-          {prop.semantic_type === 'percentage' && <Tag color="blue" style={{ marginLeft: 4 }}>百分比</Tag>}
-          {prop.semantic_type === 'enum' && <Tag color="purple" style={{ marginLeft: 4 }}>枚举</Tag>}
-          {prop.description && <Text type="secondary" style={{ marginLeft: 4 }}>: {prop.description}</Text>}
-        </div>
-      ))}
-
-      {Object.entries(objectMeta.computed_properties).map(([name, prop]) => (
-        <div key={name} style={{ marginLeft: 12, marginBottom: 4 }}>
-          <Text code>{name}</Text>
-          <Tag color="green" style={{ marginLeft: 4 }}>计算</Tag>
-          {prop.description && <Text type="secondary" style={{ marginLeft: 4 }}>: {prop.description}</Text>}
-          <div style={{ marginLeft: 12 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>公式: {prop.formula}</Text>
+        {objectMeta.granularity && (
+          <div className="bg-background rounded p-3 space-y-2">
+            <p className="text-slate-300 text-xs font-medium flex items-center gap-1">
+              <BarChart2 size={12} /> 数据粒度
+            </p>
+            {objectMeta.granularity.dimensions?.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                <span className="text-slate-500 text-xs">维度：</span>
+                {objectMeta.granularity.dimensions.map((dim, i) => (
+                  <Badge key={i} variant="secondary" className="text-xs">{dim}</Badge>
+                ))}
+              </div>
+            )}
+            {objectMeta.granularity.level && (
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500 text-xs">级别：</span>
+                <Badge variant="secondary" className="text-xs">{levelMap[objectMeta.granularity.level] || objectMeta.granularity.level}</Badge>
+              </div>
+            )}
+            {objectMeta.granularity.description && (
+              <p className="text-slate-400 text-xs">说明：{objectMeta.granularity.description}</p>
+            )}
           </div>
-          {prop.business_context && (
-            <div style={{ marginLeft: 12 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>基准: {prop.business_context}</Text>
-            </div>
-          )}
-        </div>
-      ))}
+        )}
 
-      {objectMeta.relationships.length > 0 && (
-        <>
-          <Paragraph style={{ marginTop: 8 }}>
-            <Text strong>关系：</Text>
-          </Paragraph>
-          {objectMeta.relationships
-            .filter(r => r.from_object === objectName || r.to_object === objectName)
-            .map((rel, i) => (
-              <div key={i} style={{ marginLeft: 12, marginBottom: 4 }}>
-                <Text code>{rel.name}</Text>
-                {rel.description && <Text type="secondary" style={{ marginLeft: 4 }}>: {rel.description}</Text>}
+        <div>
+          <p className="text-slate-300 text-xs font-medium mb-2">字段：</p>
+          <div className="space-y-1">
+            {Object.entries(objectMeta.base_properties).map(([name, prop]) => (
+              <div key={name} className="flex items-center gap-2 ml-3 text-xs">
+                <code className="text-slate-300 font-mono">{name}</code>
+                {prop.semantic_type === 'currency' && <Badge className="bg-yellow-500/20 text-yellow-300 text-xs">货币 {prop.currency}</Badge>}
+                {prop.semantic_type === 'percentage' && <Badge className="bg-blue-500/20 text-blue-300 text-xs">百分比</Badge>}
+                {prop.semantic_type === 'enum' && <Badge className="bg-purple-500/20 text-purple-300 text-xs">枚举</Badge>}
+                {prop.description && <span className="text-slate-500">: {prop.description}</span>}
               </div>
             ))}
-        </>
-      )}
-    </Card>
+            {Object.entries(objectMeta.computed_properties).map(([name, prop]) => (
+              <div key={name} className="ml-3 text-xs space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <code className="text-slate-300 font-mono">{name}</code>
+                  <Badge className="bg-green-500/20 text-green-300 text-xs">计算</Badge>
+                  {prop.description && <span className="text-slate-500">: {prop.description}</span>}
+                </div>
+                <p className="text-slate-500 ml-4">公式: {prop.formula}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {objectMeta.relationships.length > 0 && (
+          <div>
+            <p className="text-slate-300 text-xs font-medium mb-2">关系：</p>
+            {objectMeta.relationships
+              .filter(r => r.from_object === objectName || r.to_object === objectName)
+              .map((rel, i) => (
+                <div key={i} className="ml-3 text-xs flex items-center gap-2">
+                  <code className="text-slate-300 font-mono">{rel.name}</code>
+                  {rel.description && <span className="text-slate-500">: {rel.description}</span>}
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

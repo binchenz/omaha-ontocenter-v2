@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
-import { Empty } from 'antd';
+
 
 interface LineageNode {
   urn: string;
@@ -130,7 +130,7 @@ const LineageGraph: React.FC<LineageGraphProps> = ({ assetName, lineage }) => {
   }, []);
 
   if (!hasData) {
-    return <Empty description="暂无血缘数据" />;
+    return <p className="text-slate-400 text-sm text-center py-8">暂无血缘数据</p>;
   }
 
   return <div ref={chartRef} style={{ width: '100%', height: '400px' }} />;

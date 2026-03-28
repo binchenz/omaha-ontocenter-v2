@@ -1,8 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Spin } from 'antd';
-
 interface PrivateRouteProps {
   children: React.ReactNode;
 }
@@ -12,8 +10,8 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <Spin size="large" />
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }

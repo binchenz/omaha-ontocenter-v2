@@ -1,35 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Card,
-  Row,
-  Col,
-  Button,
-  message,
-  Empty,
-  Spin,
-  Modal,
-  Typography,
-  Space,
-  Tag,
-} from 'antd';
-import {
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  FolderOpenOutlined,
-  CalendarOutlined,
-  DatabaseOutlined,
-  ApartmentOutlined,
-} from '@ant-design/icons';
+import { useParams } from 'react-router-dom';
+import { Trash2, FolderOpen, Calendar, Database, GitBranch } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { assetService, Asset, AssetLineage } from '@/services/asset';
 import LineageGraph from '@/components/LineageGraph';
 
-const { Title, Text, Paragraph } = Typography;
-const { confirm } = Modal;
-
 const AssetList: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const projectId = id ? parseInt(id) : undefined;
 
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -39,44 +19,23 @@ const AssetList: React.FC = () => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [lineageData, setLineageData] = useState<AssetLineage>({ upstream: [], downstream: [] });
 
-  useEffect(() => {
-    if (projectId) {
-      loadAssets();
-    }
-  }, [projectId]);
+  useEffect(() => { if (projectId) loadAssets(); }, [projectId]);
 
   const loadAssets = async () => {
     if (!projectId) return;
-
     setLoading(true);
     try {
-      const data = await assetService.listAssets(projectId);
-      setAssets(data);
-    } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Failed to load assets');
+      setAssets(await assetService.listAssets(projectId));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteAsset = (asset: Asset) => {
-    confirm({
-      title: 'Delete Asset',
-      icon: <ExclamationCircleOutlined />,
-      content: `Are you sure you want to delete "${asset.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      onOk: async () => {
-        if (!projectId) return;
-        try {
-          await assetService.deleteAsset(projectId, asset.id);
-          message.success('Asset deleted successfully');
-          loadAssets();
-        } catch (error: any) {
-          message.error(error.response?.data?.detail || 'Failed to delete asset');
-        }
-      },
-    });
+  const handleDelete = async (e: React.MouseEvent, asset: Asset) => {
+    e.stopPropagation();
+    if (!projectId || !window.confirm(`Delete "${asset.name}"?`)) return;
+    await assetService.deleteAsset(projectId, asset.id);
+    loadAssets();
   };
 
   const handleViewLineage = async (e: React.MouseEvent, asset: Asset) => {
@@ -86,158 +45,80 @@ const AssetList: React.FC = () => {
     setLineageModalOpen(true);
     setLineageLoading(true);
     try {
-      const data = await assetService.getLineage(projectId, asset.id);
-      setLineageData(data);
-    } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Failed to load lineage');
+      setLineageData(await assetService.getLineage(projectId, asset.id));
+    } catch {
       setLineageData({ upstream: [], downstream: [] });
     } finally {
       setLineageLoading(false);
     }
   };
 
-  const handleOpenAsset = (asset: Asset) => {
-    navigate(`/projects/${projectId}/explorer`, {
-      state: { assetConfig: asset.query_config },
-    });
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 
   if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
-        <Spin size="large" />
-      </div>
-    );
+    return <p className="text-slate-400 text-sm text-center py-12">Loading...</p>;
   }
 
   return (
     <div>
-      <Card
-        title={
-          <Space>
-            <FolderOpenOutlined />
-            <span>Saved Assets</span>
-          </Space>
-        }
-        extra={
-          <Button type="primary" onClick={() => navigate(`/projects/${projectId}/explorer`)}>
-            Back to Explorer
-          </Button>
-        }
-      >
-        {assets.length === 0 ? (
-          <Empty
-            description="No saved assets yet"
-            style={{ padding: '60px 0' }}
-          >
-            <Button type="primary" onClick={() => navigate(`/projects/${projectId}/explorer`)}>
-              Create Your First Asset
-            </Button>
-          </Empty>
-        ) : (
-          <Row gutter={[16, 16]}>
-            {assets.map((asset) => (
-              <Col xs={24} sm={12} lg={8} key={asset.id}>
-                <Card
-                  hoverable
-                  onClick={() => handleOpenAsset(asset)}
-                  style={{ height: '100%' }}
-                  actions={[
-                    <Button
-                      type="text"
-                      icon={<ApartmentOutlined />}
-                      onClick={(e) => handleViewLineage(e, asset)}
-                    >
-                      查看血缘
-                    </Button>,
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteAsset(asset);
-                      }}
-                    >
-                      Delete
-                    </Button>,
-                  ]}
-                >
-                  <Space direction="vertical" style={{ width: '100%' }} size="small">
-                    <Title level={5} style={{ marginBottom: 8 }}>
-                      {asset.name}
-                    </Title>
-
-                    <Tag color="blue">{asset.query_config.object_type}</Tag>
-
-                    {asset.description && (
-                      <Paragraph
-                        ellipsis={{ rows: 2 }}
-                        style={{ marginBottom: 8, color: '#666' }}
-                      >
-                        {asset.description}
-                      </Paragraph>
+      <Card className="bg-surface border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <FolderOpen size={18} /> Saved Assets
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {assets.length === 0 ? (
+            <p className="text-slate-400 text-sm text-center py-12">No saved assets yet</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {assets.map(asset => (
+                <div key={asset.id}
+                  className="border border-white/10 rounded-lg p-4 bg-background hover:bg-white/5 cursor-pointer space-y-3">
+                  <div>
+                    <p className="text-white font-medium">{asset.name}</p>
+                    <Badge variant="secondary" className="mt-1 text-xs">{asset.query_config.object_type}</Badge>
+                  </div>
+                  {asset.description && (
+                    <p className="text-slate-400 text-xs line-clamp-2">{asset.description}</p>
+                  )}
+                  <div className="space-y-1 text-xs text-slate-500">
+                    {asset.row_count !== undefined && (
+                      <div className="flex items-center gap-1"><Database size={11} /> {asset.row_count} rows</div>
                     )}
-
-                    <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                      {asset.row_count !== undefined && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          <DatabaseOutlined /> {asset.row_count} rows
-                        </Text>
-                      )}
-
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        <CalendarOutlined /> {formatDate(asset.created_at)}
-                      </Text>
-
-                      {asset.query_config.filters && asset.query_config.filters.length > 0 && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {asset.query_config.filters.length} filter(s)
-                        </Text>
-                      )}
-
-                      {asset.query_config.joins && asset.query_config.joins.length > 0 && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {asset.query_config.joins.length} join(s)
-                        </Text>
-                      )}
-                    </Space>
-                  </Space>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        )}
+                    <div className="flex items-center gap-1"><Calendar size={11} /> {formatDate(asset.created_at)}</div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button variant="ghost" size="sm" onClick={e => handleViewLineage(e, asset)}
+                      className="text-slate-400 hover:text-white text-xs h-7">
+                      <GitBranch size={12} className="mr-1" /> 血缘
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={e => handleDelete(e, asset)}
+                      className="text-red-400 hover:text-red-300 text-xs h-7">
+                      <Trash2 size={12} className="mr-1" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
       </Card>
 
-      <Modal
-        title={`数据血缘 - ${selectedAsset?.name}`}
-        open={lineageModalOpen}
-        onCancel={() => setLineageModalOpen(false)}
-        footer={null}
-        width={800}
-      >
-        {lineageLoading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <Spin size="large" />
-          </div>
-        ) : (
-          <LineageGraph
-            assetName={selectedAsset?.name || ''}
-            lineage={lineageData}
-          />
-        )}
-      </Modal>
+      <Dialog open={lineageModalOpen} onOpenChange={setLineageModalOpen}>
+        <DialogContent className="bg-surface border-white/10 text-white max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>数据血缘 - {selectedAsset?.name}</DialogTitle>
+          </DialogHeader>
+          {lineageLoading ? (
+            <p className="text-slate-400 text-sm text-center py-12">Loading...</p>
+          ) : (
+            <LineageGraph assetName={selectedAsset?.name || ''} lineage={lineageData} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

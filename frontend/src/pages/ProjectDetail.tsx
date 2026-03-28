@@ -1,32 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Tabs, Button, message, Space } from 'antd';
-import { SaveOutlined, MessageOutlined, DatabaseOutlined, AppstoreOutlined, KeyOutlined, ApartmentOutlined } from '@ant-design/icons';
+import { useParams } from 'react-router-dom';
+import { Save, CheckCircle, Key } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import CodeMirror from '@uiw/react-codemirror';
+import { yaml } from '@codemirror/lang-yaml';
 import { projectService } from '@/services/project';
 import { ontologyService } from '@/services/ontology';
 import { Project } from '@/types';
-import CodeMirror from '@uiw/react-codemirror';
-import { yaml } from '@codemirror/lang-yaml';
 import ObjectExplorer from './ObjectExplorer';
 import OntologyViewer from './OntologyViewer';
 import AssetList from './AssetList';
-import { ChatAgent } from './ChatAgent';
 import ApiKeyManager from '../components/ApiKeyManager';
-
-const { TabPane } = Tabs;
+import ChatWithSessions from './ChatWithSessions';
+import QueryBuilder from './QueryBuilder';
+import AggregateQuery from './AggregateQuery';
+import QueryHistory from './QueryHistory';
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const projectId = id ? parseInt(id) : undefined;
   const [project, setProject] = useState<Project | null>(null);
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
-  const [validating, setValidating] = useState(false);
+  const [apiKeyOpen, setApiKeyOpen] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
 
-  useEffect(() => {
-    loadProject();
-  }, [id]);
+  useEffect(() => { loadProject(); }, [id]);
 
   const loadProject = async () => {
     if (!projectId) return;
@@ -35,8 +36,6 @@ const ProjectDetail: React.FC = () => {
       const data = await projectService.get(projectId);
       setProject(data);
       setConfig(data.omaha_config || '');
-    } catch (error: any) {
-      message.error('Failed to load project');
     } finally {
       setLoading(false);
     }
@@ -44,109 +43,97 @@ const ProjectDetail: React.FC = () => {
 
   const handleSave = async () => {
     if (!projectId) return;
-    setLoading(true);
-    try {
-      await projectService.update(projectId, { omaha_config: config });
-      message.success('Configuration saved successfully');
-      loadProject();
-    } catch (error: any) {
-      message.error('Failed to save configuration');
-    } finally {
-      setLoading(false);
-    }
+    await projectService.update(projectId, { omaha_config: config });
+    setStatusMsg('Saved');
+    setTimeout(() => setStatusMsg(''), 2000);
   };
 
   const handleValidate = async () => {
-    setValidating(true);
-    try {
-      const result = await ontologyService.validate(config);
-      if (result.valid) {
-        message.success('Configuration is valid!');
-        if (result.warnings.length > 0) {
-          message.warning(`Warnings: ${result.warnings.join(', ')}`);
-        }
-      } else {
-        message.error(`Validation failed: ${result.errors.join(', ')}`);
-      }
-    } catch (error: any) {
-      message.error('Validation failed');
-    } finally {
-      setValidating(false);
-    }
-  };
-
-  const handleBuildOntology = async () => {
-    setValidating(true);
-    try {
-      const result = await ontologyService.build(config);
-      if (result.valid) {
-        message.success('Ontology built successfully!');
-        console.log('Ontology:', result.ontology);
-      } else {
-        message.error(`Build failed: ${result.errors?.join(', ')}`);
-      }
-    } catch (error: any) {
-      message.error('Failed to build ontology');
-    } finally {
-      setValidating(false);
-    }
+    const result = await ontologyService.validate(config);
+    setStatusMsg(result.valid ? 'Valid' : `Error: ${result.errors.join(', ')}`);
+    setTimeout(() => setStatusMsg(''), 3000);
   };
 
   if (loading && !project) {
-    return <Card loading={loading} />;
+    return <div className="text-slate-400 p-6">Loading...</div>;
   }
 
   return (
-    <Card
-      title={`Project: ${project?.name}`}
-      extra={
-        <Space>
-          <Button onClick={handleValidate} loading={validating}>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-white text-xl font-semibold">{project?.name}</h1>
+        <div className="flex items-center gap-2">
+          {statusMsg && (
+            <span className="text-sm text-green-400 flex items-center gap-1">
+              <CheckCircle size={14} /> {statusMsg}
+            </span>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setApiKeyOpen(true)} className="text-slate-400">
+            <Key size={14} className="mr-2" /> API Keys
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleValidate} className="text-slate-400">
             Validate
           </Button>
-          <Button onClick={handleBuildOntology} loading={validating}>
-            Build Ontology
+          <Button size="sm" onClick={handleSave} className="bg-primary hover:bg-primary/90">
+            <Save size={14} className="mr-2" /> Save
           </Button>
-          <Button onClick={() => navigate(`/projects/${id}/semantic`)}>
-            语义层
-          </Button>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={handleSave}
-            loading={loading}
-          >
-            Save
-          </Button>
-        </Space>
-      }
-    >
-      <Tabs defaultActiveKey="config">
-        <TabPane tab="Configuration" key="config">
+        </div>
+      </div>
+
+      <Tabs defaultValue="config" className="w-full">
+        <TabsList className="bg-surface border border-white/10">
+          <TabsTrigger value="config" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Config</TabsTrigger>
+          <TabsTrigger value="ontology" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Ontology</TabsTrigger>
+          <TabsTrigger value="explorer" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Explorer</TabsTrigger>
+          <TabsTrigger value="assets" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Assets</TabsTrigger>
+          <TabsTrigger value="chat" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Chat</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="config" className="mt-4">
           <CodeMirror
             value={config}
             height="600px"
             extensions={[yaml()]}
-            onChange={(value) => setConfig(value)}
+            onChange={setConfig}
+            theme="dark"
           />
-        </TabPane>
-        <TabPane tab={<span><ApartmentOutlined /> Ontology</span>} key="ontology">
+        </TabsContent>
+
+        <TabsContent value="ontology" className="mt-4">
           <OntologyViewer configYaml={config} />
-        </TabPane>
-        <TabPane tab={<span><AppstoreOutlined /> Explorer</span>} key="explorer">
-          <ObjectExplorer projectId={projectId} />
-        </TabPane>
-        <TabPane tab={<span><DatabaseOutlined /> 资产</span>} key="assets">
+        </TabsContent>
+
+        <TabsContent value="explorer" className="mt-4">
+          <Tabs defaultValue="objects">
+            <TabsList className="bg-background border border-white/10 mb-4">
+              <TabsTrigger value="objects" className="data-[state=active]:text-primary text-sm">Objects</TabsTrigger>
+              <TabsTrigger value="query" className="data-[state=active]:text-primary text-sm">Query</TabsTrigger>
+              <TabsTrigger value="aggregate" className="data-[state=active]:text-primary text-sm">Aggregate</TabsTrigger>
+              <TabsTrigger value="history" className="data-[state=active]:text-primary text-sm">History</TabsTrigger>
+            </TabsList>
+            <TabsContent value="objects"><ObjectExplorer projectId={projectId} /></TabsContent>
+            <TabsContent value="query">{projectId && <QueryBuilder projectId={projectId} />}</TabsContent>
+            <TabsContent value="aggregate"><AggregateQuery /></TabsContent>
+            <TabsContent value="history">{projectId && <QueryHistory projectId={projectId} />}</TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        <TabsContent value="assets" className="mt-4">
           <AssetList />
-        </TabPane>
-        <TabPane tab={<span><MessageOutlined /> Chat</span>} key="chat">
-          {projectId && <ChatAgent projectIdProp={projectId} />}
-        </TabPane>
-        <TabPane tab={<span><KeyOutlined /> API Keys</span>} key="apikeys">
-          {projectId && <ApiKeyManager projectId={projectId} />}
-        </TabPane>
+        </TabsContent>
+
+        <TabsContent value="chat" className="mt-4">
+          {projectId && <ChatWithSessions projectId={projectId} />}
+        </TabsContent>
       </Tabs>
-    </Card>
+
+      <Dialog open={apiKeyOpen} onOpenChange={setApiKeyOpen}>
+        <DialogContent className="bg-surface border-white/10 text-white max-w-2xl">
+          <DialogHeader><DialogTitle>API Keys</DialogTitle></DialogHeader>
+          {projectId && <ApiKeyManager projectId={projectId} />}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
