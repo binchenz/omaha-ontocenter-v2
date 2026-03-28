@@ -63,7 +63,7 @@ Existing 6 tabs restructured to 5:
 | Assets | Asset list | existing |
 | Chat | Chat agent + **session list sidebar** | existing + new |
 
-API Keys tab moves to user settings (future) or stays as a button in Config tab header.
+API Keys tab is moved into the Config tab header as a button (opens a dialog). No separate tab.
 
 ### Explorer Tab — Query Sub-tabs
 
@@ -74,7 +74,7 @@ The Explorer tab gains a secondary tab bar:
 ```
 
 - **Objects:** existing ObjectExplorer component
-- **Query:** standard query builder (filter by object type, fields, operators)
+- **Query:** standard query builder (filter by object type, fields, operators: `=`, `>`, `<`, `>=`, `<=`, `in`)
 - **Aggregate:** aggregate query builder (select object, field, function: avg/max/min/sum/count)
 - **History:** paginated list of past queries with timestamp, object type, filters, result count; click to re-run
 
@@ -134,7 +134,7 @@ src/
 │   └── Register.tsx             ← restyled
 └── services/
     ├── watchlist.ts             ← new (wraps public watchlist API)
-    └── queryHistory.ts          ← new (local storage or backend)
+    └── queryHistory.ts          ← new (localStorage only)
 ```
 
 ## Query History Storage
@@ -147,7 +147,8 @@ Max 100 entries, oldest dropped when limit reached.
 
 ## API Integration
 
-- Watchlist: `GET/POST/DELETE /api/public/v1/watchlist` — requires API token from user's API keys
+- Watchlist: `GET/POST/DELETE /api/public/v1/watchlist` — requires API token from user's API keys. The frontend reads the first active API key from `ApiKeyManager` (stored via `/api/v1/projects/:id/api-keys`), passes it as `Authorization: Bearer <token>` header. If no key exists, shows an inline prompt to create one.
+- Chat sessions: backed by existing `chatApi.ts` endpoints — no new backend endpoints needed.
 - Aggregate: `POST /api/public/v1/aggregate` — existing endpoint
 - Query History: localStorage only
 
@@ -158,7 +159,7 @@ Max 100 entries, oldest dropped when limit reached.
 3. Migrate pages one by one, starting with Login/Register (simplest)
 4. Migrate ProjectList, then ProjectDetail
 5. Add new pages: Watchlist, QueryBuilder, AggregateQuery, QueryHistory
-6. Remove Ant Design dependency last
+6. Remove Ant Design dependency last — also remove any Ant Design global CSS imports in `main.tsx`/`index.css`, and clean up any Ant Design-specific `vite.config.ts` aliases or optimizeDeps entries.
 
 ## Out of Scope
 
