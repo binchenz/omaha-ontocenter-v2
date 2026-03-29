@@ -47,13 +47,15 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
   useEffect(() => { loadObjectTypes(); }, [projectId]);
   useEffect(() => { if (selectedType) { loadObjectSchema(); loadRelationships(); } }, [selectedType]);
   useEffect(() => {
-    const state = location.state as { assetConfig?: any };
+    const state = location.state as { assetConfig?: any; preselect?: string };
     if (state?.assetConfig) {
       const config = state.assetConfig;
       setSelectedType(config.object_type);
       if (config.selected_columns) setSelectedColumns(config.selected_columns);
       if (config.filters) setFilters(config.filters);
       if (config.joins) setJoins(config.joins.map((j: any) => ({ ...j, relationship: {} as Relationship })));
+    } else if (state?.preselect) {
+      setSelectedType(state.preselect);
     }
   }, [location.state]);
 

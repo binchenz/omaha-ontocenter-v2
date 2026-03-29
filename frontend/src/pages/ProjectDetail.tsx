@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Save, CheckCircle, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,6 +26,7 @@ const ProjectDetail: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [apiKeyOpen, setApiKeyOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => { loadProject(); }, [id]);
 
@@ -100,6 +101,16 @@ const ProjectDetail: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="ontology" className="mt-4">
+          <div className="flex justify-end mb-3">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-primary text-xs"
+              onClick={() => navigate(`/projects/${projectId}/map`)}
+            >
+              查看本体地图
+            </Button>
+          </div>
           <OntologyViewer configYaml={config} />
         </TabsContent>
 
