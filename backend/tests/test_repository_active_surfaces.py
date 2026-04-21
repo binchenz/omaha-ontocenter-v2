@@ -266,15 +266,25 @@ def test_backend_requirements_pin_locally_verified_runtime_versions():
     requirements = (root / "backend" / "requirements.txt").read_text(encoding="utf-8")
 
     assert "fastapi==0.135.1" in requirements
+    assert "uvicorn[standard]==0.41.0" in requirements
+    assert "sqlalchemy==2.0.48" in requirements
     assert "pydantic==2.12.5" in requirements
     assert "pydantic-settings==2.13.1" in requirements
-    assert "httpx==0.28.1" in requirements
+    assert "python-jose[cryptography]==3.5.0" in requirements
     assert "python-multipart==0.0.22" in requirements
+    assert "pyyaml==6.0.3" in requirements
+    assert "httpx==0.28.1" in requirements
+    assert "pytest==9.0.2" in requirements
     assert "mcp==1.26.0" in requirements
 
     assert "fastapi==0.109.0" not in requirements
+    assert "uvicorn[standard]==0.27.0" not in requirements
+    assert "sqlalchemy==2.0.25" not in requirements
     assert "pydantic==2.5.3" not in requirements
     assert "pydantic-settings==2.1.0" not in requirements
+    assert "python-jose[cryptography]==3.3.0" not in requirements
     assert "httpx==0.26.0" not in requirements
     assert "python-multipart==0.0.6" not in requirements
+    assert "pyyaml==6.0.1" not in requirements
+    assert "pytest==7.4.4" not in requirements
     assert "mcp>=1.0.0" not in requirements
