@@ -277,6 +277,7 @@ def test_backend_requirements_pin_locally_verified_runtime_versions():
     assert "pytest==9.0.2" in requirements
     assert "mcp==1.26.0" in requirements
     assert "email-validator==2.3.0" in requirements
+    assert "PyMySQL==1.1.2" in requirements
 
     assert "fastapi==0.109.0" not in requirements
     assert "uvicorn[standard]==0.27.0" not in requirements
