@@ -261,8 +261,18 @@ def test_frontend_dead_surfaces_are_removed():
         assert not _path_exists_in_head(root, file_path), f"File should have been removed: {file_path}"
 
 
-def test_backend_requirements_keep_httpx_compatible_with_mcp():
+def test_backend_requirements_pin_locally_verified_runtime_versions():
     root = Path(__file__).resolve().parents[2]
     requirements = (root / "backend" / "requirements.txt").read_text(encoding="utf-8")
+
+    assert "fastapi==0.135.1" in requirements
+    assert "pydantic==2.12.5" in requirements
+    assert "pydantic-settings==2.13.1" in requirements
     assert "httpx==0.28.1" in requirements
+    assert "mcp==1.26.0" in requirements
+
+    assert "fastapi==0.109.0" not in requirements
+    assert "pydantic==2.5.3" not in requirements
+    assert "pydantic-settings==2.1.0" not in requirements
     assert "httpx==0.26.0" not in requirements
+    assert "mcp>=1.0.0" not in requirements
