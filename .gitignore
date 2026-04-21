@@ -70,6 +70,7 @@ htmlcov/
 .tox/
 backend/*e2e*_report*.json
 backend/focused_e2e_report_*.json
+test_tushare_config.yaml
 
 # Docker
 *.pid
