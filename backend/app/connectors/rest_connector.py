@@ -1,3 +1,4 @@
+import base64
 from typing import Any
 import httpx
 from app.connectors.base import BaseConnector, ColumnDef
@@ -50,7 +51,6 @@ class RESTConnector(BaseConnector):
             header_name = self.config.get("api_key_header", "X-API-Key")
             return {header_name: token}
         if auth_type == "basic":
-            import base64
             user = self.config.get("username", "")
             pwd = self.config.get("password", "")
             encoded = base64.b64encode(f"{user}:{pwd}".encode()).decode()

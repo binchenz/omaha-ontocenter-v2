@@ -18,10 +18,14 @@ SUPPORTED_PARAMS = {
 
 
 class TushareConnector(BaseConnector):
+    def _pro(self):
+        if not hasattr(self, "_pro_instance"):
+            self._pro_instance = ts.pro_api(self.config["token"])
+        return self._pro_instance
+
     def test_connection(self) -> bool:
         try:
-            pro = ts.pro_api(self.config["token"])
-            df = pro.stock_basic(ts_code="000001.SZ", fields="ts_code")
+            df = self._pro().stock_basic(ts_code="000001.SZ", fields="ts_code")
             return len(df) > 0
         except Exception:
             return False
@@ -39,7 +43,7 @@ class TushareConnector(BaseConnector):
         ]
 
     def query(self, source, columns=None, filters=None, limit=None):
-        pro = ts.pro_api(self.config["token"])
+        pro = self._pro()
         api_func = getattr(pro, source)
 
         api_params = {}

@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+from sqlalchemy import create_engine
 from app.connectors.base import BaseConnector, ColumnDef
 from app.connectors.sql_connector import SQLConnector
 
@@ -9,7 +10,9 @@ class CSVConnector(BaseConnector):
         return self.config.get("database", "")
 
     def _sql(self) -> SQLConnector:
-        return SQLConnector({"type": "sqlite", "database": self._db_path()})
+        if not hasattr(self, "_sql_instance"):
+            self._sql_instance = SQLConnector({"type": "sqlite", "database": self._db_path()})
+        return self._sql_instance
 
     def test_connection(self) -> bool:
         return os.path.exists(self._db_path())
@@ -27,7 +30,6 @@ class CSVConnector(BaseConnector):
         else:
             df = pd.read_csv(file_path)
 
-        from sqlalchemy import create_engine
         engine = create_engine(f"sqlite:///{self._db_path()}")
         df.to_sql(table_name, engine, if_exists="replace", index=False)
         engine.dispose()

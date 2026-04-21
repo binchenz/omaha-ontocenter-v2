@@ -1,12 +1,11 @@
 import os
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_project_for_owner
 from app.models.user import User
-from app.models.project import Project
 from app.services.omaha import omaha_service
 from app.connectors import get_connector
 from app.connectors.csv_connector import CSVConnector
@@ -21,20 +20,13 @@ class TestConnectionRequest(BaseModel):
     connection: dict
 
 
-def _get_project(project_id: int, user: User, db: Session) -> Project:
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project or project.owner_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
-
-
 @router.get("/{project_id}/list")
 def list_datasources(
     project_id: int,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, user, db)
+    project = get_project_for_owner(project_id, user, db)
     if not project.omaha_config:
         return {"datasources": []}
 
@@ -62,7 +54,7 @@ def test_connection(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _get_project(project_id, user, db)
+    get_project_for_owner(project_id, user, db)
     try:
         config = req.connection
         if req.type in ("sqlite", "mysql", "postgresql"):
@@ -83,7 +75,7 @@ async def upload_file(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _get_project(project_id, user, db)
+    get_project_for_owner(project_id, user, db)
 
     project_data_dir = os.path.join(DATA_DIR, str(project_id))
     uploads_dir = os.path.join(project_data_dir, "uploads")

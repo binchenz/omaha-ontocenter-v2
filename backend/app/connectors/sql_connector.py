@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 from typing import Any
 
@@ -6,6 +7,15 @@ import pymysql
 import pymysql.cursors
 
 from app.connectors.base import BaseConnector, ColumnDef
+
+_VALID_IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_.]*$')
+_ALLOWED_OPERATORS = {"=", ">", "<", ">=", "<=", "!=", "LIKE", "IN", "IS NULL", "IS NOT NULL"}
+
+
+def _validate_identifier(name: str) -> str:
+    if not _VALID_IDENTIFIER.match(name):
+        raise ValueError(f"Invalid identifier: {name}")
+    return name
 
 
 class SQLConnector(BaseConnector):
@@ -18,6 +28,7 @@ class SQLConnector(BaseConnector):
             return False
 
     def discover_schema(self, source: str) -> list[ColumnDef]:
+        _validate_identifier(source)
         conn = self._connect()
         try:
             if self._db_type() == "sqlite":
@@ -37,6 +48,10 @@ class SQLConnector(BaseConnector):
             conn.close()
 
     def query(self, source, columns=None, filters=None, limit=None):
+        _validate_identifier(source)
+        if columns:
+            for c in columns:
+                _validate_identifier(c)
         col_clause = ", ".join(columns) if columns else "*"
         query_str = f"SELECT {col_clause} FROM {source}"
         params: list[Any] = []
@@ -44,7 +59,10 @@ class SQLConnector(BaseConnector):
         if filters:
             where_parts = []
             for f in filters:
+                _validate_identifier(f["field"])
                 op = f.get("operator", "=")
+                if op not in _ALLOWED_OPERATORS:
+                    raise ValueError(f"Invalid operator: {op}")
                 if op in ("IS NULL", "IS NOT NULL"):
                     where_parts.append(f"{f['field']} {op}")
                 elif op == "IN":

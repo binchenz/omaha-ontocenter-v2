@@ -67,7 +67,7 @@ const DatasourceManager: React.FC<Props> = ({ projectId }) => {
                     <TableCell className="text-white">{ds.name}</TableCell>
                     <TableCell className="text-slate-400 font-mono text-xs">{ds.type}</TableCell>
                     <TableCell>
-                      {ds.id in testResults ? (
+                      {testResults[ds.id] !== undefined ? (
                         testResults[ds.id]
                           ? <CheckCircle size={14} className="text-green-400" />
                           : <XCircle size={14} className="text-red-400" />
