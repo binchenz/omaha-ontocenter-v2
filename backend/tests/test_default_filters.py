@@ -134,6 +134,42 @@ ontology:
     print(f"Generated SQL:\n{query}")
 
 
+def test_default_filters_apply_to_active_query_builder():
+    """Test that default filter and user filter both appear in query and params."""
+    from app.services.query_builder import SemanticQueryBuilder
+
+    config_yaml = """
+ontology:
+  objects:
+    - name: TestObject
+      table: test_table
+      default_filters:
+        - field: platform_id
+          operator: "IS NOT NULL"
+      properties:
+        - name: platform_id
+          column: platform_id
+          type: string
+        - name: city
+          column: city
+          type: string
+"""
+
+    builder = SemanticQueryBuilder(config_yaml, "TestObject")
+
+    query, params = builder.build(
+        selected_columns=["city"],
+        filters=[{"field": "city", "operator": "=", "value": "上海"}],
+        joins=None,
+        limit=10,
+        db_type="mysql"
+    )
+
+    assert "platform_id IS NOT NULL" in query
+    assert "city = %s" in query
+    assert "上海" in params
+
+
 if __name__ == "__main__":
     test_default_filters_in_where_clause()
     print("\n" + "="*80 + "\n")

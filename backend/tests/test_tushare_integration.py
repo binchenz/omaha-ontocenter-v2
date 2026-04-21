@@ -197,3 +197,16 @@ class TestFinancialDataIntegration:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])
+
+
+def test_financial_config_uses_environment_token():
+    """Assert the financial config uses ${TUSHARE_TOKEN} and not a hardcoded token."""
+    from pathlib import Path
+
+    config_path = Path(__file__).resolve().parents[2] / "configs" / "financial_stock_analysis.yaml"
+    content = config_path.read_text(encoding="utf-8")
+
+    assert "${TUSHARE_TOKEN}" in content, "Expected ${TUSHARE_TOKEN} placeholder in config"
+    assert "044a35feee6c10f656343bdf3523014b88265b00bf2b586ed7c0ad90" not in content, (
+        "Hardcoded Tushare token must not appear in config"
+    )

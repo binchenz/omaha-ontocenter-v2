@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Save, CheckCircle, Key } from 'lucide-react';
+import { Save, CheckCircle, Key, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -10,8 +10,6 @@ import { projectService } from '@/services/project';
 import { ontologyService } from '@/services/ontology';
 import { Project } from '@/types';
 import ObjectExplorer from './ObjectExplorer';
-import OntologyViewer from './OntologyViewer';
-import AssetList from './AssetList';
 import ApiKeyManager from '../components/ApiKeyManager';
 import ChatWithSessions from './ChatWithSessions';
 import QueryBuilder from './QueryBuilder';
@@ -69,6 +67,9 @@ const ProjectDetail: React.FC = () => {
               <CheckCircle size={14} /> {statusMsg}
             </span>
           )}
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/projects/${projectId}/map`)} className="text-slate-400">
+            <Map size={14} className="mr-2" /> Ontology Map
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setApiKeyOpen(true)} className="text-slate-400">
             <Key size={14} className="mr-2" /> API Keys
           </Button>
@@ -84,9 +85,7 @@ const ProjectDetail: React.FC = () => {
       <Tabs defaultValue="config" className="w-full">
         <TabsList className="bg-surface border border-white/10">
           <TabsTrigger value="config" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Config</TabsTrigger>
-          <TabsTrigger value="ontology" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Ontology</TabsTrigger>
           <TabsTrigger value="explorer" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Explorer</TabsTrigger>
-          <TabsTrigger value="assets" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Assets</TabsTrigger>
           <TabsTrigger value="chat" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Chat</TabsTrigger>
         </TabsList>
 
@@ -98,20 +97,6 @@ const ProjectDetail: React.FC = () => {
             onChange={setConfig}
             theme="dark"
           />
-        </TabsContent>
-
-        <TabsContent value="ontology" className="mt-4">
-          <div className="flex justify-end mb-3">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-primary text-xs"
-              onClick={() => navigate(`/projects/${projectId}/map`)}
-            >
-              查看本体地图
-            </Button>
-          </div>
-          <OntologyViewer configYaml={config} />
         </TabsContent>
 
         <TabsContent value="explorer" className="mt-4">
@@ -127,10 +112,6 @@ const ProjectDetail: React.FC = () => {
             <TabsContent value="aggregate"><AggregateQuery /></TabsContent>
             <TabsContent value="history">{projectId && <QueryHistory projectId={projectId} />}</TabsContent>
           </Tabs>
-        </TabsContent>
-
-        <TabsContent value="assets" className="mt-4">
-          <AssetList />
         </TabsContent>
 
         <TabsContent value="chat" className="mt-4">

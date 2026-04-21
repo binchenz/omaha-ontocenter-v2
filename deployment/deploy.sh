@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd /var/www/omaha_ontocenter
+cd /opt/omaha-cloud
 
 # Pull latest code
 git pull origin main
