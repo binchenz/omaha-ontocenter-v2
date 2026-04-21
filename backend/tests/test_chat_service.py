@@ -69,7 +69,7 @@ def test_get_tool_schemas():
     service = ChatService(project_id=1, db=Mock())
     tools = service._get_tool_schemas()
 
-    assert len(tools) == 7
+    assert len(tools) == 8
     tool_names = [t["function"]["name"] for t in tools]
     assert "list_objects" in tool_names
     assert "get_schema" in tool_names

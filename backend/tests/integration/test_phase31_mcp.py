@@ -326,7 +326,7 @@ class TestMcpServerProtocol:
             {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}}
         ])
         tools = resps[1]['result']['tools']
-        assert len(tools) == 7
+        assert len(tools) == 8
 
     def test_tool_names(self):
         resps = self._run_mcp([
@@ -338,7 +338,7 @@ class TestMcpServerProtocol:
         names = {t['name'] for t in resps[1]['result']['tools']}
         assert names == {
             'list_objects', 'get_schema', 'get_relationships',
-            'query_data', 'save_asset', 'list_assets', 'get_lineage'
+            'query_data', 'screen_stocks', 'save_asset', 'list_assets', 'get_lineage'
         }
 
     def test_all_tools_have_input_schema(self):

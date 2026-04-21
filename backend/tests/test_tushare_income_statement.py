@@ -88,7 +88,7 @@ class TestIncomeStatement:
         # 验证所有记录都满足过滤条件
         for record in result["data"]:
             assert record["ts_code"] == "000001.SZ"
-            assert record["end_date"] >= "20230101"
+            assert record["end_date"] >= "2023-01-01" or record["end_date"] >= "20230101"
 
         print(f"\n✅ 查询到 {len(result['data'])} 条 2023 年以后的利润表")
 

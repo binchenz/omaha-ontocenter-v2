@@ -12,7 +12,7 @@ class Watchlist(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    ts_code = Column(String(20), nullable=False, index=True)
+    ts_code = Column(String(20), nullable=False)
     added_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     note = Column(Text, nullable=True)
 

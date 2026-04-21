@@ -56,7 +56,7 @@ class SemanticTypeFormatter:
     def _format_percentage(value: Any) -> str:
         """格式化百分比"""
         try:
-            num = float(value)
+            num = float(value) * 100
             return f"{num:.2f}%"
         except (ValueError, TypeError):
             return str(value)

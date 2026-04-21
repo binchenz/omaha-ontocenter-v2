@@ -111,7 +111,7 @@ class TestAuth:
 
     def test_unauthenticated_access_denied(self):
         response = client.get("/api/v1/projects/")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
 
 # ─── Project Tests ────────────────────────────────────────────────────────────

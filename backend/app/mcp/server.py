@@ -35,7 +35,10 @@ def _load_context() -> Tuple[int, str]:
         db.close()
     if not result:
         raise ValueError("Invalid or expired OMAHA_API_KEY")
-    return result
+    project_id, config = result
+    if isinstance(config, bytes):
+        config = config.decode("utf-8")
+    return project_id, config
 
 
 @server.list_tools()
