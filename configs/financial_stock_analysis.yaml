@@ -6,7 +6,7 @@ datasources:
     name: Tushare Pro API
     type: tushare
     connection:
-      token: 044a35feee6c10f656343bdf3523014b88265b00bf2b586ed7c0ad90
+      token: ${TUSHARE_TOKEN}
 
 ontology:
   objects:

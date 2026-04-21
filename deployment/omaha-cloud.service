@@ -5,9 +5,9 @@ After=network.target
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/var/www/omaha_ontocenter/backend
-Environment="PATH=/var/www/omaha_ontocenter/venv/bin"
-ExecStart=/var/www/omaha_ontocenter/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+WorkingDirectory=/opt/omaha-cloud/backend
+Environment="PATH=/opt/omaha-cloud/venv/bin"
+ExecStart=/opt/omaha-cloud/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=always
 
 [Install]

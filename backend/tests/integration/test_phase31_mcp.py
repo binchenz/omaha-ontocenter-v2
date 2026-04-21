@@ -376,3 +376,24 @@ class TestMcpServerProtocol:
         ])
         result = json.loads(resps[1]['result']['content'][0]['text'])
         assert 'objects' in result
+
+
+def test_mcp_query_path_still_returns_expected_shape():
+    """Standalone test: list_objects with a tiny config returns objects containing Product."""
+    from app.mcp.tools import list_objects
+
+    config = (
+        "datasources: []\n"
+        "ontology:\n"
+        "  objects:\n"
+        "    - name: Product\n"
+        "      datasource: x\n"
+        "      table: t\n"
+        "      primary_key: id\n"
+        "      properties: []"
+    )
+
+    result = list_objects(config)
+    assert "objects" in result
+    names = [o["name"] if isinstance(o, dict) else o for o in result["objects"]]
+    assert "Product" in names

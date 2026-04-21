@@ -11,6 +11,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!frontend/src/lib/
+!frontend/src/lib/**
 lib64/
 parts/
 sdist/
@@ -19,8 +21,10 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.tar.gz
 
 # Virtual Environment
+.venv/
 venv/
 venv311/
 env/
@@ -64,6 +68,8 @@ frontend/build/
 htmlcov/
 .pytest_cache/
 .tox/
+backend/*e2e*_report*.json
+backend/focused_e2e_report_*.json
 
 # Docker
 *.pid

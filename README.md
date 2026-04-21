@@ -1,64 +1,69 @@
-# Omaha OntoCenter v2
+# Omaha OntoCenter
 
-Configuration-driven pricing analysis platform with ontology management and object exploration.
+Configuration-driven financial analysis platform with ontology management and object exploration for A-share markets.
 
-## Features
+## Repository Layout
 
-- User authentication and project management
-- DataHub integration for metadata discovery
-- YAML-based ontology configuration
-- Object Explorer for querying business objects
-- Multi-datasource support (PostgreSQL, MySQL)
+```
+omaha_ontocenter/
+├── backend/           # FastAPI application (Python)
+├── frontend/          # React + TypeScript + Vite UI
+├── configs/           # YAML ontology configurations
+├── deployment/        # Server deployment scripts
+├── docs/              # Operational documentation
+├── LOCAL_SETUP.md     # Local dev startup guide
+├── RUNNING.md         # How to run and access the app
+└── CLAUDE.md          # AI assistant instructions
+```
+
+## Tech Stack
+
+- **Backend**: FastAPI + SQLAlchemy + SQLite (dev) / PostgreSQL (prod)
+- **Frontend**: React 18 + TypeScript + Ant Design + Vite
+- **Data**: Tushare Pro API, PostgreSQL, MySQL
+- **Auth**: JWT-based authentication
+
+## Active API Surfaces
+
+### Service status
+- `GET /` — service metadata and running status
+- `GET /health` — health check
+
+### Public auth (`/api/public/auth/*`)
+- `POST /api/public/auth/register` — register a user with an invite code
+- `POST /api/public/auth/api-key` — generate a public API key
+
+### Public data (`/api/public/v1/*`)
+- `GET /api/public/v1/objects` — list available object types
+- `GET /api/public/v1/schema/{object_type}` — fetch object schema
+- `POST /api/public/v1/query` — run public data queries
+- `POST /api/public/v1/aggregate` — run aggregate queries
+- `GET /api/public/v1/watchlist` — list public API watchlist items
+- `POST /api/public/v1/watchlist` — add a public API watchlist item
+- `DELETE /api/public/v1/watchlist/{item_id}` — remove a public API watchlist item
+
+### Authenticated API (`/api/v1/*`)
+- `POST /api/v1/auth/login` and `POST /api/v1/auth/register` — authentication
+- `GET/POST /api/v1/projects` plus project-specific detail/update/delete routes — project management
+- `GET /api/v1/datahub/search` and dataset schema/property routes under `/api/v1/datahub/datasets/*` — DataHub metadata access
+- `POST /api/v1/ontology/validate` and `POST /api/v1/ontology/build` — ontology validation and build
+- `GET /api/v1/query/{project_id}/objects`, `GET /api/v1/query/{project_id}/schema/{object_type}`, `GET /api/v1/query/{project_id}/relationships/{object_type}`, `POST /api/v1/query/{project_id}/query`, `GET /api/v1/query/{project_id}/history` — object querying
+- `POST /api/v1/assets/{project_id}/assets`, `GET /api/v1/assets/{project_id}/assets`, `GET /api/v1/assets/{project_id}/assets/{asset_id}`, `DELETE /api/v1/assets/{project_id}/assets/{asset_id}`, `GET /api/v1/assets/{project_id}/assets/{asset_id}/lineage` — asset management
+- `POST /api/v1/chat/{project_id}/sessions`, `GET /api/v1/chat/{project_id}/sessions`, `POST /api/v1/chat/{project_id}/sessions/{session_id}/message`, `DELETE /api/v1/chat/{project_id}/sessions/{session_id}` — chat sessions
+- `GET /api/v1/watchlist/`, `POST /api/v1/watchlist/`, `PATCH /api/v1/watchlist/{item_id}`, `DELETE /api/v1/watchlist/{item_id}` — watchlist management
 
 ## Quick Start
 
-```bash
-# Clone and setup
-git clone <repository-url>
-cd omaha_ontocenter_v2
+See [LOCAL_SETUP.md](LOCAL_SETUP.md) for local development setup.
 
-# Copy environment template
-cp .env.example .env
+For production deployment, see [deployment/README.md](deployment/README.md).
 
-# Start with Docker
-docker-compose up -d
+## Configuration
 
-# Access the application
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000
-# API Docs: http://localhost:8000/docs
-```
+Ontology configs live in `configs/`. The primary config is `configs/financial_stock_analysis.yaml`.
 
-## Documentation
-
-See [Phase 1 Deployment Guide](docs/phase1-deployment.md) for detailed setup instructions.
-
-## Architecture
-
-- **Backend**: FastAPI + SQLAlchemy + PostgreSQL
-- **Frontend**: React 18 + TypeScript + Ant Design
-- **Integration**: DataHub for metadata management
-- **Core**: Omaha Core for configuration and query execution
-
-## Development
-
-### Backend
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --reload
-```
-
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## License
-
-MIT
+Environment variables (set in `backend/.env`):
+- `DATABASE_URL` — database connection string
+- `SECRET_KEY` — JWT signing key
+- `TUSHARE_TOKEN` — Tushare Pro API token
+- `DATAHUB_GMS_URL` / `DATAHUB_GMS_TOKEN` — optional DataHub integration
