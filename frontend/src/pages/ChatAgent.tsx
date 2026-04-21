@@ -1,29 +1,18 @@
-/**
- * ChatAgent page - main chat interface.
- */
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import {
-  Box,
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  CircularProgress,
-  Alert,
-} from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
+import { Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { chatApi } from '@/services/chatApi';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { DataTable } from '@/components/chat/DataTable';
 import { ChartRenderer } from '@/components/chat/ChartRenderer';
 import type { ChatMessage as ChatMessageType, SendMessageResponse } from '@/types/chat';
 
-export const ChatAgent: React.FC<{ projectIdProp?: number }> = ({ projectIdProp }) => {
-  const { projectId: projectIdParam } = useParams<{ projectId: string }>();
-  const projectId = projectIdProp ? String(projectIdProp) : projectIdParam;
-  const [sessionId, setSessionId] = useState<number | null>(null);
+interface Props {
+  projectId: number;
+  sessionId: number;
+}
+
+export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,196 +20,105 @@ export const ChatAgent: React.FC<{ projectIdProp?: number }> = ({ projectIdProp 
   const [lastResponse, setLastResponse] = useState<SendMessageResponse | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initialize session
   useEffect(() => {
-    const initSession = async () => {
-      if (!projectId) return;
-
-      try {
-        const session = await chatApi.createSession(Number(projectId), {
-          user_id: 1, // TODO: Get from auth context
-          title: 'New Chat',
-        });
-        setSessionId(session.id);
-      } catch (err) {
-        setError('Failed to create chat session');
-        console.error(err);
-      }
-    };
-
-    initSession();
-  }, [projectId]);
+    setMessages([]);
+    setLastResponse(null);
+    setError(null);
+  }, [sessionId]);
 
   const handleSend = async () => {
-    if (!input.trim() || !sessionId || !projectId) return;
-
+    if (!input.trim() || loading) return;
     const userMessage = input.trim();
     setInput('');
     setLoading(true);
     setError(null);
 
-    // Add user message to UI
     const tempUserMsg: ChatMessageType = {
-      id: Date.now(),
-      session_id: sessionId,
-      role: 'user',
-      content: userMessage,
-      tool_calls: null,
-      chart_config: null,
+      id: Date.now(), session_id: sessionId, role: 'user',
+      content: userMessage, tool_calls: null, chart_config: null,
       created_at: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, tempUserMsg]);
+    setMessages(prev => [...prev, tempUserMsg]);
 
     try {
-      const response = await chatApi.sendMessage(
-        Number(projectId),
-        sessionId,
-        { message: userMessage }
-      );
-
-      // Add assistant message to UI
+      const response = await chatApi.sendMessage(projectId, sessionId, { message: userMessage });
       const assistantMsg: ChatMessageType = {
-        id: Date.now() + 1,
-        session_id: sessionId,
-        role: 'assistant',
-        content: response.message,
-        tool_calls: null,
+        id: Date.now() + 1, session_id: sessionId, role: 'assistant',
+        content: response.message, tool_calls: null,
         chart_config: response.chart_config ? JSON.stringify(response.chart_config) : null,
         created_at: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages(prev => [...prev, assistantMsg]);
       setLastResponse(response);
-    } catch (err) {
-      setError('Failed to send message');
-      console.error(err);
+    } catch {
+      setError('发送消息失败');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  if (!sessionId) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2 }}>Initializing chat...</Typography>
-      </Container>
-    );
-  }
-
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Chat Agent
-      </Typography>
-
-      {/* Messages */}
-      <Paper
-        elevation={2}
-        sx={{
-          height: '500px',
-          overflowY: 'auto',
-          p: 2,
-          mb: 2,
-          bgcolor: 'grey.50',
-        }}
-      >
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 && (
-          <Typography color="text.secondary" textAlign="center" sx={{ mt: 4 }}>
-            Start a conversation by typing a message below
-          </Typography>
+          <p className="text-slate-500 text-sm text-center mt-8">输入消息开始对话</p>
         )}
-        {messages.map((msg) => (
+        {messages.map(msg => (
           <ChatMessage key={msg.id} message={msg} />
         ))}
         {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
+          <div className="flex justify-center mt-2">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
         )}
         <div ref={messagesEndRef} />
-      </Paper>
+      </div>
 
-      {/* Data Table */}
       {lastResponse?.data_table && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Query Results
-          </Typography>
+        <div className="px-4 pb-2">
           <DataTable data={lastResponse.data_table} />
-        </Box>
+        </div>
       )}
 
-      {/* Chart */}
       {lastResponse?.chart_config && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Visualization
-          </Typography>
+        <div className="px-4 pb-2">
           <ChartRenderer config={lastResponse.chart_config} />
-        </Box>
+        </div>
       )}
 
-      {/* SQL */}
-      {lastResponse?.sql && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Generated SQL
-          </Typography>
-          <Paper sx={{ p: 2, bgcolor: 'grey.100' }}>
-            <Typography
-              component="pre"
-              sx={{ fontFamily: 'monospace', fontSize: '0.875rem', m: 0 }}
-            >
-              {lastResponse.sql}
-            </Typography>
-          </Paper>
-        </Box>
-      )}
-
-      {/* Error */}
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <div className="mx-4 mb-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-sm flex items-center justify-between">
           {error}
-        </Alert>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300 ml-2">×</button>
+        </div>
       )}
 
-      {/* Input */}
-      <Box sx={{ display: 'flex', gap: 1 }}>
-        <TextField
-          fullWidth
-          multiline
-          maxRows={4}
+      <div className="border-t border-white/10 p-3 flex gap-2">
+        <textarea
           value={input}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type your message..."
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="输入消息..."
           disabled={loading}
+          rows={1}
+          className="flex-1 resize-none rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
         />
-        <Button
-          variant="contained"
-          onClick={handleSend}
-          disabled={loading || !input.trim()}
-          endIcon={<SendIcon />}
-        >
-          Send
+        <Button onClick={handleSend} disabled={loading || !input.trim()} className="bg-primary hover:bg-primary/90 shrink-0">
+          <Send size={16} />
         </Button>
-      </Box>
-    </Container>
+      </div>
+    </div>
   );
 };
+

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { semanticApi } from '@/services/semanticApi';
+import { useProject } from '@/contexts/ProjectContext';
 import ERDiagram from '../components/map/ERDiagram';
 import KnowledgeGraph from '../components/map/KnowledgeGraph';
 import NodeDetailDrawer from '../components/map/NodeDetailDrawer';
@@ -38,14 +37,12 @@ const NODE_COLORS: Record<string, string> = {
 };
 
 const OntologyMap: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const projectId = id ? parseInt(id) : 0;
-  const navigate = useNavigate();
+  const { currentProject } = useProject();
+  const projectId = currentProject?.id ?? 0;
 
   const [view, setView] = useState<ViewMode>('er');
   const [nodes, setNodes] = useState<NodeInfo[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const [projectName, setProjectName] = useState('');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -79,7 +76,6 @@ const OntologyMap: React.FC = () => {
 
       setNodes(builtNodes);
       setEdges(builtEdges);
-      setProjectName(`项目 ${projectId}`);
     } catch {
       setError('加载本体配置失败');
     } finally {
@@ -124,14 +120,7 @@ const OntologyMap: React.FC = () => {
         style={{ height: 48 }}
       >
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(`/projects/${projectId}`)}
-            className="text-slate-400 hover:text-white flex items-center gap-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary rounded"
-          >
-            <ArrowLeft size={15} /> 返回项目
-          </button>
-          <span className="text-white/30 text-sm">|</span>
-          <span className="text-white text-sm font-medium">{projectName} 本体地图</span>
+          <span className="text-white text-sm font-medium">{currentProject?.name} 本体地图</span>
         </div>
 
         <div className="flex items-center gap-1">

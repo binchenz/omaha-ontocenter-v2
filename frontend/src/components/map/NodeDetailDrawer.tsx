@@ -11,6 +11,8 @@ interface NodeDetailDrawerProps {
   onClose: () => void;
 }
 
+const DEFAULT_SAMPLE_STOCK = '000001.SZ';
+
 const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
   projectId, objectName, fieldCount, onClose
 }) => {
@@ -29,13 +31,16 @@ const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
     if (!objectName) return;
     setLoading(true);
     setSampleData([]);
-    // First fetch schema to get column names (max 5 base properties)
     queryService.getObjectSchema(projectId, objectName)
       .then(res => {
         if (res.success && res.columns) {
           const cols = res.columns.slice(0, 5).map((c: any) => c.name);
           setColumns(cols);
-          return queryService.queryObjects(projectId, objectName, cols, [], undefined, 3);
+          const hasTsCode = res.columns.some((c: any) => c.name === 'ts_code');
+          const defaultFilters = hasTsCode
+            ? [{ field: 'ts_code', operator: '=', value: DEFAULT_SAMPLE_STOCK }]
+            : [];
+          return queryService.queryObjects(projectId, objectName, cols, defaultFilters, undefined, 3);
         }
       })
       .then(res => { if (res?.success && res.data) setSampleData(res.data); })
@@ -70,7 +75,7 @@ const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
                 size="sm"
                 variant="ghost"
                 className="text-primary text-xs h-7"
-                onClick={() => navigate(`/projects/${projectId}/explorer`, { state: { preselect: objectName } })}
+                onClick={() => navigate('/explorer', { state: { preselect: objectName } })}
               >
                 <ArrowRight size={13} className="mr-1" /> 前往 Explorer
               </Button>

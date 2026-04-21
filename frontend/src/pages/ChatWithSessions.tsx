@@ -21,13 +21,13 @@ const ChatWithSessions: React.FC<Props> = ({ projectId }) => {
   };
 
   const handleNew = async () => {
-    const session = await chatApi.createSession(projectId, { user_id: 0, title: `Session ${sessions.length + 1}` });
+    const session = await chatApi.createSession(projectId, { user_id: 0, title: `会话 ${sessions.length + 1}` });
     await loadSessions();
     setActiveSessionId(session.id);
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this session?')) return;
+    if (!window.confirm('删除此会话？')) return;
     await chatApi.deleteSession(projectId, id);
     if (activeSessionId === id) setActiveSessionId(null);
     await loadSessions();
@@ -38,7 +38,7 @@ const ChatWithSessions: React.FC<Props> = ({ projectId }) => {
       <div className="w-48 bg-background border-r border-white/10 flex flex-col">
         <div className="p-3 border-b border-white/10">
           <Button size="sm" onClick={handleNew} className="w-full bg-primary hover:bg-primary/90 text-xs">
-            <Plus size={12} className="mr-1" /> New Session
+            <Plus size={12} className="mr-1" /> 新建会话
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -54,7 +54,7 @@ const ChatWithSessions: React.FC<Props> = ({ projectId }) => {
               onClick={() => setActiveSessionId(s.id)}
             >
               <MessageSquare size={12} className="shrink-0" />
-              <span className="flex-1 truncate">{s.title || `Session ${s.id}`}</span>
+              <span className="flex-1 truncate">{s.title || `会话 ${s.id}`}</span>
               <button
                 onClick={e => { e.stopPropagation(); handleDelete(s.id); }}
                 className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300"
@@ -64,17 +64,17 @@ const ChatWithSessions: React.FC<Props> = ({ projectId }) => {
             </div>
           ))}
           {sessions.length === 0 && (
-            <p className="text-slate-500 text-xs text-center p-4">No sessions yet</p>
+            <p className="text-slate-500 text-xs text-center p-4">点击上方按钮创建会话</p>
           )}
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden">
         {activeSessionId ? (
-          <ChatAgent projectIdProp={projectId} />
+          <ChatAgent projectId={projectId} sessionId={activeSessionId} />
         ) : (
           <div className="flex items-center justify-center h-full text-slate-500 text-sm">
-            Select or create a session
+            选择或创建一个会话
           </div>
         )}
       </div>

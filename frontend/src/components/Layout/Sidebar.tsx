@@ -1,13 +1,28 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FolderOpen, Star, LogOut, User } from 'lucide-react';
+import { Search, MessageSquare, Star, Map, Clock, Settings, LogOut, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { to: '/projects', icon: FolderOpen, label: 'Projects' },
-  { to: '/watchlist', icon: Star, label: 'Watchlist' },
+  { to: '/explorer', icon: Search, label: '数据探索' },
+  { to: '/chat', icon: MessageSquare, label: 'AI 助手' },
+  { to: '/watchlist', icon: Star, label: '自选股' },
+  { to: '/map', icon: Map, label: '本体地图' },
+  { to: '/history', icon: Clock, label: '查询历史' },
 ];
+
+const bottomItems = [
+  { to: '/settings', icon: Settings, label: '设置' },
+];
+
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+    isActive
+      ? 'bg-primary/10 text-primary border-l-2 border-primary pl-[10px]'
+      : 'text-slate-400 hover:text-white hover:bg-white/5'
+  );
 
 const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -31,14 +46,20 @@ const Sidebar: React.FC = () => {
           <NavLink
             key={to}
             to={to}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-                isActive
-                  ? 'bg-primary/10 text-primary border-l-2 border-primary pl-[10px]'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              )
-            }
+            className={navLinkClass}
+          >
+            <Icon size={16} />
+            {label}
+          </NavLink>
+        ))}
+
+        <div className="my-3 border-t border-white/10" />
+
+        {bottomItems.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={navLinkClass}
           >
             <Icon size={16} />
             {label}
@@ -53,7 +74,7 @@ const Sidebar: React.FC = () => {
           <button
             onClick={handleLogout}
             className="hover:text-white transition-colors"
-            title="Logout"
+            title="退出登录"
           >
             <LogOut size={16} />
           </button>

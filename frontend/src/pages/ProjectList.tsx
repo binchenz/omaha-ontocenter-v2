@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Settings } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,25 +7,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { projectService } from '@/services/project';
+import { useProject } from '@/contexts/ProjectContext';
 import { Project } from '@/types';
 
 const ProjectList: React.FC = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { projects, refreshProjects } = useProject();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const navigate = useNavigate();
-
-  useEffect(() => { loadProjects(); }, []);
-
-  const loadProjects = async () => {
-    setLoading(true);
-    try { setProjects(await projectService.list()); }
-    catch { /* error handled silently */ }
-    finally { setLoading(false); }
-  };
 
   const openCreate = () => { setEditing(null); setName(''); setDescription(''); setModalOpen(true); };
   const openEdit = (p: Project) => { setEditing(p); setName(p.name); setDescription(p.description || ''); setModalOpen(true); };
@@ -34,7 +23,7 @@ const ProjectList: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this project?')) return;
     await projectService.delete(id);
-    loadProjects();
+    refreshProjects();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,7 +34,7 @@ const ProjectList: React.FC = () => {
       await projectService.create({ name, description });
     }
     setModalOpen(false);
-    loadProjects();
+    refreshProjects();
   };
 
   return (
@@ -57,10 +46,7 @@ const ProjectList: React.FC = () => {
         </Button>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <p className="text-slate-400 text-sm">Loading...</p>
-        ) : (
-          <Table>
+        <Table>
             <TableHeader>
               <TableRow className="border-white/10">
                 <TableHead className="text-slate-400">Name</TableHead>
@@ -79,9 +65,6 @@ const ProjectList: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => navigate(`/projects/${p.id}`)}>
-                        <Settings size={14} />
-                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>
                         <Pencil size={14} />
                       </Button>
@@ -95,7 +78,6 @@ const ProjectList: React.FC = () => {
               ))}
             </TableBody>
           </Table>
-        )}
       </CardContent>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
