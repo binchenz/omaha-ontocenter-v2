@@ -73,3 +73,6 @@ backend/focused_e2e_report_*.json
 
 # Docker
 *.pid
+
+# Git worktrees
+.worktrees/

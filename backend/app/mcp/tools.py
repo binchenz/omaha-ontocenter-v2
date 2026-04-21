@@ -61,6 +61,91 @@ def query_data(
     )
 
 
+def screen_stocks(
+    config_yaml: str,
+    metric_objects: List[Dict[str, Any]],
+    stock_filters: Optional[List[Dict[str, Any]]] = None,
+    sort_by: Optional[str] = None,
+    sort_order: str = "desc",
+    limit: int = 10,
+) -> Dict[str, Any]:
+    """Screen A-share stocks across multiple ontology objects (financial + valuation + technical)."""
+    try:
+        limit = min(limit, 20)
+        stock_filters = stock_filters or []
+
+        # Step 1: Get candidate stock list (max 200)
+        stock_result = omaha_service.query_objects(
+            config_yaml, "Stock",
+            selected_columns=["Stock.ts_code", "Stock.name", "Stock.industry"],
+            filters=stock_filters,
+            limit=200,
+        )
+        if not stock_result.get("success"):
+            return {"error": f"获取股票列表失败: {stock_result.get('error')}"}
+
+        stocks = stock_result.get("data", [])
+        if not stocks:
+            return {"data": [], "count": 0, "message": "没有找到符合条件的股票"}
+
+        # Step 2: Fetch metric data for each stock and merge
+        results = []
+        for stock in stocks:
+            ts_code = stock.get("ts_code")
+            row = {"ts_code": ts_code, "name": stock.get("name"), "industry": stock.get("industry")}
+
+            for metric_obj in metric_objects:
+                obj_name = metric_obj.get("object")
+                columns = metric_obj.get("columns", [])
+                cols = [f"{obj_name}.{c}" for c in columns] if columns else None
+                r = omaha_service.query_objects(
+                    config_yaml, obj_name,
+                    selected_columns=cols,
+                    filters=[{"field": "ts_code", "operator": "=", "value": ts_code}],
+                    limit=1,
+                )
+                if r.get("success") and r.get("data"):
+                    row.update(r["data"][0])
+
+            if len(row) > 3:
+                results.append(row)
+
+        # Step 3: Apply metric filters client-side
+        for metric_obj in metric_objects:
+            for f in metric_obj.get("filters", []):
+                field, op, val = f.get("field"), f.get("operator", ">="), f.get("value")
+                filtered = []
+                for row in results:
+                    v = row.get(field)
+                    if v is None:
+                        continue
+                    try:
+                        v, val_f = float(v), float(val)
+                        if op in (">=", "=>") and v >= val_f:
+                            filtered.append(row)
+                        elif op == ">" and v > val_f:
+                            filtered.append(row)
+                        elif op in ("<=", "=<") and v <= val_f:
+                            filtered.append(row)
+                        elif op == "<" and v < val_f:
+                            filtered.append(row)
+                        elif op == "=" and v == val_f:
+                            filtered.append(row)
+                    except (TypeError, ValueError):
+                        pass
+                results = filtered
+
+        # Step 4: Sort and limit
+        if sort_by and results:
+            results.sort(key=lambda x: float(x.get(sort_by, 0) or 0), reverse=(sort_order == "desc"))
+        results = results[:limit]
+
+        return {"success": True, "data": results, "count": len(results), "total_screened": len(stocks)}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def save_asset(
     db: Session,
     project_id: int,

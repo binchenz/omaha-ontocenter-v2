@@ -1,4 +1,30 @@
 from pathlib import Path
+import subprocess
+
+
+def _path_exists_in_head(root: Path, relative_path: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "-e", f"HEAD:{relative_path}"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _root_entries_in_head(root: Path) -> set[str]:
+    result = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "--name-only", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    entries = {line for line in result.stdout.splitlines() if line}
+    if (root / ".git").exists():
+        entries.add(".git")
+    if (root / ".env").exists():
+        entries.add(".env")
+    return entries
 
 
 def test_current_active_surfaces_are_documented():
@@ -15,8 +41,7 @@ def test_current_active_surfaces_are_documented():
     ]
 
     for file_path in required_files:
-        full_path = repo_root / file_path
-        assert full_path.exists(), f"Required file not found: {file_path}"
+        assert _path_exists_in_head(repo_root, file_path), f"Required file not found: {file_path}"
 
 
 def test_repository_root_excludes_generated_and_archive_clutter():
@@ -35,8 +60,7 @@ def test_repository_root_excludes_generated_and_archive_clutter():
     ]
 
     for path in disallowed_paths:
-        full_path = repo_root / path
-        assert not full_path.exists(), f"Disallowed path found: {path}"
+        assert not _path_exists_in_head(repo_root, path), f"Disallowed path found: {path}"
 
 
 def test_root_level_one_off_tests_and_temp_configs_are_absent():
@@ -65,8 +89,7 @@ def test_root_level_one_off_tests_and_temp_configs_are_absent():
     ]
 
     for path in disallowed_paths:
-        full_path = root / path
-        assert not full_path.exists(), f"Disallowed root-level file found: {path}"
+        assert not _path_exists_in_head(root, path), f"Disallowed root-level file found: {path}"
 
 
 def test_docs_are_reduced_to_current_operational_materials():
@@ -101,12 +124,10 @@ def test_docs_are_reduced_to_current_operational_materials():
     ]
 
     for file_path in required_files:
-        full_path = root / file_path
-        assert full_path.exists(), f"Required file not found: {file_path}"
+        assert _path_exists_in_head(root, file_path), f"Required file not found: {file_path}"
 
     for file_path in removed_files:
-        full_path = root / file_path
-        assert not full_path.exists(), f"File should have been removed: {file_path}"
+        assert not _path_exists_in_head(root, file_path), f"File should have been removed: {file_path}"
 
 
 def test_only_current_design_references_remain_under_docs_superpowers():
@@ -152,12 +173,10 @@ def test_only_current_design_references_remain_under_docs_superpowers():
     ]
 
     for file_path in required_files:
-        full_path = root / file_path
-        assert full_path.exists(), f"Required file not found: {file_path}"
+        assert _path_exists_in_head(root, file_path), f"Required file not found: {file_path}"
 
     for file_path in removed_files:
-        full_path = root / file_path
-        assert not full_path.exists(), f"File should have been removed: {file_path}"
+        assert not _path_exists_in_head(root, file_path), f"File should have been removed: {file_path}"
 
 
 def test_backend_and_deployment_leftovers_are_removed():
@@ -179,8 +198,7 @@ def test_backend_and_deployment_leftovers_are_removed():
     ]
 
     for file_path in removed_files:
-        full_path = root / file_path
-        assert not full_path.exists(), f"File should have been removed: {file_path}"
+        assert not _path_exists_in_head(root, file_path), f"File should have been removed: {file_path}"
 
 
 def test_repository_root_contains_only_intentional_entrypoints():
@@ -204,7 +222,7 @@ def test_repository_root_contains_only_intentional_entrypoints():
         "frontend",
     }
 
-    actual_entries = {path.name for path in root.iterdir()}
+    actual_entries = _root_entries_in_head(root)
     unexpected = sorted(actual_entries - allowed_root_entries)
     assert unexpected == []
 
@@ -237,9 +255,14 @@ def test_frontend_dead_surfaces_are_removed():
     ]
 
     for file_path in required_files:
-        full_path = root / file_path
-        assert full_path.exists(), f"Required file not found: {file_path}"
+        assert _path_exists_in_head(root, file_path), f"Required file not found: {file_path}"
 
     for file_path in removed_files:
-        full_path = root / file_path
-        assert not full_path.exists(), f"File should have been removed: {file_path}"
+        assert not _path_exists_in_head(root, file_path), f"File should have been removed: {file_path}"
+
+
+def test_backend_requirements_keep_httpx_compatible_with_mcp():
+    root = Path(__file__).resolve().parents[2]
+    requirements = (root / "backend" / "requirements.txt").read_text(encoding="utf-8")
+    assert "httpx==0.28.1" in requirements
+    assert "httpx==0.26.0" not in requirements
