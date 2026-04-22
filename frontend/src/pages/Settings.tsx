@@ -10,6 +10,7 @@ import { ontologyService } from '@/services/ontology';
 import ProjectList from './ProjectList';
 import ApiKeyManager from '../components/ApiKeyManager';
 import DatasourceManager from './DatasourceManager';
+import OntologyEditor from './OntologyEditor';
 
 const NoProjectHint = () => (
   <p className="text-slate-400 text-sm text-center py-8">请先在顶部选择一个项目</p>
@@ -53,6 +54,9 @@ const Settings: React.FC = () => {
           <TabsTrigger value="datasources" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
             数据源
           </TabsTrigger>
+          <TabsTrigger value="ontology" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+            本体建模
+          </TabsTrigger>
           <TabsTrigger value="apikeys" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
             API Keys
           </TabsTrigger>
@@ -65,6 +69,14 @@ const Settings: React.FC = () => {
         <TabsContent value="datasources" className="mt-4">
           {currentProject ? (
             <DatasourceManager projectId={currentProject.id} />
+          ) : (
+            <NoProjectHint />
+          )}
+        </TabsContent>
+
+        <TabsContent value="ontology" className="mt-4">
+          {currentProject ? (
+            <OntologyEditor projectId={currentProject.id} />
           ) : (
             <NoProjectHint />
           )}
