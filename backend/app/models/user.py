@@ -29,3 +29,4 @@ class User(Base):
     query_history = relationship("QueryHistory", back_populates="user")
     public_api_keys = relationship("PublicApiKey", back_populates="user")
     watchlist = relationship("Watchlist", back_populates="user")
+    project_memberships = relationship("ProjectMember", back_populates="user")

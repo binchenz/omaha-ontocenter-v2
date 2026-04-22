@@ -3,6 +3,7 @@ Models package.
 """
 from app.models.user import User
 from app.models.project import Project
+from app.models.project_member import ProjectMember
 from app.models.query_history import QueryHistory
 from app.models.asset import DatasetAsset, DataLineage
 from app.models.chat_session import ChatSession, ChatMessage
@@ -14,4 +15,4 @@ from app.models.cached_financial import CachedFinancialIndicator
 from app.models.public_query_log import PublicQueryLog
 from app.models.watchlist import Watchlist
 
-__all__ = ["User", "Project", "QueryHistory", "DatasetAsset", "DataLineage", "ChatSession", "ChatMessage", "ProjectApiKey", "InviteCode", "PublicApiKey", "CachedStock", "CachedFinancialIndicator", "PublicQueryLog", "Watchlist"]
+__all__ = ["User", "Project", "ProjectMember", "QueryHistory", "DatasetAsset", "DataLineage", "ChatSession", "ChatMessage", "ProjectApiKey", "InviteCode", "PublicApiKey", "CachedStock", "CachedFinancialIndicator", "PublicQueryLog", "Watchlist"]
