@@ -2,7 +2,7 @@
 Query endpoints for Object Explorer.
 """
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from decimal import Decimal
@@ -13,6 +13,7 @@ from app.models.project import Project
 from app.models.query_history import QueryHistory
 from app.api.deps import get_current_user, get_project_for_owner
 from app.services.omaha import omaha_service
+from app.services.audit import log_action
 
 router = APIRouter()
 
@@ -81,6 +82,7 @@ async def get_relationships(
 async def query_objects(
     project_id: int,
     request: QueryObjectsRequest,
+    http_request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -109,6 +111,17 @@ async def query_objects(
     )
     db.add(query_history)
     db.commit()
+
+    log_action(
+        db,
+        action="query.run",
+        user_id=current_user.id,
+        project_id=project_id,
+        resource_type="query",
+        resource_id=request.object_type,
+        detail={"object_type": request.object_type, "filter_count": len(request.filters or []), "success": result.get("success")},
+        ip_address=http_request.client.host if http_request.client else None,
+    )
 
     return result
 

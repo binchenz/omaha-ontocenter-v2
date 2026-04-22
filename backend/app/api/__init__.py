@@ -2,7 +2,7 @@
 API package.
 """
 from fastapi import APIRouter
-from app.api import auth, projects, datahub, ontology, query, assets, chat, api_keys, semantic, watchlist, datasources, members
+from app.api import auth, projects, datahub, ontology, query, assets, chat, api_keys, semantic, watchlist, datasources, members, audit
 
 api_router = APIRouter()
 
@@ -18,3 +18,4 @@ api_router.include_router(semantic.router, prefix="", tags=["semantic"])
 api_router.include_router(watchlist.router, prefix="/watchlist", tags=["watchlist"])
 api_router.include_router(datasources.router, tags=["datasources"])
 api_router.include_router(members.router, tags=["members"])
+api_router.include_router(audit.router, tags=["audit"])

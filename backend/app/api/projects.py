@@ -14,6 +14,7 @@ from app.schemas.project import (
     ProjectUpdate,
 )
 from app.api.deps import get_current_user, get_project_for_owner
+from app.services.audit import log_action
 
 router = APIRouter()
 
@@ -35,6 +36,9 @@ def create_project(
     db.add(project)
     db.commit()
     db.refresh(project)
+
+    log_action(db, action="project.create", user_id=current_user.id,
+               project_id=project.id, resource_type="project", resource_id=str(project.id))
 
     return project
 
@@ -83,6 +87,10 @@ def update_project(
 
     db.commit()
     db.refresh(project)
+
+    if "omaha_config" in (project_in.model_dump(exclude_unset=True)):
+        log_action(db, action="config.save", user_id=current_user.id,
+                   project_id=project_id, resource_type="config", resource_id=str(project_id))
 
     return project
 
