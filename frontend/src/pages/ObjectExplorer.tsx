@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { Search, Plus, Trash2, Save } from 'lucide-react';
+import { Search, Plus, Trash2, Save, BarChart2, Table2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { queryService } from '@/services/query';
 import { assetService } from '@/services/asset';
+import QueryChart from '@/components/QueryChart';
 
 interface ObjectExplorerProps {
   projectId?: number;
@@ -43,6 +44,10 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveDesc, setSaveDesc] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
+  const [chartX, setChartX] = useState('');
+  const [chartY, setChartY] = useState('');
 
   useEffect(() => { loadObjectTypes(); }, [projectId]);
   useEffect(() => { if (selectedType) { loadObjectSchema(); loadRelationships(); } }, [selectedType]);
@@ -96,7 +101,18 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
     setLoading(true);
     try {
       const result = await queryService.queryObjects(projectId, selectedType, selectedColumns, getValidFilters(), getJoinPayload(), 100);
-      if (result.success && result.data) setData(result.data);
+      if (result.success && result.data) {
+        setData(result.data);
+        // Auto-detect chart fields: first string col as X, first numeric col as Y
+        const rows = result.data ?? [];
+        if (rows.length > 0) {
+          const keys = Object.keys(rows[0]);
+          const numericKey = keys.find(k => typeof rows[0][k] === 'number' || !isNaN(Number(rows[0][k])));
+          const stringKey = keys.find(k => k !== numericKey);
+          if (stringKey) setChartX(stringKey);
+          if (numericKey) setChartY(numericKey);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -240,22 +256,71 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
 
       {data.length > 0 && (
         <Card className="bg-surface border-white/10 overflow-auto">
-          <CardHeader><CardTitle className="text-white text-sm">Results ({data.length} rows)</CardTitle></CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white text-sm">Results ({data.length} rows)</CardTitle>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm"
+                  onClick={() => setViewMode('table')}
+                  className={`h-7 px-2 text-xs ${viewMode === 'table' ? 'text-primary' : 'text-slate-400'}`}>
+                  <Table2 size={13} className="mr-1" /> 表格
+                </Button>
+                <Button variant="ghost" size="sm"
+                  onClick={() => setViewMode('chart')}
+                  className={`h-7 px-2 text-xs ${viewMode === 'chart' ? 'text-primary' : 'text-slate-400'}`}>
+                  <BarChart2 size={13} className="mr-1" /> 图表
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
           <CardContent className="p-0">
-            <table className="w-full text-xs font-mono">
-              <thead>
-                <tr className="border-b border-white/10">
-                  {columns.map(c => <th key={c} className="px-3 py-2 text-left text-slate-400">{c}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, i) => (
-                  <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                    {columns.map(c => <td key={c} className="px-3 py-2 text-slate-300">{String(row[c] ?? '')}</td>)}
+            {viewMode === 'table' ? (
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    {columns.map(c => <th key={c} className="px-3 py-2 text-left text-slate-400">{c}</th>)}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.map((row, i) => (
+                    <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                      {columns.map(c => <td key={c} className="px-3 py-2 text-slate-300">{String(row[c] ?? '')}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 text-xs">X轴</span>
+                    <select value={chartX} onChange={e => setChartX(e.target.value)}
+                      className="rounded border border-white/10 bg-background px-2 py-1 text-xs text-white">
+                      {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 text-xs">Y轴</span>
+                    <select value={chartY} onChange={e => setChartY(e.target.value)}
+                      className="rounded border border-white/10 bg-background px-2 py-1 text-xs text-white">
+                      {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 text-xs">类型</span>
+                    <select value={chartType} onChange={e => setChartType(e.target.value as any)}
+                      className="rounded border border-white/10 bg-background px-2 py-1 text-xs text-white">
+                      <option value="bar">柱状图</option>
+                      <option value="line">折线图</option>
+                      <option value="pie">饼图</option>
+                    </select>
+                  </div>
+                </div>
+                {chartX && chartY && (
+                  <QueryChart data={data} xField={chartX} yField={chartY} chartType={chartType} height={320} />
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
