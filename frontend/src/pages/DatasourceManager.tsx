@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Upload, CheckCircle, XCircle, Loader2, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,12 +11,13 @@ import { datasourceService, DatasourceInfo, ColumnInfo } from '@/services/dataso
 interface Props { projectId: number; }
 
 const DatasourceManager: React.FC<Props> = ({ projectId }) => {
+  const navigate = useNavigate();
   const [datasources, setDatasources] = useState<DatasourceInfo[]>([]);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
   const [tableName, setTableName] = useState('');
-  const [uploadResult, setUploadResult] = useState<ColumnInfo[] | null>(null);
+  const [uploadResult, setUploadResult] = useState<{ columns: ColumnInfo[]; tableName: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { loadDatasources(); }, [projectId]);
@@ -38,7 +40,10 @@ const DatasourceManager: React.FC<Props> = ({ projectId }) => {
     setUploading(true);
     try {
       const result = await datasourceService.upload(projectId, file, tableName);
-      if (result.success) setUploadResult(result.columns);
+      if (result.success) {
+        setUploadResult({ columns: result.columns, tableName });
+        loadDatasources(); // refresh datasource list (csv_imported now appears)
+      }
     } finally {
       setUploading(false);
     }
@@ -106,8 +111,17 @@ const DatasourceManager: React.FC<Props> = ({ projectId }) => {
           </Button>
 
           {uploadResult && (
-            <div className="mt-4">
-              <p className="text-green-400 text-sm mb-2">导入成功，推断的 Schema：</p>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-green-400 text-sm">导入成功，推断的 Schema：</p>
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/explorer', { state: { preselect: uploadResult.tableName } })}
+                  className="bg-primary hover:bg-primary/90 text-xs"
+                >
+                  <Search size={12} className="mr-1" /> 在 Explorer 中查询
+                </Button>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow className="border-white/10">
@@ -117,7 +131,7 @@ const DatasourceManager: React.FC<Props> = ({ projectId }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {uploadResult.map(col => (
+                  {uploadResult.columns.map(col => (
                     <TableRow key={col.name} className="border-white/10">
                       <TableCell className="text-white font-mono text-xs">{col.name}</TableCell>
                       <TableCell className="text-slate-400 text-xs">{col.type}</TableCell>

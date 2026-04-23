@@ -218,6 +218,7 @@ def test_repository_root_contains_only_intentional_entrypoints():
         "backend",
         "configs",
         "deployment",
+        "docker-compose.yml",
         "docs",
         "frontend",
     }

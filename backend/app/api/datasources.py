@@ -1,4 +1,6 @@
 import os
+import sqlite3
+import yaml
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -6,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
 from app.models.user import User
+from app.models.project import Project
 from app.services.omaha import omaha_service
 from app.connectors import get_connector
 from app.connectors.csv_connector import CSVConnector
@@ -13,6 +16,7 @@ from app.connectors.csv_connector import CSVConnector
 router = APIRouter(prefix="/datasources", tags=["datasources"])
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+CSV_DATASOURCE_ID = "csv_imported"
 
 
 class TestConnectionRequest(BaseModel):
@@ -90,9 +94,81 @@ async def upload_file(
     connector = CSVConnector({"storage_path": uploads_dir, "database": db_path})
     columns = connector.ingest(file_path, table_name)
 
+    # Auto-patch project YAML config to include csv_imported datasource + object
+    project = db.query(Project).filter(Project.id == project_id).first()
+    _patch_yaml_config(project, table_name, columns, db_path, db)
+
     return {
         "success": True,
         "table_name": table_name,
         "columns": [{"name": c.name, "type": c.type, "nullable": c.nullable} for c in columns],
         "file_path": file_path,
     }
+
+
+@router.get("/{project_id}/tables")
+def list_imported_tables(
+    project_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List tables in the project's local imported SQLite database."""
+    get_project_for_owner(project_id, user, db)
+    db_path = os.path.join(DATA_DIR, str(project_id), "imported.db")
+    if not os.path.exists(db_path):
+        return {"tables": []}
+    conn = sqlite3.connect(db_path)
+    try:
+        tables = [r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        ).fetchall()]
+        return {"tables": tables}
+    finally:
+        conn.close()
+
+
+def _patch_yaml_config(project: Project, table_name: str, columns, db_path: str, db: Session):
+    """Add or update csv_imported datasource + object in the project's YAML config."""
+    config_yaml = project.omaha_config or ""
+    if isinstance(config_yaml, bytes):
+        config_yaml = config_yaml.decode("utf-8")
+
+    try:
+        config = yaml.safe_load(config_yaml) or {}
+    except Exception:
+        config = {}
+
+    # Ensure csv_imported datasource exists
+    datasources = config.setdefault("datasources", [])
+    if not any(ds.get("id") == CSV_DATASOURCE_ID for ds in datasources):
+        datasources.append({
+            "id": CSV_DATASOURCE_ID,
+            "name": "CSV/Excel 导入数据",
+            "type": "sqlite",
+            "connection": {"database": db_path},
+        })
+    else:
+        # Update db_path in case it changed
+        for ds in datasources:
+            if ds.get("id") == CSV_DATASOURCE_ID:
+                ds.setdefault("connection", {})["database"] = db_path
+
+    # Add or replace the object for this table
+    ontology = config.setdefault("ontology", {})
+    objects = ontology.setdefault("objects", [])
+    objects = [o for o in objects if o.get("name") != table_name]
+    objects.append({
+        "name": table_name,
+        "datasource": CSV_DATASOURCE_ID,
+        "table": table_name,
+        "primary_key": "rowid",
+        "properties": [
+            {"name": c.name, "column": c.name, "type": c.type}
+            for c in columns
+        ],
+    })
+    ontology["objects"] = objects
+    config["ontology"] = ontology
+
+    project.omaha_config = yaml.dump(config, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    db.commit()
