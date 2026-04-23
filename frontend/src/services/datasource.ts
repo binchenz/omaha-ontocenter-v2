@@ -23,7 +23,7 @@ export const datasourceService = {
     return res.data;
   },
 
-  upload: async (projectId: number, file: File, tableName: string): Promise<{ success: boolean; columns: ColumnInfo[] }> => {
+  upload: async (projectId: number, file: File, tableName: string): Promise<{ success: boolean; columns: ColumnInfo[]; table_name: string; file_path: string }> => {
     const form = new FormData();
     form.append('file', file);
     form.append('table_name', tableName);

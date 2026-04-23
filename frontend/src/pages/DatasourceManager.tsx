@@ -41,8 +41,8 @@ const DatasourceManager: React.FC<Props> = ({ projectId }) => {
     try {
       const result = await datasourceService.upload(projectId, file, tableName);
       if (result.success) {
-        setUploadResult({ columns: result.columns, tableName });
-        loadDatasources(); // refresh datasource list (csv_imported now appears)
+        setUploadResult({ columns: result.columns, tableName: result.table_name });
+        loadDatasources();
       }
     } finally {
       setUploading(false);

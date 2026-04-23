@@ -79,7 +79,7 @@ async def upload_file(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    get_project_for_owner(project_id, user, db)
+    project = get_project_for_owner(project_id, user, db)
 
     project_data_dir = os.path.join(DATA_DIR, str(project_id))
     uploads_dir = os.path.join(project_data_dir, "uploads")
@@ -94,8 +94,6 @@ async def upload_file(
     connector = CSVConnector({"storage_path": uploads_dir, "database": db_path})
     columns = connector.ingest(file_path, table_name)
 
-    # Auto-patch project YAML config to include csv_imported datasource + object
-    project = db.query(Project).filter(Project.id == project_id).first()
     _patch_yaml_config(project, table_name, columns, db_path, db)
 
     return {
@@ -128,7 +126,11 @@ def list_imported_tables(
 
 
 def _patch_yaml_config(project: Project, table_name: str, columns, db_path: str, db: Session):
-    """Add or update csv_imported datasource + object in the project's YAML config."""
+    """Add or update csv_imported datasource + object in the project's YAML config.
+
+    Commits immediately — intentional, so the config is persisted even if the
+    caller's response fails after this point (file is already written to disk).
+    """
     config_yaml = project.omaha_config or ""
     if isinstance(config_yaml, bytes):
         config_yaml = config_yaml.decode("utf-8")
