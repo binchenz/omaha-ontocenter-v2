@@ -110,8 +110,6 @@ async def query_objects(
         error_message=result.get("error"),
     )
     db.add(query_history)
-    db.commit()
-
     log_action(
         db,
         action="query.run",
@@ -121,7 +119,9 @@ async def query_objects(
         resource_id=request.object_type,
         detail={"object_type": request.object_type, "filter_count": len(request.filters or []), "success": result.get("success")},
         ip_address=http_request.client.host if http_request.client else None,
+        commit=False,
     )
+    db.commit()
 
     return result
 

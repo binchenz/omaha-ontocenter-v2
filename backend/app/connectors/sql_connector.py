@@ -119,7 +119,7 @@ class SQLConnector(BaseConnector):
             cursor = conn.cursor(pymysql.cursors.DictCursor)
             cursor.execute(query_str, params)
             return [
-                {k: v.isoformat() if hasattr(v, "isoformat") else v for k, v in row.items()}
+                {k: self._serialize_value(v) for k, v in row.items()}
                 for row in cursor.fetchall()
             ]
         finally:

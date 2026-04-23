@@ -1,7 +1,8 @@
 """Project membership API — invite users, manage roles, list members."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from typing import Optional
 
 from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
@@ -30,7 +31,7 @@ def list_members(
 ):
     """List all members of a project. Accessible by any member."""
     _require_member(project_id, user.id, db)
-    members = db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
+    members = db.query(ProjectMember).options(joinedload(ProjectMember.user)).filter(ProjectMember.project_id == project_id).all()
     return {
         "members": [
             {
@@ -110,11 +111,10 @@ def remove_member(
     db: Session = Depends(get_db),
 ):
     """Remove a member from the project. Owner can remove anyone; members can remove themselves."""
-    project = get_project_for_owner(project_id, user, db) if user.id != member_user_id else None
-
-    if project is None:
-        # Self-removal: verify they are actually a member
+    if user.id == member_user_id:
         _require_member(project_id, user.id, db)
+    else:
+        get_project_for_owner(project_id, user, db)
 
     member = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,
@@ -128,8 +128,8 @@ def remove_member(
     return {"removed": True}
 
 
-def _require_member(project_id: int, user_id: int, db: Session) -> ProjectMember:
-    """Raise 403 if user is not a member or owner of the project."""
+def _require_member(project_id: int, user_id: int, db: Session) -> Optional[ProjectMember]:
+    """Raise 403 if user is not a member or owner of the project. Returns None for owners."""
     from app.models.project import Project
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:

@@ -19,13 +19,20 @@ const AuditLogViewer: React.FC<Props> = ({ projectId }) => {
   const [loading, setLoading] = useState(false);
   const [actionFilter, setActionFilter] = useState('');
 
-  useEffect(() => { loadLogs(); }, [projectId, actionFilter]);
-
-  const loadLogs = async () => {
-    setLoading(true);
-    try { setLogs(await auditService.list(projectId, actionFilter || undefined)); }
-    finally { setLoading(false); }
-  };
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await auditService.list(projectId, actionFilter || undefined);
+        if (!cancelled) setLogs(data);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [projectId, actionFilter]);
 
   const actionLabel = (action: string) => ACTION_LABELS[action] || action;
 

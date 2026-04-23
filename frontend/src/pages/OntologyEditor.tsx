@@ -12,9 +12,12 @@ import { useProject } from '@/contexts/ProjectContext';
 import CodeMirror from '@uiw/react-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
 
-const CONNECTOR_TYPES = ['tushare', 'sqlite', 'mysql', 'postgresql', 'csv', 'excel', 'rest_api'];
+const CONNECTOR_TYPES = ['tushare', 'sqlite', 'mysql', 'postgresql', 'csv', 'excel', 'rest_api', 'mongodb'];
 const FIELD_TYPES = ['string', 'integer', 'decimal', 'date', 'datetime', 'boolean'];
 const SEMANTIC_TYPES = ['', 'text', 'number', 'percentage', 'currency_cny', 'date', 'stock_code', 'ratio'];
+const OBJ_FIELD_LABELS: Record<string, string> = {
+  name: '名称', datasource: '数据源', table: '表名', primary_key: '主键',
+};
 
 const emptyDs = (): DatasourceConfig => ({ id: '', type: 'sqlite', connection: {} });
 const emptyObj = (): ObjectConfig => ({ name: '', datasource: '', properties: [], relationships: [] });
@@ -147,7 +150,7 @@ const OntologyEditor: React.FC<Props> = ({ projectId }) => {
                       {(['name', 'datasource', 'table', 'primary_key'] as const).map(field => (
                         <div key={field} className="space-y-1">
                           <Label className="text-slate-400 text-xs">
-                            {field === 'name' ? '名称' : field === 'datasource' ? '数据源' : field === 'table' ? '表名' : '主键'}
+                            {OBJ_FIELD_LABELS[field]}
                           </Label>
                           <Input value={obj[field] || ''} onChange={e => updateObj(i, { [field]: e.target.value })}
                             className="bg-background border-white/10 text-white text-xs h-7" />

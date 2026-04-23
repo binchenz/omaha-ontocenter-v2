@@ -98,7 +98,7 @@ class TestAuditAPI:
         assert resp.status_code == 200
         data = resp.json()
         assert "logs" in data
-        assert "total" in data
+        assert "count" in data
 
     def test_project_create_generates_audit_log(self):
         h = _auth_headers()

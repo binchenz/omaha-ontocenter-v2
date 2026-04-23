@@ -62,7 +62,7 @@ class MongoDBConnector(BaseConnector):
             rows = []
             for doc in cursor:
                 doc.pop("_id", None)
-                rows.append({k: self._serialize(v) for k, v in doc.items()})
+                rows.append({k: self._serialize_value(v) for k, v in doc.items()})
             return rows
         finally:
             client.close()
@@ -91,9 +91,3 @@ class MongoDBConnector(BaseConnector):
         if isinstance(val, float):
             return "decimal"
         return "string"
-
-    @staticmethod
-    def _serialize(val: Any) -> Any:
-        if hasattr(val, "isoformat"):
-            return val.isoformat()
-        return val

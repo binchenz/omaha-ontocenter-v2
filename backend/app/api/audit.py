@@ -38,5 +38,5 @@ def list_audit_logs(
             }
             for log in logs
         ],
-        "total": len(logs),
+        "count": len(logs),
     }

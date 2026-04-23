@@ -32,3 +32,10 @@ class BaseConnector(ABC):
 
     def close(self) -> None:
         pass
+
+    @staticmethod
+    def _serialize_value(val: Any) -> Any:
+        """Serialize a value for JSON output — converts datetime-like objects to ISO strings."""
+        if hasattr(val, "isoformat"):
+            return val.isoformat()
+        return val
