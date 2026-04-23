@@ -13,6 +13,7 @@ import DatasourceManager from './DatasourceManager';
 import OntologyEditor from './OntologyEditor';
 import MembersManager from './MembersManager';
 import AuditLogViewer from './AuditLogViewer';
+import PipelineManager from './PipelineManager';
 
 const NoProjectHint = () => (
   <p className="text-slate-400 text-sm text-center py-8">请先在顶部选择一个项目</p>
@@ -64,6 +65,9 @@ const Settings: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger value="members" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
             成员管理
+          </TabsTrigger>
+          <TabsTrigger value="pipelines" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+            Pipeline
           </TabsTrigger>
           <TabsTrigger value="audit" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
             审计日志
@@ -135,6 +139,14 @@ const Settings: React.FC = () => {
         <TabsContent value="members" className="mt-4">
           {currentProject ? (
             <MembersManager projectId={currentProject.id} />
+          ) : (
+            <NoProjectHint />
+          )}
+        </TabsContent>
+
+        <TabsContent value="pipelines" className="mt-4">
+          {currentProject ? (
+            <PipelineManager projectId={currentProject.id} />
           ) : (
             <NoProjectHint />
           )}

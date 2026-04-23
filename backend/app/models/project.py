@@ -34,3 +34,4 @@ class Project(Base):
     owner = relationship("User", back_populates="projects")
     query_history = relationship("QueryHistory", back_populates="project")
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+    pipelines = relationship("Pipeline", back_populates="project", cascade="all, delete-orphan")

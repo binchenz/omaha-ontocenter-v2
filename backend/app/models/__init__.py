@@ -15,5 +15,6 @@ from app.models.cached_financial import CachedFinancialIndicator
 from app.models.public_query_log import PublicQueryLog
 from app.models.watchlist import Watchlist
 from app.models.audit_log import AuditLog
+from app.models.pipeline import Pipeline
 
-__all__ = ["User", "Project", "ProjectMember", "QueryHistory", "DatasetAsset", "DataLineage", "ChatSession", "ChatMessage", "ProjectApiKey", "InviteCode", "PublicApiKey", "CachedStock", "CachedFinancialIndicator", "PublicQueryLog", "Watchlist", "AuditLog"]
+__all__ = ["User", "Project", "ProjectMember", "Pipeline", "QueryHistory", "DatasetAsset", "DataLineage", "ChatSession", "ChatMessage", "ProjectApiKey", "InviteCode", "PublicApiKey", "CachedStock", "CachedFinancialIndicator", "PublicQueryLog", "Watchlist", "AuditLog"]
