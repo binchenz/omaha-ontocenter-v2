@@ -1,17 +1,4 @@
-/**
- * DataTable component - displays query results in a table.
- */
 import React from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-} from '@mui/material';
 
 interface DataTableProps {
   data: Record<string, any>[];
@@ -19,41 +6,33 @@ interface DataTableProps {
 
 export const DataTable: React.FC<DataTableProps> = ({ data }) => {
   if (!data || data.length === 0) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        No data to display
-      </Typography>
-    );
+    return <p className="text-slate-400 text-sm">暂无数据</p>;
   }
 
   const columns = Object.keys(data[0]);
 
   return (
-    <TableContainer component={Paper} sx={{ maxHeight: 400, mt: 2 }}>
-      <Table stickyHeader size="small">
-        <TableHead>
-          <TableRow>
-            {columns.map((column) => (
-              <TableCell key={column} sx={{ fontWeight: 'bold' }}>
-                {column}
-              </TableCell>
+    <div className="overflow-auto max-h-80 rounded border border-white/10 mt-2">
+      <table className="w-full text-xs font-mono">
+        <thead className="sticky top-0 bg-surface">
+          <tr className="border-b border-white/10">
+            {columns.map(c => (
+              <th key={c} className="px-3 py-2 text-left text-slate-400 font-medium">{c}</th>
             ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {data.map((row, index) => (
-            <TableRow key={index} hover>
-              {columns.map((column) => (
-                <TableCell key={column}>
-                  {row[column] !== null && row[column] !== undefined
-                    ? String(row[column])
-                    : '-'}
-                </TableCell>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, i) => (
+            <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+              {columns.map(c => (
+                <td key={c} className="px-3 py-1.5 text-slate-300">
+                  {row[c] !== null && row[c] !== undefined ? String(row[c]) : '—'}
+                </td>
               ))}
-            </TableRow>
+            </tr>
           ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+        </tbody>
+      </table>
+    </div>
   );
 };

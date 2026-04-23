@@ -97,6 +97,13 @@ export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
         </div>
       )}
 
+      {lastResponse?.sql && (
+        <div className="mx-4 mb-2 px-3 py-2 bg-white/5 border border-white/10 rounded">
+          <p className="text-slate-400 text-xs mb-1">生成的 SQL</p>
+          <pre className="text-slate-300 text-xs font-mono overflow-auto">{lastResponse.sql}</pre>
+        </div>
+      )}
+
       {error && (
         <div className="mx-4 mb-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-sm flex items-center justify-between">
           {error}
