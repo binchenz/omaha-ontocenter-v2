@@ -84,8 +84,7 @@ def create_pipeline(
     db.add(pipeline)
     db.commit()
     db.refresh(pipeline)
-    if pipeline.status == "active":
-        scheduler.add_pipeline(pipeline.id, pipeline.schedule)
+    scheduler.add_pipeline(pipeline.id, pipeline.schedule)
     return _pipeline_dict(pipeline)
 
 

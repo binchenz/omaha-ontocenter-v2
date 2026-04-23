@@ -28,6 +28,8 @@ class PipelineScheduler:
             for p in pipelines:
                 self._add_job(p.id, p.schedule)
             logger.info(f"Scheduler started with {len(pipelines)} active pipelines")
+        except Exception as e:
+            logger.warning(f"Scheduler: could not load pipelines ({e}), starting empty")
         finally:
             db.close()
         self._scheduler.start()
@@ -51,9 +53,18 @@ class PipelineScheduler:
             if not p:
                 self.remove_pipeline(pipeline_id)
                 return
-            self.remove_pipeline(pipeline_id)
+            job_id = f"{JOB_PREFIX}{pipeline_id}"
             if p.status == "active":
-                self._add_job(p.id, p.schedule)
+                try:
+                    trigger = CronTrigger.from_crontab(p.schedule)
+                    if self._scheduler.get_job(job_id):
+                        self._scheduler.reschedule_job(job_id, trigger=trigger)
+                    else:
+                        self._add_job(p.id, p.schedule)
+                except Exception as e:
+                    logger.error(f"Failed to sync pipeline {pipeline_id}: {e}")
+            else:
+                self.remove_pipeline(pipeline_id)
         finally:
             db.close()
 
@@ -75,6 +86,7 @@ class PipelineScheduler:
 def _execute_pipeline(pipeline_id: int):
     """Job function — runs in a thread pool thread with its own DB session."""
     db = SessionLocal()
+    pipeline = None
     try:
         pipeline = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()
         if not pipeline or pipeline.status != "active":
@@ -96,9 +108,15 @@ def _execute_pipeline(pipeline_id: int):
             logger.error(f"Pipeline {pipeline_id} failed: {result.get('error')}")
     except Exception as e:
         logger.error(f"Pipeline {pipeline_id} exception: {e}")
+        if pipeline:
+            try:
+                pipeline.last_run_status = "error"
+                pipeline.last_error = str(e)
+                db.commit()
+            except Exception:
+                pass
     finally:
         db.close()
 
 
-# Singleton instance
 scheduler = PipelineScheduler()
