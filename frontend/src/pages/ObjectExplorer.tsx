@@ -3,6 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { Search, Plus, Trash2, Save, BarChart2, Table2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DataTable } from '@/components/chat/DataTable';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -50,7 +51,14 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
   const [chartY, setChartY] = useState('');
 
   useEffect(() => { loadObjectTypes(); }, [projectId]);
-  useEffect(() => { if (selectedType) { loadObjectSchema(); loadRelationships(); } }, [selectedType]);
+  useEffect(() => {
+    if (selectedType) {
+      loadObjectSchema();
+      loadRelationships();
+      setChartX('');
+      setChartY('');
+    }
+  }, [selectedType]);
   useEffect(() => {
     const state = location.state as { assetConfig?: any; preselect?: string };
     if (state?.assetConfig) {
@@ -103,7 +111,6 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
       const result = await queryService.queryObjects(projectId, selectedType, selectedColumns, getValidFilters(), getJoinPayload(), 100);
       if (result.success && result.data) {
         setData(result.data);
-        // Auto-detect chart fields: first string col as X, first numeric col as Y
         const rows = result.data ?? [];
         if (rows.length > 0) {
           const keys = Object.keys(rows[0]);
@@ -275,20 +282,7 @@ const ObjectExplorer: React.FC<ObjectExplorerProps> = ({ projectId: propProjectI
           </CardHeader>
           <CardContent className="p-0">
             {viewMode === 'table' ? (
-              <table className="w-full text-xs font-mono">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    {columns.map(c => <th key={c} className="px-3 py-2 text-left text-slate-400">{c}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((row, i) => (
-                    <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                      {columns.map(c => <td key={c} className="px-3 py-2 text-slate-300">{String(row[c] ?? '')}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <DataTable data={data} />
             ) : (
               <div className="p-4 space-y-3">
                 <div className="flex items-center gap-3 flex-wrap">

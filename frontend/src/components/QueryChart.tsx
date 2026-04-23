@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
+import { useECharts } from '@/hooks/useECharts';
 
 type ChartType = 'bar' | 'line' | 'pie';
 
@@ -13,18 +14,7 @@ interface Props {
 
 const QueryChart: React.FC<Props> = ({ data, xField, yField, chartType = 'bar', height = 300 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const instance = useRef<echarts.ECharts | null>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    instance.current = echarts.init(ref.current, 'dark');
-    const onResize = () => instance.current?.resize();
-    window.addEventListener('resize', onResize);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      instance.current?.dispose();
-    };
-  }, []);
+  const instance = useECharts(ref);
 
   useEffect(() => {
     if (!instance.current || !data.length) return;
