@@ -9,6 +9,7 @@ from app.api.deps import get_current_user, get_project_for_owner
 from app.models.user import User
 from app.models.pipeline import Pipeline
 from app.services.pipeline_runner import run_pipeline
+from app.services.scheduler import scheduler
 
 router = APIRouter(prefix="/projects", tags=["pipelines"])
 
@@ -83,6 +84,8 @@ def create_pipeline(
     db.add(pipeline)
     db.commit()
     db.refresh(pipeline)
+    if pipeline.status == "active":
+        scheduler.add_pipeline(pipeline.id, pipeline.schedule)
     return _pipeline_dict(pipeline)
 
 
@@ -100,6 +103,7 @@ def update_pipeline(
         setattr(pipeline, field, value)
     db.commit()
     db.refresh(pipeline)
+    scheduler.sync_pipeline(pipeline.id)
     return _pipeline_dict(pipeline)
 
 
@@ -112,6 +116,7 @@ def delete_pipeline(
 ):
     get_project_for_owner(project_id, user, db)
     pipeline = _get_pipeline(project_id, pipeline_id, db)
+    scheduler.remove_pipeline(pipeline_id)
     db.delete(pipeline)
     db.commit()
 
