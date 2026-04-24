@@ -101,7 +101,7 @@ def _execute_pipeline(pipeline_id: int):
         if isinstance(config_yaml, bytes):
             config_yaml = config_yaml.decode("utf-8")
 
-        result = run_pipeline(pipeline, config_yaml, db)
+        result = run_pipeline(pipeline, config_yaml, db, triggered_by="scheduler")
         if result.get("success"):
             logger.info(f"Pipeline {pipeline_id} completed: {result.get('rows')} rows")
         else:

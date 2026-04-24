@@ -16,5 +16,6 @@ from app.models.public_query_log import PublicQueryLog
 from app.models.watchlist import Watchlist
 from app.models.audit_log import AuditLog
 from app.models.pipeline import Pipeline
+from app.models.pipeline_run import PipelineRun
 
-__all__ = ["User", "Project", "ProjectMember", "Pipeline", "QueryHistory", "DatasetAsset", "DataLineage", "ChatSession", "ChatMessage", "ProjectApiKey", "InviteCode", "PublicApiKey", "CachedStock", "CachedFinancialIndicator", "PublicQueryLog", "Watchlist", "AuditLog"]
+__all__ = ["User", "Project", "ProjectMember", "Pipeline", "PipelineRun", "QueryHistory", "DatasetAsset", "DataLineage", "ChatSession", "ChatMessage", "ProjectApiKey", "InviteCode", "PublicApiKey", "CachedStock", "CachedFinancialIndicator", "PublicQueryLog", "Watchlist", "AuditLog"]

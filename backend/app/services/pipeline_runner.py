@@ -1,23 +1,25 @@
 """Pipeline runner — executes a pipeline job: fetch from source, write to local SQLite."""
 import os
+import time
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 
 from app.models.pipeline import Pipeline
+from app.models.pipeline_run import PipelineRun
 from app.services.omaha import omaha_service
-from app.connectors.csv_connector import CSVConnector
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 
 
-def run_pipeline(pipeline: Pipeline, config_yaml: str, db: Session) -> dict:
+def run_pipeline(pipeline: Pipeline, config_yaml: str, db: Session, triggered_by: str = "manual") -> dict:
     """Execute a pipeline: query source, write rows to local SQLite, update pipeline status."""
     pipeline.last_run_status = "running"
     pipeline.last_run_at = datetime.now(timezone.utc)
     db.commit()
+
+    start_time = time.monotonic()
 
     try:
         result = omaha_service.query_objects(
@@ -34,17 +36,34 @@ def run_pipeline(pipeline: Pipeline, config_yaml: str, db: Session) -> dict:
         rows = result.get("data", [])
         _write_to_local(pipeline, rows)
 
+        duration = time.monotonic() - start_time
         pipeline.last_run_status = "success"
         pipeline.last_run_rows = len(rows)
         pipeline.last_error = None
+
+        run_record = PipelineRun(
+            pipeline_id=pipeline.id, status="success",
+            rows_synced=len(rows), duration_seconds=round(duration, 2),
+            triggered_by=triggered_by,
+        )
+        db.add(run_record)
         db.commit()
 
-        return {"success": True, "rows": len(rows)}
+        return {"success": True, "rows": len(rows), "duration": round(duration, 2)}
 
     except Exception as e:
+        duration = time.monotonic() - start_time
         pipeline.last_run_status = "error"
         pipeline.last_error = str(e)
+
+        run_record = PipelineRun(
+            pipeline_id=pipeline.id, status="error",
+            duration_seconds=round(duration, 2), error_message=str(e),
+            triggered_by=triggered_by,
+        )
+        db.add(run_record)
         db.commit()
+
         return {"success": False, "error": str(e)}
 
 

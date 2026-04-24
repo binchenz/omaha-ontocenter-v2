@@ -137,8 +137,39 @@ def run_pipeline_now(
     if isinstance(config_yaml, bytes):
         config_yaml = config_yaml.decode("utf-8")
 
-    result = run_pipeline(pipeline, config_yaml, db)
+    result = run_pipeline(pipeline, config_yaml, db, triggered_by="manual")
     return result
+
+
+@router.get("/{project_id}/pipelines/{pipeline_id}/runs")
+def list_pipeline_runs(
+    project_id: int,
+    pipeline_id: int,
+    limit: int = 20,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List execution history for a pipeline."""
+    get_project_for_owner(project_id, user, db)
+    _get_pipeline(project_id, pipeline_id, db)
+    from app.models.pipeline_run import PipelineRun
+    runs = db.query(PipelineRun).filter(
+        PipelineRun.pipeline_id == pipeline_id
+    ).order_by(PipelineRun.created_at.desc()).limit(limit).all()
+    return {
+        "runs": [
+            {
+                "id": r.id,
+                "status": r.status,
+                "rows_synced": r.rows_synced,
+                "duration_seconds": r.duration_seconds,
+                "error_message": r.error_message,
+                "triggered_by": r.triggered_by,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in runs
+        ]
+    }
 
 
 def _get_pipeline(project_id: int, pipeline_id: int, db: Session) -> Pipeline:
