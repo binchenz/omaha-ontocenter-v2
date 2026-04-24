@@ -21,7 +21,18 @@ class SemanticTypeFormatter:
         'ratio',
         'growth_rate',
         'score',
-        'multiplier'
+        'multiplier',
+        'phone',
+        'email',
+        'address',
+        'order_status',
+        'approval_status',
+        'quantity',
+        'weight_kg',
+        'weight_g',
+        'volume_l',
+        'province',
+        'city',
     }
 
     @staticmethod
@@ -47,6 +58,17 @@ class SemanticTypeFormatter:
             'growth_rate': SemanticTypeFormatter._format_growth_rate,
             'score': SemanticTypeFormatter._format_score,
             'multiplier': SemanticTypeFormatter._format_multiplier,
+            'phone': SemanticTypeFormatter._format_phone,
+            'email': SemanticTypeFormatter._format_passthrough,
+            'address': SemanticTypeFormatter._format_passthrough,
+            'order_status': SemanticTypeFormatter._format_passthrough,
+            'approval_status': SemanticTypeFormatter._format_passthrough,
+            'quantity': SemanticTypeFormatter._format_quantity,
+            'weight_kg': SemanticTypeFormatter._format_weight_kg,
+            'weight_g': SemanticTypeFormatter._format_weight_g,
+            'volume_l': SemanticTypeFormatter._format_volume_l,
+            'province': SemanticTypeFormatter._format_passthrough,
+            'city': SemanticTypeFormatter._format_passthrough,
         }
 
         formatter = formatters.get(semantic_type)
@@ -133,6 +155,35 @@ class SemanticTypeFormatter:
     def _format_multiplier(value: Any) -> str:
         """格式化倍数（如市销率、市现率）"""
         return SemanticTypeFormatter._format_with_suffix(value, 2, "倍")
+
+    @staticmethod
+    def _format_passthrough(value: Any) -> str:
+        return str(value) if value is not None else ""
+
+    @staticmethod
+    def _format_phone(value: Any) -> str:
+        s = str(value).replace("-", "").replace(" ", "")
+        if len(s) == 11:
+            return f"{s[:3]}-{s[3:7]}-{s[7:]}"
+        return s
+
+    @staticmethod
+    def _format_quantity(value: Any) -> str:
+        if isinstance(value, (int, float)):
+            return f"{int(value):,}" if value == int(value) else f"{value:,.2f}"
+        return str(value)
+
+    @staticmethod
+    def _format_weight_kg(value: Any) -> str:
+        return f"{value} kg"
+
+    @staticmethod
+    def _format_weight_g(value: Any) -> str:
+        return f"{value} g"
+
+    @staticmethod
+    def _format_volume_l(value: Any) -> str:
+        return f"{value} L"
 
     @staticmethod
     def compute_property(expression: str, data: dict) -> Any:

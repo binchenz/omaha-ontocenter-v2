@@ -17,6 +17,7 @@ class Project(Base):
     name = Column(String, nullable=False, index=True)
     description = Column(Text)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
 
     # DataHub integration
     datahub_dataset_urn = Column(String, index=True)
@@ -32,6 +33,7 @@ class Project(Base):
 
     # Relationships
     owner = relationship("User", back_populates="projects")
+    tenant = relationship("Tenant", back_populates="projects")
     query_history = relationship("QueryHistory", back_populates="project")
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
     pipelines = relationship("Pipeline", back_populates="project", cascade="all, delete-orphan")

@@ -21,6 +21,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     invited_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -30,3 +31,4 @@ class User(Base):
     public_api_keys = relationship("PublicApiKey", back_populates="user")
     watchlist = relationship("Watchlist", back_populates="user")
     project_memberships = relationship("ProjectMember", back_populates="user")
+    tenant = relationship("Tenant", back_populates="users")

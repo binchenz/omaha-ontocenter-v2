@@ -8,7 +8,11 @@ from alembic import context
 
 # Import models
 from app.database import Base
-from app.models import User, Project, QueryHistory
+from app.models import (
+    User, Tenant, Project, QueryHistory,
+    OntologyObject, ObjectProperty, OntologyRelationship,
+    HealthRule, BusinessGoal, DomainKnowledge,
+)
 
 # this is the Alembic Config object
 config = context.config
@@ -44,7 +48,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

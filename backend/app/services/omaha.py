@@ -40,7 +40,11 @@ def _find_by_id(items: List[Dict[str, Any]], item_id: str) -> Optional[Dict[str,
 class OmahaService:
     """Service for integrating with Omaha Core."""
 
-    def parse_config(self, config_yaml: str) -> Dict[str, Any]:
+    def __init__(self, config_yaml: str = None):
+        self.config_yaml = config_yaml
+
+    def parse_config(self, config_yaml: str = None) -> Dict[str, Any]:
+        config_yaml = config_yaml or self.config_yaml
         """Parse and validate Omaha configuration YAML."""
         try:
             # Substitute environment variables in YAML before parsing
@@ -77,12 +81,13 @@ class OmahaService:
             }
 
     def _parse_ontology(
-        self, config_yaml: str
+        self, config_yaml: str = None
     ) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
         """Parse config and return (config_dict, ontology_dict, error_response).
 
         Error is None on success.
         """
+        config_yaml = config_yaml or self.config_yaml
         result = self.parse_config(config_yaml)
         if not result["valid"]:
             return None, None, result
@@ -90,12 +95,19 @@ class OmahaService:
         return config, config.get("ontology", {}), None
 
     def _find_object(
-        self, config_yaml: str, object_type: str
+        self, config_yaml: str = None, object_type: str = None
     ) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
         """Parse config and find object definition.
 
         Returns (config, ontology, obj_def, error_response).
         """
+        if config_yaml is None and object_type is not None and self.config_yaml is not None:
+            pass
+        config_yaml = config_yaml or self.config_yaml
+        if not config_yaml:
+            return None, None, None, {"success": False, "error": "No configuration provided"}
+        if not object_type:
+            return None, None, None, {"success": False, "error": "object_type required"}
         config, ontology, err = self._parse_ontology(config_yaml)
         if err:
             return None, None, None, {"success": False, "error": "Invalid configuration"}
@@ -108,18 +120,23 @@ class OmahaService:
             }
         return config, ontology, obj_def, None
 
-    def build_ontology(self, config_yaml: str) -> Dict[str, Any]:
+    def build_ontology(self, config_yaml: str = None) -> Dict[str, Any]:
         """Build ontology from configuration."""
+        config_yaml = config_yaml or self.config_yaml
         try:
             _, ontology, err = self._parse_ontology(config_yaml)
             if err:
                 return err
+            objects = ontology.get("objects", [])
+            relationships = ontology.get("relationships", [])
             return {
                 "valid": True,
                 "ontology": {
-                    "objects": ontology.get("objects", {}),
-                    "relationships": ontology.get("relationships", []),
+                    "objects": objects,
+                    "relationships": relationships,
                 },
+                "objects": objects,
+                "relationships": relationships,
             }
         except Exception as e:
             return {"valid": False, "error": str(e)}
@@ -164,18 +181,28 @@ class OmahaService:
             return []
 
     def get_object_schema(
-        self, config_yaml: str, object_type: str
+        self, config_yaml: str = None, object_type: str = None
     ) -> Dict[str, Any]:
         """Get schema (columns) for an object type, enriched with semantic metadata."""
+        if object_type is None and config_yaml is not None and self.config_yaml is not None:
+            # Single positional argument is object_type
+            object_type = config_yaml
+            config_yaml = None
+        config_yaml = config_yaml or self.config_yaml
+        if not config_yaml or not object_type:
+            return {"success": False, "error": "config_yaml and object_type are required"}
         try:
             result = semantic_service.get_schema_with_semantics(config_yaml, object_type)
             if result.get("success"):
+                result["name"] = result.get("object_type", object_type)
+                result["fields"] = result.get("columns", [])
                 return result
             # Fallback to basic schema
             _, _, obj_def, err = self._find_object(config_yaml, object_type)
             if err:
                 return err
-            columns = [
+            source_entity = obj_def.get("source_entity") or obj_def.get("api_name", "")
+            fields = [
                 {
                     "name": prop.get("column") or prop.get("name"),
                     "type": prop.get("type", "string"),
@@ -183,7 +210,14 @@ class OmahaService:
                 }
                 for prop in obj_def.get("properties", [])
             ]
-            return {"success": True, "columns": columns}
+            return {
+                "success": True,
+                "name": object_type,
+                "object_type": object_type,
+                "source_entity": source_entity,
+                "fields": fields,
+                "columns": fields,
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -227,14 +261,23 @@ class OmahaService:
 
     def query_objects(
         self,
-        config_yaml: str,
-        object_type: str,
+        config_yaml: str = None,
+        object_type: str = None,
         selected_columns: Optional[List[str]] = None,
         filters: Optional[List[Dict[str, Any]]] = None,
         joins: Optional[List[Dict[str, Any]]] = None,
         limit: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Query objects using Omaha Core."""
+        if object_type is None and config_yaml is not None and self.config_yaml is not None:
+            # Single positional argument is object_type
+            object_type = config_yaml
+            config_yaml = None
+        config_yaml = config_yaml or self.config_yaml
+        if not config_yaml:
+            return {"success": False, "error": "No configuration provided"}
+        if not object_type:
+            return {"success": False, "error": "object_type required"}
         try:
             config, ontology, obj_def, err = self._find_object(config_yaml, object_type)
             if err:
@@ -245,44 +288,33 @@ class OmahaService:
             if not ds_config:
                 return {"success": False, "error": f"Datasource '{datasource_id}' not found"}
 
-            ds_type = ds_config.get("type")
-            if ds_type not in ("sqlite", "mysql", "tushare"):
-                return {"success": False, "error": f"Unsupported datasource type: {ds_type}"}
+            ds_type = ds_config.get("type", "")
 
-            # Handle Tushare datasource separately
+            # Route by datasource type
             if ds_type == "tushare":
-                # Check for computed technical indicators
-                if obj_def.get("api_name") == "computed_technical":
+                source_entity = obj_def.get("source_entity") or obj_def.get("api_name", "")
+                if source_entity == "computed_technical":
                     return self._compute_technical_indicators(ds_config, obj_def, filters, selected_columns, limit)
                 return self._query_tushare(ds_config, obj_def, selected_columns, filters, limit)
-
-            # Check if object uses custom query instead of table
-            custom_query = obj_def.get("query")
-            if custom_query:
-                # Object uses custom query (e.g., Category, City, Platform)
-                query, params = self._build_query_from_custom(
-                    custom_query, object_type, selected_columns, filters, limit, ds_type
-                )
             else:
-                # Use SemanticQueryBuilder for table-based objects
-                try:
-                    builder = SemanticQueryBuilder(config_yaml, object_type)
-                    query, params = builder.build(selected_columns, filters, joins, limit, ds_type)
-                except ValueError:
-                    # Fallback to original method if semantic parsing fails
-                    objects = ontology.get("objects", [])
-                    relationships = ontology.get("relationships", [])
-                    table_name = obj_def.get("table")
-                    query, params = self._build_select_query(
-                        table_name, object_type, selected_columns, filters,
-                        joins, relationships, objects, limit, ds_type,
-                    )
-
-            data = self._execute_query(ds_config, ds_type, query, params)
-
-            return {"success": True, "data": data, "count": len(data), "sql": query}
+                return self._query_connector(obj_def, ds_config, selected_columns, filters, limit)
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def _query_connector(self, obj_def, ds_config, selected_columns, filters, limit):
+        from app.connectors.registry import get_connector
+        source_entity = obj_def.get("source_entity") or obj_def.get("api_name", "")
+        connector = get_connector(ds_config["type"], ds_config.get("connection", {}))
+        try:
+            raw_data = connector.query(
+                source=source_entity,
+                columns=selected_columns,
+                filters=filters,
+                limit=limit,
+            )
+            return {"success": True, "data": raw_data, "count": len(raw_data)}
+        finally:
+            connector.close()
 
     def _build_where_clause(
         self, filters: List[Dict[str, Any]], db_type: str
@@ -427,9 +459,9 @@ class OmahaService:
             pro = ts.pro_api(token)
 
             # Get API name and params from object definition
-            api_name = obj_def.get("api_name")
+            api_name = obj_def.get("source_entity") or obj_def.get("api_name")
             if not api_name:
-                return {"success": False, "error": "Object must have 'api_name' field for Tushare datasource"}
+                return {"success": False, "error": "Object must have 'source_entity' or 'api_name' field for Tushare datasource"}
 
             # Define supported API parameters for each API
             # These are parameters that Tushare API accepts directly
