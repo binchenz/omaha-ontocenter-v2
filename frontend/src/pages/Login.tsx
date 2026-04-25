@@ -20,7 +20,7 @@ const Login: React.FC = () => {
     setLoading(true);
     try {
       await login(username, password);
-      navigate('/explorer');
+      navigate('/app/assistant');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');
     } finally {
