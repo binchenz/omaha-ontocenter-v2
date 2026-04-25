@@ -1,6 +1,14 @@
 import json
 from typing import Any
 
+from app.config import settings
+from app.schemas.agent import AgentChatResponse, ToolCallRecord
+
+try:
+    import openai
+except ImportError:
+    openai = None
+
 
 SYSTEM_PROMPT_TEMPLATE = """你是一个企业数据分析助手。你可以帮助用户查询和分析业务数据。
 
@@ -35,10 +43,19 @@ SYSTEM_PROMPT_TEMPLATE = """你是一个企业数据分析助手。你可以帮�
 
 
 class AgentService:
-    def __init__(self, ontology_context: dict, toolkit, tenant_knowledge: list[str] = None):
+    def __init__(
+        self,
+        ontology_context: dict,
+        toolkit,
+        tenant_knowledge: list[str] = None,
+        provider: str = None,
+    ):
         self.ontology_context = ontology_context
         self.toolkit = toolkit
         self.tenant_knowledge = tenant_knowledge or []
+        self.provider = provider
+        self._client = None
+        self._model = None
 
     def build_system_prompt(self) -> str:
         objects_ctx = self._format_objects()
@@ -114,9 +131,15 @@ class AgentService:
         if "data" in result:
             data = result["data"]
             count = result.get("count", len(data))
-            preview = json.dumps(data[:5], ensure_ascii=False, indent=2)
+            try:
+                preview = json.dumps(data[:5], ensure_ascii=False, indent=2)
+            except TypeError:
+                preview = str(data[:5])
             return f"查询返回 {count} 条记录:\n{preview}"
-        return json.dumps(result, ensure_ascii=False, indent=2)
+        try:
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        except TypeError:
+            return str(result)
 
     @staticmethod
     def parse_tool_call(tool_call: dict) -> tuple[str, dict]:
@@ -125,3 +148,156 @@ class AgentService:
         if isinstance(args, str):
             args = json.loads(args)
         return name, args
+
+    def chat(self, message: str, history: list[dict] = None) -> AgentChatResponse:
+        system_prompt = self.build_system_prompt()
+        tools_schema = self._build_tools_schema()
+
+        messages = [{"role": "system", "content": system_prompt}]
+        if history:
+            messages += history
+        messages.append({"role": "user", "content": message})
+
+        return self._react_loop(messages, tools_schema)
+
+    def _react_loop(
+        self, messages: list[dict], tools_schema: list[dict], max_iterations: int = 8
+    ) -> AgentChatResponse:
+        tool_calls_log: list[ToolCallRecord] = []
+        data_table = None
+        chart_config = None
+        sql = None
+        first_turn = True
+        force_answer = False
+
+        for _ in range(max_iterations):
+            if force_answer:
+                tool_choice = "none"
+            elif first_turn:
+                tool_choice = "required"
+            else:
+                tool_choice = "auto"
+            first_turn = False
+
+            response = self._call_llm(messages, tools_schema, tool_choice)
+            message_obj = response.choices[0].message
+
+            if not message_obj.tool_calls:
+                return AgentChatResponse(
+                    response=message_obj.content or "",
+                    tool_calls=tool_calls_log,
+                    data_table=data_table,
+                    chart_config=chart_config,
+                    sql=sql,
+                )
+
+            messages.append({
+                "role": "assistant",
+                "content": message_obj.content or "",
+                "tool_calls": [
+                    {"id": tc.id, "type": "function",
+                     "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                    for tc in message_obj.tool_calls
+                ],
+            })
+
+            for tc in message_obj.tool_calls:
+                name = tc.function.name
+                try:
+                    params = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    params = {}
+
+                result = self.toolkit.execute_tool(name, params)
+
+                if name == "query_data" and result.get("success") and result.get("data"):
+                    data_table = result["data"]
+                    sql = result.get("sql")
+                    force_answer = True
+                if name == "generate_chart" and result.get("success") and result.get("chart_config"):
+                    chart_config = result["chart_config"]
+
+                tool_content = self.format_tool_result(name, result)
+                if name == "query_data" and result.get("success") and result.get("data"):
+                    tool_content += "\n\n请基于以上数据直接回答用户问题。"
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": tool_content,
+                })
+
+                summary = tool_content[:500] + "..." if len(tool_content) > 500 else tool_content
+                tool_calls_log.append(ToolCallRecord(
+                    tool_name=name, params=params, result_summary=summary,
+                ))
+
+        return AgentChatResponse(
+            response="分析完成，但达到了最大迭代次数。",
+            tool_calls=tool_calls_log,
+            data_table=data_table,
+            chart_config=chart_config,
+            sql=sql,
+        )
+
+    def _call_llm(
+        self, messages: list[dict], tools: list[dict] | None = None, tool_choice: str = "auto"
+    ):
+        if openai is None:
+            raise ImportError("openai package not installed")
+
+        if self._client is None:
+            provider = self.provider or self._detect_provider()
+            if provider == "deepseek":
+                self._client = openai.OpenAI(
+                    api_key=settings.DEEPSEEK_API_KEY, base_url=settings.DEEPSEEK_BASE_URL
+                )
+                self._model = settings.DEEPSEEK_MODEL
+            elif provider == "openai":
+                self._client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+                self._model = "gpt-4o-mini"
+            else:
+                raise ValueError(f"Unsupported provider: {provider}")
+
+        kwargs: dict[str, Any] = {"model": self._model, "messages": messages}
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = tool_choice
+
+        return self._client.chat.completions.create(**kwargs)
+
+    def _build_tools_schema(self) -> list[dict]:
+        schema = []
+        for tool in self.toolkit.get_tool_definitions():
+            properties: dict[str, Any] = {}
+            required: list[str] = []
+            for pname, pdef in tool.get("parameters", {}).items():
+                param_schema: dict[str, Any] = {
+                    "type": pdef.get("type", "string"),
+                    "description": pdef.get("description", ""),
+                }
+                if param_schema["type"] == "array":
+                    param_schema["items"] = {"type": "string"}
+                properties[pname] = param_schema
+                if pdef.get("required"):
+                    required.append(pname)
+            schema.append({
+                "type": "function",
+                "function": {
+                    "name": tool["name"],
+                    "description": tool["description"],
+                    "parameters": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required,
+                    },
+                },
+            })
+        return schema
+
+    def _detect_provider(self) -> str:
+        if settings.DEEPSEEK_API_KEY:
+            return "deepseek"
+        if settings.OPENAI_API_KEY:
+            return "openai"
+        raise ValueError("No LLM provider configured. Set DEEPSEEK_API_KEY or OPENAI_API_KEY.")

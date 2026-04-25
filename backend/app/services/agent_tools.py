@@ -8,6 +8,7 @@ class AgentToolkit:
             "query_data": self._query_data,
             "list_objects": self._list_objects,
             "get_schema": self._get_schema,
+            "generate_chart": self._generate_chart,
         }
 
     def get_tool_definitions(self) -> list[dict]:
@@ -16,7 +17,7 @@ class AgentToolkit:
                 "name": "query_data",
                 "description": "Query data from a business object. Use this to retrieve records with optional filters and column selection.",
                 "parameters": {
-                    "object_type": {"type": "string", "description": "Name of the object to query (e.g. Order, Customer, Product)", "required": True},
+                    "object_type": {"type": "string", "description": "Name of the object to query", "required": True},
                     "columns": {"type": "array", "description": "Columns to return. Omit for all columns.", "required": False},
                     "filters": {"type": "array", "description": "Filter conditions: [{field, operator, value}]", "required": False},
                     "limit": {"type": "integer", "description": "Max rows to return (default 100)", "required": False},
@@ -32,6 +33,17 @@ class AgentToolkit:
                 "description": "Get the schema (fields, types, semantic types) of a business object.",
                 "parameters": {
                     "object_type": {"type": "string", "description": "Name of the object", "required": True},
+                },
+            },
+            {
+                "name": "generate_chart",
+                "description": "Generate an ECharts chart config from query result data. Call this after query_data to visualize results.",
+                "parameters": {
+                    "data": {"type": "array", "description": "Array of data rows from query_data result", "required": True},
+                    "chart_type": {"type": "string", "description": "Chart type: bar, line, pie, scatter", "required": True},
+                    "title": {"type": "string", "description": "Chart title", "required": False},
+                    "x_field": {"type": "string", "description": "Field name for X axis", "required": True},
+                    "y_field": {"type": "string", "description": "Field name for Y axis / values", "required": True},
                 },
             },
         ]
@@ -62,3 +74,32 @@ class AgentToolkit:
         if schema:
             return {"success": True, "schema": schema}
         return {"success": False, "error": f"Object '{params['object_type']}' not found"}
+
+    def _generate_chart(self, params: dict) -> dict:
+        data = params.get("data", [])
+        chart_type = params.get("chart_type", "bar")
+        title = params.get("title", "")
+        x_field = params.get("x_field", "")
+        y_field = params.get("y_field", "")
+
+        if chart_type == "pie":
+            chart_config = {
+                "title": {"text": title},
+                "tooltip": {"trigger": "item"},
+                "series": [{
+                    "type": "pie",
+                    "data": [
+                        {"name": str(row.get(x_field, "")), "value": row.get(y_field, 0)}
+                        for row in data
+                    ],
+                }],
+            }
+        else:
+            chart_config = {
+                "title": {"text": title},
+                "tooltip": {"trigger": "axis"},
+                "xAxis": {"type": "category", "data": [str(row.get(x_field, "")) for row in data]},
+                "yAxis": {"type": "value"},
+                "series": [{"type": chart_type, "data": [row.get(y_field, 0) for row in data]}],
+            }
+        return {"success": True, "chart_config": chart_config}

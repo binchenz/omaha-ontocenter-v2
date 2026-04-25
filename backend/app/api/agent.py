@@ -34,7 +34,7 @@ async def agent_query(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Send a natural language query to the Agent."""
-    tenant_id = current_user.tenant_id or 1
+    tenant_id = current_user.tenant_id or current_user.id
     agent = LegacyAgentService(db, tenant_id=tenant_id, config_yaml=request.config_yaml)
     result = agent.run(request.message)
     return result
@@ -46,19 +46,9 @@ async def agent_context(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Get the full agent context prompt for debugging."""
-    tenant_id = current_user.tenant_id or 1
+    tenant_id = current_user.tenant_id or current_user.id
     agent = LegacyAgentService(db, tenant_id=tenant_id)
     return {"context": agent.get_agent_context()}
-
-
-def get_agent_response(agent: AgentService, message: str) -> dict:
-    """Placeholder for LLM call — will be wired to actual LLM in Phase 2.
-    For now returns a structured response showing the system works end-to-end."""
-    return {
-        "response": f"收到您的问题: {message}。Agent系统已就绪，LLM集成将在Phase 2完成。",
-        "tool_calls": [],
-        "sources": [],
-    }
 
 
 @router.post("/{project_id}/chat", response_model=AgentChatResponse)
@@ -84,5 +74,5 @@ def agent_chat(
         toolkit=toolkit,
     )
 
-    result = get_agent_response(agent, request.message)
-    return AgentChatResponse(**result)
+    result = agent.chat(request.message)
+    return result

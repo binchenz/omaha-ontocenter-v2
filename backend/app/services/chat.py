@@ -29,6 +29,8 @@ except ImportError:
 
 from app.models.chat_session import ChatSession, ChatMessage
 from app.services.omaha import omaha_service
+from app.services.agent import AgentService
+from app.services.agent_tools import AgentToolkit
 from app.services.semantic import semantic_service
 from app.services.chart_engine import ChartEngine
 
@@ -591,42 +593,26 @@ limit: 20
         config_yaml: str,
         llm_provider: str = "deepseek"
     ) -> Dict[str, Any]:
-        """
-        Send a message and get response with optional chart.
-
-        Supports OpenAI, Anthropic (Claude), and DeepSeek.
-        """
-        # Load history
-        history = self._load_history(session_id, limit=20)
-
-        # Build system prompt
-        ontology_ctx = self._build_ontology_context(config_yaml)
-        system_prompt = self.SYSTEM_TEMPLATE.format(ontology=ontology_ctx)
-
-        # Get tool schemas
-        tools = self._get_tool_schemas()
-
-        # Build messages
-        messages = [{"role": "system", "content": system_prompt}]
-        messages.extend(history)
-        messages.append({"role": "user", "content": user_message})
-
-        # Call LLM with function calling
         try:
-            if llm_provider == "openai":
-                response_text, data_table, chart_config, sql = self._call_openai(
-                    messages, tools, config_yaml
-                )
-            elif llm_provider == "anthropic":
-                response_text, data_table, chart_config, sql = self._call_anthropic(
-                    messages, tools, config_yaml
-                )
-            elif llm_provider == "deepseek":
-                response_text, data_table, chart_config, sql = self._call_deepseek(
-                    messages, tools, config_yaml
-                )
-            else:
-                raise ValueError(f"Unsupported LLM provider: {llm_provider}")
+            history = self._load_history(session_id, limit=20)
+
+            omaha_svc = omaha_service
+            toolkit = AgentToolkit(omaha_service=omaha_svc)
+
+            ontology_result = omaha_service.build_ontology(config_yaml)
+            ontology_context = ontology_result.get("ontology", {}) if ontology_result.get("valid") else {}
+
+            agent = AgentService(
+                ontology_context=ontology_context,
+                toolkit=toolkit,
+                provider=llm_provider,
+            )
+
+            result = agent.chat(user_message, history)
+            response_text = result.response
+            data_table = result.data_table
+            chart_config = result.chart_config
+            sql = result.sql
 
         except Exception as e:
             response_text = f"抱歉，处理您的请求时出错：{str(e)}"
@@ -634,14 +620,13 @@ limit: 20
             chart_config = None
             sql = None
 
-        # Save messages
         self._save_messages(session_id, user_message, response_text, chart_config=chart_config)
 
         return {
             "message": response_text,
             "data_table": data_table,
             "chart_config": chart_config,
-            "sql": sql
+            "sql": sql,
         }
 
     def _call_openai_compatible(

@@ -17,3 +17,6 @@ class AgentChatResponse(BaseModel):
     response: str
     tool_calls: list[ToolCallRecord] = []
     sources: list[str] = []
+    data_table: list[dict] | None = None
+    chart_config: dict | None = None
+    sql: str | None = None
