@@ -18,6 +18,7 @@ export interface ChatMessage {
   content: string;
   tool_calls: string | null;
   chart_config: string | null;
+  structured?: StructuredItem[] | null;
   created_at: string;
 }
 
