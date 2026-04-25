@@ -28,6 +28,13 @@ class Project(Base):
     # Project metadata
     project_metadata = Column(JSON, default={})
 
+    # Setup stage for conversational ingestion workflow
+    setup_stage = Column(String(20), nullable=False, default="idle", server_default="idle")
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("setup_stage", "idle")
+        super().__init__(**kwargs)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
