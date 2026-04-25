@@ -137,7 +137,7 @@ async def list_ontology_objects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tenant_id = current_user.tenant_id or 1
+    tenant_id = current_user.tenant_id or current_user.id
     store = OntologyStore(db)
     objects = store.list_objects(tenant_id)
     return [{"id": o.id, "name": o.name, "source_entity": o.source_entity,
@@ -150,7 +150,7 @@ async def get_ontology_object(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tenant_id = current_user.tenant_id or 1
+    tenant_id = current_user.tenant_id or current_user.id
     store = OntologyStore(db)
     obj = store.get_object(tenant_id, name)
     if not obj:
@@ -177,7 +177,7 @@ async def create_ontology_object(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tenant_id = current_user.tenant_id or 1
+    tenant_id = current_user.tenant_id or current_user.id
     store = OntologyStore(db)
     existing = store.get_object(tenant_id, obj_in.name)
     if existing:
@@ -201,7 +201,7 @@ async def delete_ontology_object(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tenant_id = current_user.tenant_id or 1
+    tenant_id = current_user.tenant_id or current_user.id
     store = OntologyStore(db)
     deleted = store.delete_object(tenant_id, name)
     if not deleted:
@@ -216,7 +216,7 @@ async def add_object_property(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tenant_id = current_user.tenant_id or 1
+    tenant_id = current_user.tenant_id or current_user.id
     store = OntologyStore(db)
     obj = store.get_object(tenant_id, name)
     if not obj:
@@ -237,7 +237,7 @@ async def import_ontology_yaml(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tenant_id = current_user.tenant_id or 1
+    tenant_id = current_user.tenant_id or current_user.id
     importer = OntologyImporter(db)
     result = importer.import_yaml(tenant_id=tenant_id, yaml_content=request.config_yaml)
     return result

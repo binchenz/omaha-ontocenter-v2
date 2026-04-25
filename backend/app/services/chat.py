@@ -28,11 +28,11 @@ except ImportError:
     anthropic = None
 
 from app.models.chat_session import ChatSession, ChatMessage
-from app.services.omaha import omaha_service
-from app.services.agent import AgentService
-from app.services.agent_tools import AgentToolkit
+from app.models.project import Project
+from app.services.omaha import OmahaService
 from app.services.semantic import semantic_service
 from app.services.chart_engine import ChartEngine
+from app.services.ontology_store import OntologyStore
 
 
 def _json_dumps(obj: Any) -> str:
@@ -135,39 +135,85 @@ limit: 20
         self.project_id = project_id
         self.db = db
         self.chart_engine = ChartEngine()
+        # 预加载项目信息和本体
+        project = self.db.query(Project).filter(Project.id == project_id).first()
+        self.project = project
+        self.tenant_id = project.tenant_id or project.owner_id if project else None
+        self.omaha_service = None
+
+    def _get_ontology_context(self) -> dict:
+        """Get ontology from database store."""
+        if not self.tenant_id:
+            return {}
+        store = OntologyStore(self.db)
+        return store.get_full_ontology(self.tenant_id)
 
     def _build_ontology_context(self, config_yaml: str) -> str:
-        """Build ontology context string from project config, enriched with semantic metadata."""
-        semantic_result = semantic_service.parse_config(config_yaml)
-
-        if semantic_result.get("valid") and semantic_result.get("objects"):
+        """Build ontology context string from database store, fallback to config yaml."""
+        # 首先尝试从数据库获取
+        ontology = self._get_ontology_context()
+        objects = ontology.get("objects", [])
+        
+        if objects:
             context_lines = []
-            for obj_name, obj_meta in semantic_result["objects"].items():
-                agent_ctx = semantic_service.build_agent_context(obj_meta)
-                context_lines.append(f"### {obj_name}\n{agent_ctx}")
+            for obj in objects:
+                name = obj.get("name", "Unknown")
+                description = obj.get("description", "")
+                context_lines.append(f"### {name}")
+                if description:
+                    context_lines.append(f"{description}")
+                properties = obj.get("properties", [])
+                prop_lines = []
+                for prop in properties:
+                    prop_name = prop.get("name", "")
+                    prop_type = prop.get("type", "string")
+                    semantic_type = prop.get("semantic_type", "")
+                    if semantic_type:
+                        prop_lines.append(f"- {prop_name}: {prop_type} ({semantic_type})")
+                    else:
+                        prop_lines.append(f"- {prop_name}: {prop_type}")
+                context_lines.extend(prop_lines)
+                context_lines.append("")
+            return "\n".join(context_lines)
 
-            metrics = semantic_result.get("metrics", [])
-            if metrics:
-                context_lines.append("### 业务指标")
-                for m in metrics:
-                    context_lines.append(f"  - {m.get('name')} ({m.get('label', '')}): {m.get('description', '')} = {m.get('formula', '')}")
+        # Fallback to original implementation with config yaml
+        try:
+            semantic_result = semantic_service.parse_config(config_yaml)
 
-            return "\n\n".join(context_lines)
+            if semantic_result.get("valid") and semantic_result.get("objects"):
+                context_lines = []
+                for obj_name, obj_meta in semantic_result["objects"].items():
+                    agent_ctx = semantic_service.build_agent_context(obj_meta)
+                    context_lines.append(f"### {obj_name}\n{agent_ctx}")
+
+                metrics = semantic_result.get("metrics", [])
+                if metrics:
+                    context_lines.append("### 业务指标")
+                    for m in metrics:
+                        context_lines.append(f"  - {m.get('name')} ({m.get('label', '')}): {m.get('description', '')} = {m.get('formula', '')}")
+
+                return "\n\n".join(context_lines)
+        except Exception:
+            pass
 
         # Fallback to basic ontology context
-        result = omaha_service.build_ontology(config_yaml)
-        if not result.get("valid"):
-            return "无可用对象"
+        try:
+            omaha_service = OmahaService(config_yaml)
+            result = omaha_service.build_ontology()
+            if result.get("valid"):
+                objects = result.get("ontology", {}).get("objects", [])
+                context_lines = []
+                for obj in objects:
+                    name = obj.get("name", "Unknown")
+                    properties = obj.get("properties", [])
+                    prop_names = [p.get("name") for p in properties if p.get("name")]
+                    context_lines.append(f"- {name}: {', '.join(prop_names)}")
 
-        objects = result.get("ontology", {}).get("objects", [])
-        context_lines = []
-        for obj in objects:
-            name = obj.get("name", "Unknown")
-            properties = obj.get("properties", [])
-            prop_names = [p.get("name") for p in properties if p.get("name")]
-            context_lines.append(f"- {name}: {', '.join(prop_names)}")
+                return "\n".join(context_lines)
+        except Exception:
+            pass
 
-        return "\n".join(context_lines)
+        return "无可用对象"
 
     def _load_history(self, session_id: int, limit: int = 20) -> List[Dict[str, str]]:
         """Load recent chat history."""
@@ -398,7 +444,14 @@ limit: 20
         """Execute a single MCP tool call."""
         try:
             if tool_name == "list_objects":
-                result = omaha_service.build_ontology(config_yaml)
+                # 优先从数据库获取
+                ontology = self._get_ontology_context()
+                objects = ontology.get("objects", [])
+                if objects:
+                    return {"objects": [obj.get("name") for obj in objects]}
+                # Fallback
+                omaha_service = OmahaService(config_yaml)
+                result = omaha_service.build_ontology()
                 if result.get("valid"):
                     objects = result.get("ontology", {}).get("objects", [])
                     return {"objects": [obj.get("name") for obj in objects]}
@@ -406,17 +459,35 @@ limit: 20
 
             elif tool_name == "get_schema":
                 object_type = tool_args.get("object_type")
-                result = omaha_service.get_object_schema(config_yaml, object_type)
-                return result
+                # 优先从数据库获取
+                ontology = self._get_ontology_context()
+                for obj in ontology.get("objects", []):
+                    if obj.get("name") == object_type:
+                        return {"success": True, "schema": obj}
+                # Fallback
+                omaha_service = OmahaService(config_yaml)
+                return omaha_service.get_object_schema(object_type)
 
             elif tool_name == "get_relationships":
                 object_type = tool_args.get("object_type")
-                result = omaha_service.get_relationships(config_yaml, object_type)
-                return {"relationships": result}
+                # 优先从数据库获取
+                ontology = self._get_ontology_context()
+                relationships = ontology.get("relationships", [])
+                obj_rels = []
+                for rel in relationships:
+                    if rel.get("from") == object_type or rel.get("to") == object_type:
+                        obj_rels.append(rel)
+                if obj_rels:
+                    return {"relationships": obj_rels}
+                # Fallback
+                omaha_service = OmahaService(config_yaml)
+                return {"relationships": omaha_service.get_relationships(object_type)}
 
             elif tool_name == "query_data":
-                result = omaha_service.query_objects(
-                    config_yaml,
+                # 使用配置文件查询数据
+                if not self.omaha_service:
+                    self.omaha_service = OmahaService(config_yaml)
+                result = self.omaha_service.query_objects(
                     tool_args.get("object_type"),
                     tool_args.get("selected_columns"),
                     tool_args.get("filters"),
@@ -454,6 +525,9 @@ limit: 20
     def _screen_stocks(self, args: Dict[str, Any], config_yaml: str) -> Dict[str, Any]:
         """Screen stocks with multi-object filtering (financial + valuation + technical)."""
         try:
+            if not self.omaha_service:
+                self.omaha_service = OmahaService(config_yaml)
+                
             stock_filters = args.get("stock_filters", [])
             metric_objects = args.get("metric_objects", [])  # NEW: support multiple objects
             sort_by = args.get("sort_by")
@@ -472,8 +546,8 @@ limit: 20
                 return {"error": "metric_objects is required"}
 
             # Step 1: Get stock list (max 200)
-            stock_result = omaha_service.query_objects(
-                config_yaml, "Stock",
+            stock_result = self.omaha_service.query_objects(
+                "Stock",
                 selected_columns=["Stock.ts_code", "Stock.name", "Stock.industry"],
                 filters=stock_filters,
                 limit=200
@@ -497,8 +571,8 @@ limit: 20
                     columns = metric_obj.get("columns", [])
                     cols = [f"{obj_name}.{c}" for c in columns]
 
-                    r = omaha_service.query_objects(
-                        config_yaml, obj_name,
+                    r = self.omaha_service.query_objects(
+                        obj_name,
                         selected_columns=cols,
                         filters=[{"field": "ts_code", "operator": "=", "value": ts_code}],
                         limit=1
@@ -593,26 +667,42 @@ limit: 20
         config_yaml: str,
         llm_provider: str = "deepseek"
     ) -> Dict[str, Any]:
+        """
+        Send a message and get response with optional chart.
+
+        Supports OpenAI, Anthropic (Claude), and DeepSeek.
+        """
+        # Load history
+        history = self._load_history(session_id, limit=20)
+
+        # Build system prompt
+        ontology_ctx = self._build_ontology_context(config_yaml)
+        system_prompt = self.SYSTEM_TEMPLATE.format(ontology=ontology_ctx)
+
+        # Get tool schemas
+        tools = self._get_tool_schemas()
+
+        # Build messages
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(history)
+        messages.append({"role": "user", "content": user_message})
+
+        # Call LLM with function calling
         try:
-            history = self._load_history(session_id, limit=20)
-
-            omaha_svc = omaha_service
-            toolkit = AgentToolkit(omaha_service=omaha_svc)
-
-            ontology_result = omaha_service.build_ontology(config_yaml)
-            ontology_context = ontology_result.get("ontology", {}) if ontology_result.get("valid") else {}
-
-            agent = AgentService(
-                ontology_context=ontology_context,
-                toolkit=toolkit,
-                provider=llm_provider,
-            )
-
-            result = agent.chat(user_message, history)
-            response_text = result.response
-            data_table = result.data_table
-            chart_config = result.chart_config
-            sql = result.sql
+            if llm_provider == "openai":
+                response_text, data_table, chart_config, sql = self._call_openai(
+                    messages, tools, config_yaml
+                )
+            elif llm_provider == "anthropic":
+                response_text, data_table, chart_config, sql = self._call_anthropic(
+                    messages, tools, config_yaml
+                )
+            elif llm_provider == "deepseek":
+                response_text, data_table, chart_config, sql = self._call_deepseek(
+                    messages, tools, config_yaml
+                )
+            else:
+                raise ValueError(f"Unsupported LLM provider: {llm_provider}")
 
         except Exception as e:
             response_text = f"抱歉，处理您的请求时出错：{str(e)}"
@@ -620,13 +710,14 @@ limit: 20
             chart_config = None
             sql = None
 
+        # Save messages
         self._save_messages(session_id, user_message, response_text, chart_config=chart_config)
 
         return {
             "message": response_text,
             "data_table": data_table,
             "chart_config": chart_config,
-            "sql": sql,
+            "sql": sql
         }
 
     def _call_openai_compatible(

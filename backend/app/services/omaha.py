@@ -101,8 +101,6 @@ class OmahaService:
 
         Returns (config, ontology, obj_def, error_response).
         """
-        if config_yaml is None and object_type is not None and self.config_yaml is not None:
-            pass
         config_yaml = config_yaml or self.config_yaml
         if not config_yaml:
             return None, None, None, {"success": False, "error": "No configuration provided"}

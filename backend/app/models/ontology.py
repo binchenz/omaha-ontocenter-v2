@@ -41,7 +41,7 @@ class ObjectProperty(Base):
     __tablename__ = "object_properties"
 
     id = Column(Integer, primary_key=True, index=True)
-    object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False)
+    object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     data_type = Column(String, nullable=False)
     semantic_type = Column(String(50))
@@ -78,7 +78,7 @@ class HealthRule(Base):
     __tablename__ = "health_rules"
 
     id = Column(Integer, primary_key=True, index=True)
-    object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False)
+    object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False, index=True)
     metric = Column(String, nullable=False)
     expression = Column(Text, nullable=False)
     warning_threshold = Column(String)
@@ -92,7 +92,7 @@ class BusinessGoal(Base):
     __tablename__ = "business_goals"
 
     id = Column(Integer, primary_key=True, index=True)
-    object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False)
+    object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     metric = Column(String, nullable=False)
     target = Column(String, nullable=False)
@@ -105,7 +105,7 @@ class DomainKnowledge(Base):
     __tablename__ = "domain_knowledge"
 
     id = Column(Integer, primary_key=True, index=True)
-    object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False)
+    object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False, index=True)
     content = Column(Text, nullable=False)
     source = Column(String(20), default="template")
 

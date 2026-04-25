@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload, joinedload
 from app.models.ontology import (
     OntologyObject,
     ObjectProperty,
@@ -13,20 +13,22 @@ class OntologyStore:
     def __init__(self, db: Session):
         self.db = db
 
+    def _persist(self, obj):
+        self.db.add(obj)
+        self.db.flush()
+        self.db.refresh(obj)
+        return obj
+
     def create_object(self, tenant_id: int, name: str, source_entity: str,
                       datasource_id: str, datasource_type: str,
                       description: str = None, business_context: str = None,
                       domain: str = None, default_filters: list = None) -> OntologyObject:
-        obj = OntologyObject(
+        return self._persist(OntologyObject(
             tenant_id=tenant_id, name=name, source_entity=source_entity,
             datasource_id=datasource_id, datasource_type=datasource_type,
             description=description, business_context=business_context,
             domain=domain, default_filters=default_filters or [],
-        )
-        self.db.add(obj)
-        self.db.commit()
-        self.db.refresh(obj)
-        return obj
+        ))
 
     def get_object(self, tenant_id: int, name: str) -> OntologyObject | None:
         return (
@@ -47,74 +49,63 @@ class OntologyStore:
         if not obj:
             return False
         self.db.delete(obj)
-        self.db.commit()
+        self.db.flush()
         return True
 
     def add_property(self, object_id: int, name: str, data_type: str,
                      semantic_type: str = None, description: str = None,
                      is_computed: bool = False, expression: str = None) -> ObjectProperty:
-        prop = ObjectProperty(
+        return self._persist(ObjectProperty(
             object_id=object_id, name=name, data_type=data_type,
             semantic_type=semantic_type, description=description,
             is_computed=is_computed, expression=expression,
-        )
-        self.db.add(prop)
-        self.db.commit()
-        self.db.refresh(prop)
-        return prop
+        ))
 
     def add_health_rule(self, object_id: int, metric: str, expression: str,
                         warning_threshold: str = None, critical_threshold: str = None,
                         advice: str = None) -> HealthRule:
-        rule = HealthRule(
+        return self._persist(HealthRule(
             object_id=object_id, metric=metric, expression=expression,
             warning_threshold=warning_threshold, critical_threshold=critical_threshold,
             advice=advice,
-        )
-        self.db.add(rule)
-        self.db.commit()
-        self.db.refresh(rule)
-        return rule
+        ))
 
     def add_relationship(self, tenant_id: int, name: str, from_object_id: int,
                          to_object_id: int, relationship_type: str,
                          from_field: str, to_field: str,
                          description: str = None) -> OntologyRelationship:
-        rel = OntologyRelationship(
+        return self._persist(OntologyRelationship(
             tenant_id=tenant_id, name=name, description=description,
             from_object_id=from_object_id, to_object_id=to_object_id,
             relationship_type=relationship_type,
             from_field=from_field, to_field=to_field,
-        )
-        self.db.add(rel)
-        self.db.commit()
-        self.db.refresh(rel)
-        return rel
+        ))
 
     def add_business_goal(self, object_id: int, name: str, metric: str,
                           target: str, period: str = None) -> BusinessGoal:
-        goal = BusinessGoal(
+        return self._persist(BusinessGoal(
             object_id=object_id, name=name, metric=metric,
             target=target, period=period,
-        )
-        self.db.add(goal)
-        self.db.commit()
-        self.db.refresh(goal)
-        return goal
+        ))
 
     def add_domain_knowledge(self, object_id: int, content: str,
                              source: str = "template") -> DomainKnowledge:
-        dk = DomainKnowledge(
+        return self._persist(DomainKnowledge(
             object_id=object_id, content=content, source=source,
-        )
-        self.db.add(dk)
-        self.db.commit()
-        self.db.refresh(dk)
-        return dk
+        ))
 
     def get_full_ontology(self, tenant_id: int) -> dict:
-        """Build complete ontology dict for Agent context injection."""
-        objects = self.list_objects(tenant_id)
+        objects = (
+            self.db.query(OntologyObject)
+            .filter(OntologyObject.tenant_id == tenant_id)
+            .options(
+                selectinload(OntologyObject.properties),
+                selectinload(OntologyObject.health_rules),
+                selectinload(OntologyObject.business_goals),
+                selectinload(OntologyObject.domain_knowledge_items),
+            )
+            .all()
+        )
         result = []
         for obj in objects:
             result.append({
@@ -144,6 +135,10 @@ class OntologyStore:
         rels = (
             self.db.query(OntologyRelationship)
             .filter(OntologyRelationship.tenant_id == tenant_id)
+            .options(
+                joinedload(OntologyRelationship.from_object),
+                joinedload(OntologyRelationship.to_object),
+            )
             .all()
         )
         relationships = [
