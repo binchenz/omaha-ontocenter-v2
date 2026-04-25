@@ -4,6 +4,10 @@
 
 让用户连接SQL数据源后，系统自动扫描表结构、AI推断业务含义、生成ontology到数据库。用户只需确认和微调，不需要手写YAML。
 
+**范围：** 本阶段纯后端API，不含前端UI。通过Swagger（/docs）测试。前端Onboarding向导在后续Phase实现。
+
+**重复建模：** 支持upsert语义 — confirm时，同名对象更新属性，新表创建新对象。用户可以反复跑auto-modeling而不用手动清理。
+
 ## 2. 用户流程
 
 ```
@@ -241,10 +245,10 @@ POST /api/v1/ontology-store/{project_id}/confirm
         "relationships": [用户确认/修改后的关系列表]
     }
 }
-响应: { "objects_created": 2, "relationships_created": 1 }
+响应: { "objects_created": 2, "objects_updated": 1, "relationships_created": 1 }
 ```
 
-内部调用 `OntologyImporter.import_dict()` — 从现有 `import_yaml()` 提取的共享逻辑。
+内部调用 `OntologyImporter.import_dict()` — 从现有 `import_yaml()` 提取的共享逻辑。支持upsert：同名对象先删除再重建（cascade删除子表数据），新对象直接创建。
 
 ## 7. OntologyImporter重构
 
