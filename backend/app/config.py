@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     # Tushare
     TUSHARE_TOKEN: Optional[str] = None
 
+    # Inference
+    INFER_LLM_PROVIDER: str = "deepseek"
+    INFER_MAX_RETRIES: int = 1
+    INFER_TIMEOUT: int = 30
+    INFER_SAMPLE_ROWS: int = 500
+    INFER_DISTINCT_LIMIT: int = 20
+
     model_config = SettingsConfigDict(env_file="../.env", case_sensitive=True)
 
 

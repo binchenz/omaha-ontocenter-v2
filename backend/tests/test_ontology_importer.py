@@ -142,3 +142,91 @@ ontology:
     store = OntologyStore(db_session)
     stock = store.get_object(tenant_id=tenant.id, name="Stock")
     assert stock.source_entity == "stock_basic"
+
+
+def test_import_dict(db_session, tenant):
+    importer = OntologyImporter(db_session)
+    config = {
+        "datasources": [{"id": "db1", "type": "sql"}],
+        "ontology": {
+            "objects": [
+                {
+                    "name": "Product",
+                    "datasource": "db1",
+                    "source_entity": "t_product",
+                    "properties": [
+                        {"name": "id", "type": "integer"},
+                        {"name": "price", "type": "float", "semantic_type": "currency_cny"},
+                    ],
+                }
+            ],
+            "relationships": [],
+        },
+    }
+    result = importer.import_dict(tenant_id=tenant.id, config=config)
+    assert result["objects_created"] == 1
+
+
+def test_import_dict_upsert(db_session, tenant):
+    importer = OntologyImporter(db_session)
+    config = {
+        "datasources": [{"id": "db1", "type": "sql"}],
+        "ontology": {
+            "objects": [
+                {
+                    "name": "Product",
+                    "datasource": "db1",
+                    "source_entity": "t_product",
+                    "properties": [{"name": "id", "type": "integer"}],
+                }
+            ],
+            "relationships": [],
+        },
+    }
+    importer.import_dict(tenant_id=tenant.id, config=config)
+
+    config_v2 = {
+        "datasources": [{"id": "db1", "type": "sql"}],
+        "ontology": {
+            "objects": [
+                {
+                    "name": "Product",
+                    "datasource": "db1",
+                    "source_entity": "t_product",
+                    "properties": [
+                        {"name": "id", "type": "integer"},
+                        {"name": "price", "type": "float"},
+                        {"name": "name", "type": "string"},
+                    ],
+                }
+            ],
+            "relationships": [],
+        },
+    }
+    result = importer.import_dict(tenant_id=tenant.id, config=config_v2)
+    assert result["objects_updated"] == 1
+    assert result["objects_created"] == 0
+
+    store = OntologyStore(db_session)
+    product = store.get_object(tenant.id, "Product")
+    assert len(product.properties) == 3
+
+
+def test_import_yaml_calls_import_dict(db_session, tenant):
+    importer = OntologyImporter(db_session)
+    yaml_content = """
+datasources:
+  - id: db1
+    type: sql
+ontology:
+  objects:
+    - name: Item
+      datasource: db1
+      source_entity: t_item
+      properties:
+        - name: id
+          type: integer
+  relationships: []
+"""
+    result = importer.import_yaml(tenant_id=tenant.id, yaml_content=yaml_content)
+    assert result["objects_created"] == 1
