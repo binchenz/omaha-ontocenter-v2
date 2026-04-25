@@ -67,7 +67,7 @@ def agent_chat(
     ontology_context = store.get_full_ontology(tenant_id)
 
     omaha_service = OmahaService(project.omaha_config or "")
-    toolkit = AgentToolkit(omaha_service=omaha_service)
+    toolkit = AgentToolkit(omaha_service=omaha_service, ontology_context=ontology_context)
 
     agent = AgentService(
         ontology_context=ontology_context,

@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Any, Dict
 
 
 class AgentToolkit:
-    def __init__(self, omaha_service):
+    def __init__(self, omaha_service, ontology_context: Dict = None):
         self.omaha_service = omaha_service
+        self.ontology_context = ontology_context or {}
         self._tools = {
             "query_data": self._query_data,
             "list_objects": self._list_objects,
@@ -66,14 +67,14 @@ class AgentToolkit:
         )
 
     def _list_objects(self, params: dict) -> dict:
-        ontology = self.omaha_service.build_ontology()
-        return {"success": True, "objects": ontology.get("objects", [])}
+        return {"success": True, "objects": self.ontology_context.get("objects", [])}
 
     def _get_schema(self, params: dict) -> dict:
-        schema = self.omaha_service.get_object_schema(params["object_type"])
-        if schema:
-            return {"success": True, "schema": schema}
-        return {"success": False, "error": f"Object '{params['object_type']}' not found"}
+        obj_name = params["object_type"]
+        for obj in self.ontology_context.get("objects", []):
+            if obj["name"] == obj_name:
+                return {"success": True, "schema": obj}
+        return {"success": False, "error": f"Object '{obj_name}' not found"}
 
     def _generate_chart(self, params: dict) -> dict:
         data = params.get("data", [])
