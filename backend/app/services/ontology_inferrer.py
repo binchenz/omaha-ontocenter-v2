@@ -103,7 +103,7 @@ class OntologyInferrer:
         except Exception:
             return [TableClassification(name=t.name) for t in tables]
 
-    def infer_table(self, table: TableSummary, datasource_id: str) -> Optional[InferredObject]:
+    def infer_table(self, table: TableSummary, datasource_id: str, template_hint: dict | None = None) -> Optional[InferredObject]:
         columns_text = "\n".join(
             f"- {c['name']} ({c['type']}) 样本值: {table.sample_values.get(c['name'], [])[:10]}"
             for c in table.columns
@@ -114,6 +114,14 @@ class OntologyInferrer:
             columns_text=columns_text,
             semantic_types=", ".join(SEMANTIC_TYPES),
         )
+        if template_hint:
+            hint_json = json.dumps(template_hint, ensure_ascii=False)
+            prompt += (
+                f"\n\n参考的行业模板（如适用）：\n{hint_json}\n"
+                "如果某张表的字段和模板中的某个对象高度相似（字段名重叠 50% 以上），"
+                "请在输出 JSON 的 name 字段使用模板中的对象名。"
+                "如果不匹配，按你的最佳判断推断。"
+            )
         for attempt in range(settings.INFER_MAX_RETRIES + 1):
             try:
                 raw = self._call_llm(prompt)
@@ -149,3 +157,46 @@ class OntologyInferrer:
                         ))
                         break
         return relationships
+
+
+def compact_template(template: dict) -> dict:
+    """Reduce a template to the minimal hint passed to the LLM.
+
+    Strip semantic_types so the LLM focuses on object/field NAME mapping.
+    Code-layer back-fills semantic types after inference.
+    """
+    return {
+        "objects": [
+            {
+                "name": obj["name"],
+                "description": obj.get("description", ""),
+                "field_names": [p["name"] for p in obj.get("properties", [])],
+            }
+            for obj in template.get("objects", [])
+        ],
+        "relationships": template.get("relationships", []),
+    }
+
+
+def merge_template_semantic_types(inferred, template):
+    """Back-fill semantic_types on inferred objects from the template.
+
+    Match logic:
+    - If inferred.name == template.object.name, walk inferred properties
+    - For each inferred property, look up same-named property in template
+    - If template has a semantic_type for that name, overwrite inferred one
+    - Otherwise leave inferred value alone
+    """
+    template_map = {
+        obj["name"]: {p["name"]: p.get("semantic_type") for p in obj.get("properties", [])}
+        for obj in template.get("objects", [])
+    }
+    for obj in inferred:
+        prop_map = template_map.get(obj.name)
+        if not prop_map:
+            continue
+        for prop in obj.properties:
+            tmpl_st = prop_map.get(prop.name)
+            if tmpl_st:
+                prop.semantic_type = tmpl_st
+    return inferred
