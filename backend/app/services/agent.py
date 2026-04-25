@@ -10,7 +10,30 @@ except ImportError:
     openai = None
 
 
+ONBOARDING_PROMPTS = {
+    "idle": """## 当前状态：新用户引导
+用户刚创建项目，还没有接入数据。你的任务是引导用户完成数据接入。
+1. 先问用户是什么行业的
+2. 再问用什么方式管理数据（Excel/数据库/SaaS软件）
+3. 引导用户上传文件或填写连接信息
+用业务语言，不要用技术术语。""",
+
+    "connecting": """## 当前状态：数据接入中
+用户正在接入数据源。如果上传了文件，自动调用 assess_quality 评估数据质量。""",
+
+    "cleaning": """## 当前状态：数据清洗中
+数据已接入，正在清洗。展示质量问题，引导用户确认清洗方案。""",
+
+    "modeling": """## 当前状态：语义建模中
+数据已清洗，正在构建本体。引导用户确认业务对象和字段含义。""",
+
+    "ready": """## 当前状态：就绪
+数据已就绪，用户可以自由提问。主动给出示例问题帮助用户开始。""",
+}
+
 SYSTEM_PROMPT_TEMPLATE = """你是一个企业数据分析助手。你可以帮助用户查询和分析业务数据。
+
+{onboarding_context}
 
 ## 可用的业务对象
 
@@ -57,12 +80,14 @@ class AgentService:
         self._client = None
         self._model = None
 
-    def build_system_prompt(self) -> str:
+    def build_system_prompt(self, setup_stage: str = "ready") -> str:
         objects_ctx = self._format_objects()
         health_ctx = self._format_health_rules()
         goals_ctx = self._format_goals()
         knowledge_ctx = self._format_knowledge()
         tools_ctx = self._format_tools()
+
+        onboarding_ctx = self._format_onboarding(setup_stage)
 
         return SYSTEM_PROMPT_TEMPLATE.format(
             objects_context=objects_ctx,
@@ -70,6 +95,7 @@ class AgentService:
             goals_context=goals_ctx,
             knowledge_context=knowledge_ctx,
             tools_context=tools_ctx,
+            onboarding_context=onboarding_ctx,
         )
 
     def _format_objects(self) -> str:
@@ -124,6 +150,9 @@ class AgentService:
                     lines.append(f"- {pname}: {pdef.get('description', '')}{req}")
             lines.append("")
         return "\n".join(lines)
+
+    def _format_onboarding(self, setup_stage: str) -> str:
+        return ONBOARDING_PROMPTS.get(setup_stage, ONBOARDING_PROMPTS["ready"])
 
     def format_tool_result(self, tool_name: str, result: dict) -> str:
         if not result.get("success"):

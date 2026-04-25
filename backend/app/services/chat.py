@@ -33,6 +33,7 @@ from app.services.omaha import OmahaService
 from app.services.semantic import semantic_service
 from app.services.chart_engine import ChartEngine
 from app.services.ontology_store import OntologyStore
+from app.services.agent import ONBOARDING_PROMPTS
 
 
 def _json_dumps(obj: Any) -> str:
@@ -677,7 +678,9 @@ limit: 20
 
         # Build system prompt
         ontology_ctx = self._build_ontology_context(config_yaml)
-        system_prompt = self.SYSTEM_TEMPLATE.format(ontology=ontology_ctx)
+        setup_stage = getattr(self.project, "setup_stage", None) or "idle"
+        onboarding_ctx = ONBOARDING_PROMPTS.get(setup_stage, ONBOARDING_PROMPTS["ready"])
+        system_prompt = onboarding_ctx + "\n\n" + self.SYSTEM_TEMPLATE.format(ontology=ontology_ctx)
 
         # Get tool schemas
         tools = self._get_tool_schemas()
