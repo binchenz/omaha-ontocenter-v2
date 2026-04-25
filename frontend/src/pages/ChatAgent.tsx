@@ -76,10 +76,12 @@ export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
         })
       )
     );
-    const uploaded = results.filter((r): r is { success: boolean; file_path: string; filename: string } => !!r?.success);
+    const uploaded = results.filter((r) => r != null && r.success);
     if (uploaded.length > 0) {
-      const names = uploaded.map((r) => r.filename).join('、');
-      await handleSend(`我上传了文件：${names}`);
+      const summary = uploaded
+        .map((r) => `${r!.filename}${r!.row_count ? `（${r!.row_count} 行）` : ''}`)
+        .join('、');
+      await handleSend(`我上传了文件：${summary}。请帮我评估一下数据质量。`);
     }
   }, [projectId, sessionId, handleSend]);
 

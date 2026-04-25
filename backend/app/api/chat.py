@@ -124,7 +124,11 @@ async def upload_file_in_chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Upload a file within a chat session."""
+    """Upload a file within a chat session, persist it, and return a quality report."""
+    import pandas as pd
+    from app.services.data_cleaner import DataCleaner
+    from app.services.uploaded_table_store import UploadedTableStore
+
     get_project_for_owner(project_id, current_user, db)
 
     safe_name = Path(file.filename or "upload.bin").name
@@ -134,4 +138,32 @@ async def upload_file_in_chat(
     content = await file.read()
     file_path.write_bytes(content)
 
-    return {"success": True, "file_path": str(file_path), "filename": safe_name}
+    table_name = Path(safe_name).stem
+    try:
+        if safe_name.lower().endswith((".xlsx", ".xls")):
+            df = pd.read_excel(file_path)
+        else:
+            df = pd.read_csv(file_path)
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"无法解析文件: {e}",
+            "file_path": str(file_path),
+            "filename": safe_name,
+        }
+
+    UploadedTableStore.save(project_id, session_id, table_name, df)
+
+    tables = UploadedTableStore.load_all(project_id, session_id)
+    quality_report = DataCleaner.assess(tables).to_dict()
+
+    return {
+        "success": True,
+        "file_path": str(file_path),
+        "filename": safe_name,
+        "table_name": table_name,
+        "row_count": len(df),
+        "column_count": len(df.columns),
+        "columns": [{"name": c, "type": str(df[c].dtype)} for c in df.columns],
+        "quality_report": quality_report,
+    }

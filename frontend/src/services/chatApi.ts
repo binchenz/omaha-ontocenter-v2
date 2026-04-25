@@ -37,7 +37,17 @@ export const chatApi = {
     projectId: number,
     sessionId: number,
     file: File
-  ): Promise<{ success: boolean; file_path: string; filename: string }> {
+  ): Promise<{
+    success: boolean;
+    file_path: string;
+    filename: string;
+    table_name?: string;
+    row_count?: number;
+    column_count?: number;
+    columns?: { name: string; type: string }[];
+    quality_report?: { score: number; issues: any[] };
+    error?: string;
+  }> {
     const formData = new FormData();
     formData.append('file', file);
     const response = await api.post(
