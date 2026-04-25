@@ -5,11 +5,15 @@ class AgentToolkit:
     def __init__(self, omaha_service, ontology_context: Dict = None):
         self.omaha_service = omaha_service
         self.ontology_context = ontology_context or {}
+        self._uploaded_tables: Dict = {}
         self._tools = {
             "query_data": self._query_data,
             "list_objects": self._list_objects,
             "get_schema": self._get_schema,
             "generate_chart": self._generate_chart,
+            "upload_file": self._upload_file,
+            "assess_quality": self._assess_quality,
+            "clean_data": self._clean_data,
         }
 
     def get_tool_definitions(self) -> list[dict]:
@@ -45,6 +49,26 @@ class AgentToolkit:
                     "title": {"type": "string", "description": "Chart title", "required": False},
                     "x_field": {"type": "string", "description": "Field name for X axis", "required": True},
                     "y_field": {"type": "string", "description": "Field name for Y axis / values", "required": True},
+                },
+            },
+            {
+                "name": "upload_file",
+                "description": "用户上传了文件后调用此工具，解析 Excel/CSV 文件并存入平台。不要主动调用，等用户上传文件后系统会自动触发。",
+                "parameters": {
+                    "file_path": {"type": "string", "description": "上传文件的服务器路径", "required": True},
+                    "table_name": {"type": "string", "description": "存储的表名", "required": True},
+                },
+            },
+            {
+                "name": "assess_quality",
+                "description": "评估已上传数据的质量，返回质量评分和问题清单。在用户上传文件后自动调用。",
+                "parameters": {},
+            },
+            {
+                "name": "clean_data",
+                "description": "对已上传的数据执行清洗操作。rules 可选值：duplicate_rows, strip_whitespace, standardize_dates",
+                "parameters": {
+                    "rules": {"type": "array", "description": "要执行的清洗规则列表", "required": True},
                 },
             },
         ]
@@ -104,3 +128,42 @@ class AgentToolkit:
                 "series": [{"type": chart_type, "data": [row.get(y_field, 0) for row in data]}],
             }
         return {"success": True, "chart_config": chart_config}
+
+    def _upload_file(self, params: dict) -> dict:
+        import pandas as pd
+        file_path = params["file_path"]
+        table_name = params["table_name"]
+        try:
+            if file_path.endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(file_path)
+            else:
+                df = pd.read_csv(file_path)
+            self._uploaded_tables[table_name] = df
+            return {
+                "success": True,
+                "data": {
+                    "table_name": table_name,
+                    "row_count": len(df),
+                    "column_count": len(df.columns),
+                    "columns": [{"name": c, "type": str(df[c].dtype)} for c in df.columns],
+                }
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _assess_quality(self, params: dict) -> dict:
+        from app.services.data_cleaner import DataCleaner
+        if not self._uploaded_tables:
+            return {"success": False, "error": "没有已上传的数据，请先上传文件"}
+        report = DataCleaner.assess(self._uploaded_tables)
+        return {"success": True, "data": report.to_dict()}
+
+    def _clean_data(self, params: dict) -> dict:
+        from app.services.data_cleaner import DataCleaner
+        if not self._uploaded_tables:
+            return {"success": False, "error": "没有已上传的数据"}
+        rules = params.get("rules", [])
+        cleaned = DataCleaner.clean(self._uploaded_tables, auto_rules=rules)
+        summary = {f"{name}_cleaned": len(df) for name, df in cleaned.items()}
+        self._uploaded_tables = cleaned
+        return {"success": True, "data": summary}

@@ -5,6 +5,8 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+from app.schemas.structured_response import StructuredItem
+
 
 class ChatSessionCreate(BaseModel):
     """Schema for creating a chat session."""
@@ -55,3 +57,5 @@ class SendMessageResponse(BaseModel):
     data_table: Optional[List[Dict[str, Any]]] = None
     chart_config: Optional[Dict[str, Any]] = None
     sql: Optional[str] = None
+    structured: Optional[List[StructuredItem]] = None
+    setup_stage: Optional[str] = None

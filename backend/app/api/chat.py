@@ -2,7 +2,8 @@
 Chat API endpoints.
 """
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -113,3 +114,24 @@ def delete_chat_session(
     db.commit()
 
     return {"message": "Session deleted"}
+
+
+@router.post("/chat/{project_id}/sessions/{session_id}/upload")
+async def upload_file_in_chat(
+    project_id: int,
+    session_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a file within a chat session."""
+    get_project_for_owner(project_id, current_user, db)
+
+    safe_name = Path(file.filename or "upload.bin").name
+    upload_dir = (Path("data/uploads") / str(project_id)).resolve()
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = upload_dir / safe_name
+    content = await file.read()
+    file_path.write_bytes(content)
+
+    return {"success": True, "file_path": str(file_path), "filename": safe_name}

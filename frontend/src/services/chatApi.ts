@@ -32,4 +32,19 @@ export const chatApi = {
   async deleteSession(projectId: number, sessionId: number): Promise<void> {
     await api.delete(`/chat/${projectId}/sessions/${sessionId}`);
   },
+
+  async uploadFile(
+    projectId: number,
+    sessionId: number,
+    file: File
+  ): Promise<{ success: boolean; file_path: string; filename: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(
+      `/chat/${projectId}/sessions/${sessionId}/upload`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
 };

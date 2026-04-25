@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { chatApi } from '@/services/chatApi';
@@ -30,10 +30,10 @@ export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
     setError(null);
   }, [sessionId]);
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const userMessage = input.trim();
-    setInput('');
+  const handleSend = useCallback(async (overrideMessage?: string) => {
+    const userMessage = overrideMessage ?? input.trim();
+    if (!userMessage || loading) return;
+    if (!overrideMessage) setInput('');
     setLoading(true);
     setError(null);
 
@@ -50,6 +50,7 @@ export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
         id: Date.now() + 1, session_id: sessionId, role: 'assistant',
         content: response.message, tool_calls: null,
         chart_config: response.chart_config ? JSON.stringify(response.chart_config) : null,
+        structured: response.structured,
         created_at: new Date().toISOString(),
       };
       setMessages(prev => [...prev, assistantMsg]);
@@ -59,7 +60,28 @@ export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [input, loading, projectId, sessionId]);
+
+  const handleOptionSelect = useCallback(async (value: string) => {
+    await handleSend(value);
+  }, [handleSend]);
+
+  const handleFileUpload = useCallback(async (files: FileList) => {
+    if (!sessionId) return;
+    const results = await Promise.all(
+      Array.from(files).map((file) =>
+        chatApi.uploadFile(projectId, sessionId, file).catch((err) => {
+          console.error('Upload failed:', err);
+          return null;
+        })
+      )
+    );
+    const uploaded = results.filter((r): r is { success: boolean; file_path: string; filename: string } => !!r?.success);
+    if (uploaded.length > 0) {
+      const names = uploaded.map((r) => r.filename).join('、');
+      await handleSend(`我上传了文件：${names}`);
+    }
+  }, [projectId, sessionId, handleSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -75,7 +97,12 @@ export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
           <p className="text-slate-500 text-sm text-center mt-8">输入消息开始对话</p>
         )}
         {messages.map(msg => (
-          <ChatMessage key={msg.id} message={msg} />
+          <ChatMessage
+            key={msg.id}
+            message={msg}
+            onOptionSelect={handleOptionSelect}
+            onFileUpload={handleFileUpload}
+          />
         ))}
         {loading && (
           <div className="flex justify-center mt-2">
@@ -121,11 +148,10 @@ export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
           rows={1}
           className="flex-1 resize-none rounded-md border border-white/10 bg-background px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
         />
-        <Button onClick={handleSend} disabled={loading || !input.trim()} className="bg-primary hover:bg-primary/90 shrink-0">
+        <Button onClick={() => handleSend()} disabled={loading || !input.trim()} className="bg-primary hover:bg-primary/90 shrink-0">
           <Send size={16} />
         </Button>
       </div>
     </div>
   );
 };
-
