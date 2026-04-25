@@ -1,10 +1,18 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class AgentToolkit:
-    def __init__(self, omaha_service, ontology_context: Dict = None):
+    def __init__(
+        self,
+        omaha_service,
+        ontology_context: Dict = None,
+        project_id: Optional[int] = None,
+        session_id: Optional[int] = None,
+    ):
         self.omaha_service = omaha_service
         self.ontology_context = ontology_context or {}
+        self.project_id = project_id
+        self.session_id = session_id
         self._uploaded_tables: Dict = {}
         self._tools = {
             "query_data": self._query_data,
@@ -129,6 +137,19 @@ class AgentToolkit:
             }
         return {"success": True, "chart_config": chart_config}
 
+    def _load_tables(self) -> Dict:
+        if self.project_id is not None and self.session_id is not None:
+            from app.services.uploaded_table_store import UploadedTableStore
+            return UploadedTableStore.load_all(self.project_id, self.session_id)
+        return self._uploaded_tables
+
+    def _persist_tables(self, tables: Dict) -> None:
+        if self.project_id is not None and self.session_id is not None:
+            from app.services.uploaded_table_store import UploadedTableStore
+            UploadedTableStore.replace_all(self.project_id, self.session_id, tables)
+        else:
+            self._uploaded_tables = tables
+
     def _upload_file(self, params: dict) -> dict:
         import pandas as pd
         file_path = params["file_path"]
@@ -138,7 +159,9 @@ class AgentToolkit:
                 df = pd.read_excel(file_path)
             else:
                 df = pd.read_csv(file_path)
-            self._uploaded_tables[table_name] = df
+            tables = self._load_tables()
+            tables[table_name] = df
+            self._persist_tables(tables)
             return {
                 "success": True,
                 "data": {
@@ -153,17 +176,19 @@ class AgentToolkit:
 
     def _assess_quality(self, params: dict) -> dict:
         from app.services.data_cleaner import DataCleaner
-        if not self._uploaded_tables:
+        tables = self._load_tables()
+        if not tables:
             return {"success": False, "error": "没有已上传的数据，请先上传文件"}
-        report = DataCleaner.assess(self._uploaded_tables)
+        report = DataCleaner.assess(tables)
         return {"success": True, "data": report.to_dict()}
 
     def _clean_data(self, params: dict) -> dict:
         from app.services.data_cleaner import DataCleaner
-        if not self._uploaded_tables:
+        tables = self._load_tables()
+        if not tables:
             return {"success": False, "error": "没有已上传的数据"}
         rules = params.get("rules", [])
-        cleaned = DataCleaner.clean(self._uploaded_tables, auto_rules=rules)
+        cleaned = DataCleaner.clean(tables, auto_rules=rules)
         summary = {f"{name}_cleaned": len(df) for name, df in cleaned.items()}
-        self._uploaded_tables = cleaned
+        self._persist_tables(cleaned)
         return {"success": True, "data": summary}

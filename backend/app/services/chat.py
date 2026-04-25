@@ -69,6 +69,25 @@ class ChatService:
 - 如果查询结果为空或不符合预期，直接告知用户，不要编造数据
 - 用户上传文件后，自动调用 assess_quality 评估数据质量并展示结果
 
+## 结构化富组件输出
+
+当你需要让用户从几个选项里选择，或展示结构化报告时，可以在回复中嵌入 ```structured ... ``` 代码块（JSON 格式），前端会渲染成卡片。
+
+**给用户提供选项时（如选择行业）：**
+```structured
+{{"type": "options", "content": "你们公司是做什么行业的？", "options": [{{"label": "零售/电商", "value": "retail"}}, {{"label": "制造业", "value": "manufacturing"}}, {{"label": "贸易", "value": "trade"}}, {{"label": "餐饮/服务", "value": "service"}}]}}
+```
+
+**展示数据质量报告时（assess_quality 工具返回后）：**
+```structured
+{{"type": "panel", "panel_type": "quality_report", "content": "数据质量报告", "data": {{"score": 67, "issues": [...]}}}}
+```
+
+注意：
+- `data` 直接复制 assess_quality 工具返回的 data 内容
+- structured 块外可以有自然语言文字解释，但选项/面板本身用块包裹
+- 不要在 structured 块里重复同样的选项文字（避免冗余）
+
 ## 工作流工具（按使用阶段）
 
 **接入阶段**
@@ -393,6 +412,36 @@ class ChatService:
                         "required": ["asset_id"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "assess_quality",
+                    "description": "评估当前会话已上传数据的质量。返回质量评分（0-100）和问题清单（重复行、缺失值、格式不一致等）。用户上传文件后应自动调用此工具。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "clean_data",
+                    "description": "对当前会话已上传的数据执行清洗。rules 必填，可选值：duplicate_rows（去重）、strip_whitespace（去空格）、standardize_dates（统一日期格式）",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "rules": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "要执行的清洗规则列表"
+                            }
+                        },
+                        "required": ["rules"]
+                    }
+                }
             }
         ]
 
@@ -471,6 +520,15 @@ class ChatService:
             elif tool_name == "get_lineage":
                 # This would call the assets API internally
                 return {"lineage": []}
+
+            elif tool_name in ("assess_quality", "clean_data"):
+                from app.services.agent_tools import AgentToolkit
+                toolkit = AgentToolkit(
+                    omaha_service=None,
+                    project_id=self.project_id,
+                    session_id=getattr(self, "_current_session_id", None),
+                )
+                return toolkit.execute_tool(tool_name, tool_args)
 
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
@@ -628,6 +686,7 @@ class ChatService:
 
         Supports OpenAI, Anthropic (Claude), and DeepSeek.
         """
+        self._current_session_id = session_id
         # Load history
         history = self._load_history(session_id, limit=20)
 
@@ -672,13 +731,39 @@ class ChatService:
         # Save messages
         self._save_messages(session_id, user_message, response_text, chart_config=chart_config)
 
+        clean_message, structured = self._extract_structured(response_text)
+
         return {
-            "message": response_text,
+            "message": clean_message,
             "data_table": data_table,
             "chart_config": chart_config,
             "sql": sql,
             "setup_stage": setup_stage,
+            "structured": structured,
         }
+
+    @staticmethod
+    def _extract_structured(message: str) -> tuple[str, list[dict] | None]:
+        """Extract ```structured ...``` JSON blocks from the message.
+
+        Returns (cleaned_message, structured_items or None).
+        """
+        import re
+
+        pattern = re.compile(r"```structured\s*\n(.*?)\n```", re.DOTALL)
+        items: list[dict] = []
+        for match in pattern.finditer(message):
+            try:
+                payload = json.loads(match.group(1))
+            except (ValueError, TypeError):
+                continue
+            if isinstance(payload, list):
+                items.extend(p for p in payload if isinstance(p, dict))
+            elif isinstance(payload, dict):
+                items.append(payload)
+
+        cleaned = pattern.sub("", message).strip()
+        return cleaned, items or None
 
     def _call_openai_compatible(
         self,

@@ -69,11 +69,13 @@ def test_get_tool_schemas():
     service = ChatService(project_id=1, db=Mock())
     tools = service._get_tool_schemas()
 
-    assert len(tools) == 8
+    assert len(tools) == 10
     tool_names = [t["function"]["name"] for t in tools]
     assert "list_objects" in tool_names
     assert "get_schema" in tool_names
     assert "query_data" in tool_names
+    assert "assess_quality" in tool_names
+    assert "clean_data" in tool_names
 
 
 @patch('app.services.chat.openai')
