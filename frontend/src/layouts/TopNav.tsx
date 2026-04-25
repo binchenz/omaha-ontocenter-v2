@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NAV_MODULES } from './navConfig';
 import ProjectSwitcher from '@/components/Layout/ProjectSwitcher';
@@ -6,15 +7,12 @@ export default function TopNav() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const activeModule = NAV_MODULES.find((m) =>
-    location.pathname.startsWith(m.basePath)
+  const activeModule = useMemo(
+    () => NAV_MODULES.find((m) => location.pathname.startsWith(m.basePath)),
+    [location.pathname]
   );
 
   return (
-    <div>
-      <div style={{background:'red',color:'white',padding:'4px 10px',fontSize:'12px',textAlign:'center'}}>
-        DEBUG: New Layout v2 - TopNav active
-      </div>
       <header className="h-12 bg-gray-900 border-b border-gray-800 flex items-center px-4 shrink-0">
         <div
           className="text-white font-semibold text-sm mr-8 cursor-pointer"
@@ -46,6 +44,5 @@ export default function TopNav() {
           <ProjectSwitcher />
         </div>
       </header>
-    </div>
   );
 }

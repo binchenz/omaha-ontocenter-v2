@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Explorer from './pages/Explorer';
@@ -24,19 +24,9 @@ import PipelinesPage from './pages/v2/PipelinesPage';
 import ApiKeysPage from './pages/v2/ApiKeysPage';
 import AuditPage from './pages/v2/AuditPage';
 
-const PathDebug: React.FC = () => {
-  const location = useLocation();
-  return (
-    <div style={{position:'fixed',top:0,right:0,zIndex:99999,background:'blue',color:'white',padding:'8px 12px',fontSize:'12px',fontWeight:'bold'}}>
-      Path: {location.pathname}
-    </div>
-  );
-};
-
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <PathDebug />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

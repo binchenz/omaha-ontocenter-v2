@@ -1,10 +1,5 @@
 import api from './api';
-
-export interface ColumnInfo {
-  name: string;
-  type: string;
-  nullable: boolean;
-}
+import type { ColumnInfo } from './datasource';
 
 export interface TableSummary {
   name: string;

@@ -1,16 +1,28 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { CheckCircle, Loader2, Database, Brain, Save } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
-import { modelingService, TableSummary, InferredObject, InferredRelationship } from '@/services/modeling';
+import { modelingService, InferredObject, InferredRelationship } from '@/services/modeling';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type Step = 'scan' | 'infer' | 'confirm' | 'done';
+
+type TableOption = {
+  name: string;
+  row_count: number;
+  column_count: number;
+};
+
+function getErrorMessage(error: any) {
+  return error?.response?.data?.detail || error?.message || '操作失败';
+}
 
 export default function ModelingPage() {
   const { currentProject } = useProject();
   const [step, setStep] = useState<Step>('scan');
   const [datasourceId, setDatasourceId] = useState('');
-  const [tables, setTables] = useState<TableSummary[]>([]);
-  const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
+  const [tables, setTables] = useState<TableOption[]>([]);
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [objects, setObjects] = useState<InferredObject[]>([]);
   const [relationships, setRelationships] = useState<InferredRelationship[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -19,41 +31,47 @@ export default function ModelingPage() {
   const [error, setError] = useState('');
 
   const projectId = currentProject?.id;
+  const selectedTableCount = selectedTables.length;
 
-  const handleScan = async () => {
+  const handleScan = useCallback(async () => {
     if (!projectId || !datasourceId) return;
     setLoading(true);
     setError('');
     try {
       const data = await modelingService.scan(projectId, datasourceId);
-      setTables(data.tables);
-      setSelectedTables(new Set(data.tables.map((t) => t.name)));
+      const nextTables = data.tables.map((t) => ({
+        name: t.name,
+        row_count: t.row_count,
+        column_count: t.columns.length,
+      }));
+      setTables(nextTables);
+      setSelectedTables(nextTables.map((t) => t.name));
       setStep('infer');
     } catch (e: any) {
-      setError(e.response?.data?.detail || e.message);
+      setError(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, datasourceId]);
 
-  const handleInfer = async () => {
+  const handleInfer = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
     setError('');
     try {
-      const data = await modelingService.infer(projectId, datasourceId, [...selectedTables]);
+      const data = await modelingService.infer(projectId, datasourceId, selectedTables);
       setObjects(data.objects);
       setRelationships(data.relationships);
       setWarnings(data.warnings);
       setStep('confirm');
     } catch (e: any) {
-      setError(e.response?.data?.detail || e.message);
+      setError(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, datasourceId, selectedTables]);
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
     setError('');
@@ -62,18 +80,19 @@ export default function ModelingPage() {
       setResult(data);
       setStep('done');
     } catch (e: any) {
-      setError(e.response?.data?.detail || e.message);
+      setError(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, objects, relationships]);
 
-  const toggleTable = (name: string) => {
-    const next = new Set(selectedTables);
-    if (next.has(name)) next.delete(name);
-    else next.add(name);
-    setSelectedTables(next);
-  };
+  const toggleTable = useCallback((name: string) => {
+    setSelectedTables((current) =>
+      current.includes(name)
+        ? current.filter((item) => item !== name)
+        : [...current, name]
+    );
+  }, []);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -94,20 +113,20 @@ export default function ModelingPage() {
         </div>
         {step === 'scan' && (
           <div className="flex gap-2">
-            <input
-              className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
+            <Input
+              className="flex-1"
               placeholder="数据源ID (如 mysql_erp)"
               value={datasourceId}
               onChange={(e) => setDatasourceId(e.target.value)}
             />
-            <button
+            <Button
               onClick={handleScan}
               disabled={loading || !datasourceId}
-              className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+              className="flex items-center gap-1"
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
               扫描
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -126,23 +145,23 @@ export default function ModelingPage() {
                 <label key={t.name} className="flex items-center gap-2 py-1 px-2 hover:bg-gray-800 rounded cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={selectedTables.has(t.name)}
+                    checked={selectedTables.includes(t.name)}
                     onChange={() => toggleTable(t.name)}
                     className="rounded"
                   />
                   <span className="text-sm text-gray-300">{t.name}</span>
-                  <span className="text-xs text-gray-500 ml-auto">{t.row_count} rows, {t.columns.length} cols</span>
+                  <span className="text-xs text-gray-500 ml-auto">{t.row_count} rows, {t.column_count} cols</span>
                 </label>
               ))}
             </div>
-            <button
+            <Button
               onClick={handleInfer}
-              disabled={loading || selectedTables.size === 0}
-              className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+              disabled={loading || selectedTableCount === 0}
+              className="flex items-center gap-1"
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
-              开始推断 ({selectedTables.size} 张表)
-            </button>
+              开始推断 ({selectedTableCount} 张表)
+            </Button>
           </>
         )}
       </div>
@@ -175,14 +194,14 @@ export default function ModelingPage() {
                 {relationships.length} 个关系已推断
               </div>
             )}
-            <button
+            <Button
               onClick={handleConfirm}
               disabled={loading}
-              className="px-4 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+              className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
               确认保存
-            </button>
+            </Button>
           </>
         )}
       </div>

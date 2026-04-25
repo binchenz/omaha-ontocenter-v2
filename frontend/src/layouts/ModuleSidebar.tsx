@@ -1,10 +1,14 @@
+import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { findModuleByPath } from './navConfig';
 
 export default function ModuleSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const currentModule = findModuleByPath(location.pathname);
+  const currentModule = useMemo(
+    () => findModuleByPath(location.pathname),
+    [location.pathname]
+  );
 
   if (!currentModule) return null;
 
@@ -16,14 +20,9 @@ export default function ModuleSidebar() {
         </h2>
         <nav className="flex flex-col gap-0.5">
           {currentModule.subPages.map((page) => {
-            const isActive =
+            const active =
               location.pathname === page.path ||
-              (page.path !== currentModule.basePath &&
-                location.pathname.startsWith(page.path));
-            const exactMatch =
-              page.path === currentModule.basePath &&
-              location.pathname === page.path;
-            const active = isActive || exactMatch;
+              (page.path !== currentModule.basePath && location.pathname.startsWith(page.path));
 
             const Icon = page.icon;
             return (
