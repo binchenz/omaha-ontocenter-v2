@@ -1,5 +1,5 @@
-from typing import Any, Literal, Union
-from pydantic import BaseModel
+from typing import Annotated, Any, Literal, Union
+from pydantic import BaseModel, Field
 
 
 class Option(BaseModel):
@@ -21,7 +21,7 @@ class OptionsResponse(BaseModel):
 class PanelResponse(BaseModel):
     type: Literal["panel"] = "panel"
     content: str
-    panel_type: str
+    panel_type: Literal["quality_report"]
     data: dict[str, Any]
 
 
@@ -32,7 +32,10 @@ class FileUploadRequest(BaseModel):
     multiple: bool = True
 
 
-StructuredItem = Union[TextResponse, OptionsResponse, PanelResponse, FileUploadRequest]
+StructuredItem = Annotated[
+    Union[TextResponse, OptionsResponse, PanelResponse, FileUploadRequest],
+    Field(discriminator="type"),
+]
 
 
 class StructuredContent(BaseModel):

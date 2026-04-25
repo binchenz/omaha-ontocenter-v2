@@ -12,13 +12,16 @@ def test_format_onboarding_known_stage():
     svc = _make_service()
     assert "新用户引导" in svc._format_onboarding("idle")
     assert "数据清洗" in svc._format_onboarding("cleaning")
-    assert "就绪" in svc._format_onboarding("ready")
 
 
-def test_format_onboarding_unknown_stage_falls_back_to_ready():
+def test_format_onboarding_ready_is_empty():
     svc = _make_service()
-    out = svc._format_onboarding("not-a-real-stage")
-    assert out == ONBOARDING_PROMPTS["ready"]
+    assert svc._format_onboarding("ready") == ""
+
+
+def test_format_onboarding_unknown_stage_returns_empty():
+    svc = _make_service()
+    assert svc._format_onboarding("not-a-real-stage") == ""
 
 
 def test_build_system_prompt_includes_onboarding():

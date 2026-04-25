@@ -20,7 +20,6 @@ const ISSUE_LABELS: Record<string, string> = {
   duplicate_rows: '重复行',
   missing_values: '缺失值',
   inconsistent_format: '格式不一致',
-  non_numeric: '非数字内容',
 };
 
 function scoreColor(score: number): string {
@@ -50,8 +49,7 @@ export function QualityPanel({ data, onAutoFix }: Props) {
             <div key={i} className="text-sm border-l-2 border-yellow-500 pl-3 py-1">
               <p className="text-gray-200">
                 {ISSUE_LABELS[issue.issue_type] || issue.issue_type}
-                {issue.column && ` · ${issue.table}.${issue.column}`}
-                {!issue.column && ` · ${issue.table}`}
+                {` · ${issue.column ? `${issue.table}.${issue.column}` : issue.table}`}
                 <span className="text-gray-400 ml-2">({issue.count} 处)</span>
               </p>
               {issue.examples.length > 0 && (

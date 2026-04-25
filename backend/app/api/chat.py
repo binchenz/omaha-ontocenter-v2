@@ -127,10 +127,11 @@ async def upload_file_in_chat(
     """Upload a file within a chat session."""
     get_project_for_owner(project_id, current_user, db)
 
-    upload_dir = Path(f"data/uploads/{project_id}")
+    safe_name = Path(file.filename or "upload.bin").name
+    upload_dir = (Path("data/uploads") / str(project_id)).resolve()
     upload_dir.mkdir(parents=True, exist_ok=True)
-    file_path = upload_dir / file.filename
+    file_path = upload_dir / safe_name
     content = await file.read()
     file_path.write_bytes(content)
 
-    return {"success": True, "file_path": str(file_path), "filename": file.filename}
+    return {"success": True, "file_path": str(file_path), "filename": safe_name}

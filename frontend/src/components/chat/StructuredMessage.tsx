@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StructuredItem } from '../../types/chat';
 import { OptionCards } from './OptionCards';
 import { QualityPanel } from './QualityPanel';
@@ -9,6 +10,15 @@ interface Props {
   onFileUpload?: (files: FileList) => void;
 }
 
+function LabeledBlock({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="text-sm mb-2">{label}</p>
+      {children}
+    </div>
+  );
+}
+
 export function StructuredMessage({ items, onOptionSelect, onFileUpload }: Props) {
   return (
     <div className="space-y-3">
@@ -18,10 +28,9 @@ export function StructuredMessage({ items, onOptionSelect, onFileUpload }: Props
             return <p key={i} className="text-sm whitespace-pre-wrap">{item.content}</p>;
           case 'options':
             return (
-              <div key={i}>
-                <p className="text-sm mb-2">{item.content}</p>
+              <LabeledBlock key={i} label={item.content}>
                 <OptionCards options={item.options || []} onSelect={onOptionSelect} />
-              </div>
+              </LabeledBlock>
             );
           case 'panel':
             if (item.panel_type === 'quality_report') {
@@ -31,14 +40,13 @@ export function StructuredMessage({ items, onOptionSelect, onFileUpload }: Props
             return <p key={i} className="text-sm">{item.content}</p>;
           case 'file_upload':
             return (
-              <div key={i}>
-                <p className="text-sm mb-2">{item.content}</p>
+              <LabeledBlock key={i} label={item.content}>
                 <FileUploadZone
                   accept={item.accept || '.xlsx,.xls,.csv'}
                   multiple={item.multiple ?? true}
                   onUpload={onFileUpload}
                 />
-              </div>
+              </LabeledBlock>
             );
           default:
             return <p key={i} className="text-sm">{item.content}</p>;

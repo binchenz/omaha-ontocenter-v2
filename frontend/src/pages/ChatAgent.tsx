@@ -68,15 +68,18 @@ export const ChatAgent: React.FC<Props> = ({ projectId, sessionId }) => {
 
   const handleFileUpload = useCallback(async (files: FileList) => {
     if (!sessionId) return;
-    for (const file of Array.from(files)) {
-      try {
-        const result = await chatApi.uploadFile(projectId, sessionId, file);
-        if (result.success) {
-          await handleSend(`我上传了文件：${result.filename}`);
-        }
-      } catch (err) {
-        console.error('Upload failed:', err);
-      }
+    const results = await Promise.all(
+      Array.from(files).map((file) =>
+        chatApi.uploadFile(projectId, sessionId, file).catch((err) => {
+          console.error('Upload failed:', err);
+          return null;
+        })
+      )
+    );
+    const uploaded = results.filter((r): r is { success: boolean; file_path: string; filename: string } => !!r?.success);
+    if (uploaded.length > 0) {
+      const names = uploaded.map((r) => r.filename).join('、');
+      await handleSend(`我上传了文件：${names}`);
     }
   }, [projectId, sessionId, handleSend]);
 

@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Literal
 
 from app.config import settings
 from app.schemas.agent import AgentChatResponse, ToolCallRecord
@@ -10,7 +10,11 @@ except ImportError:
     openai = None
 
 
-ONBOARDING_PROMPTS = {
+SetupStage = Literal["idle", "connecting", "cleaning", "modeling", "ready"]
+SETUP_STAGES: tuple[SetupStage, ...] = ("idle", "connecting", "cleaning", "modeling", "ready")
+
+
+ONBOARDING_PROMPTS: dict[SetupStage, str] = {
     "idle": """## 当前状态：新用户引导
 用户刚创建项目，还没有接入数据。你的任务是引导用户完成数据接入。
 1. 先问用户是什么行业的
@@ -27,9 +31,15 @@ ONBOARDING_PROMPTS = {
     "modeling": """## 当前状态：语义建模中
 数据已清洗，正在构建本体。引导用户确认业务对象和字段含义。""",
 
-    "ready": """## 当前状态：就绪
-数据已就绪，用户可以自由提问。主动给出示例问题帮助用户开始。""",
+    "ready": "",
 }
+
+
+def format_onboarding_context(setup_stage: str | None) -> str:
+    """Return onboarding guidance for the given stage. Empty for ready/unknown."""
+    if not setup_stage:
+        return ""
+    return ONBOARDING_PROMPTS.get(setup_stage, "")
 
 SYSTEM_PROMPT_TEMPLATE = """你是一个企业数据分析助手。你可以帮助用户查询和分析业务数据。
 
@@ -152,7 +162,7 @@ class AgentService:
         return "\n".join(lines)
 
     def _format_onboarding(self, setup_stage: str) -> str:
-        return ONBOARDING_PROMPTS.get(setup_stage, ONBOARDING_PROMPTS["ready"])
+        return format_onboarding_context(setup_stage)
 
     def format_tool_result(self, tool_name: str, result: dict) -> str:
         if not result.get("success"):
