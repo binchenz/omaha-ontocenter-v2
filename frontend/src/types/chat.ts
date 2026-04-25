@@ -25,11 +25,23 @@ export interface SendMessageRequest {
   message: string;
 }
 
+export interface StructuredItem {
+  type: 'text' | 'options' | 'panel' | 'file_upload';
+  content: string;
+  options?: { label: string; value: string }[];
+  panel_type?: string;
+  data?: Record<string, any>;
+  accept?: string;
+  multiple?: boolean;
+}
+
 export interface SendMessageResponse {
   message: string;
   data_table: Record<string, any>[] | null;
   chart_config: Record<string, any> | null;
   sql: string | null;
+  structured: StructuredItem[] | null;
+  setup_stage: string | null;
 }
 
 export interface ChatSessionCreate {
