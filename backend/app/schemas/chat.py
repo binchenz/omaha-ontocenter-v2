@@ -49,9 +49,21 @@ class SendMessageRequest(BaseModel):
     message: str
 
 
+class StructuredItem(BaseModel):
+    type: str  # "text", "options", "panel", "file_upload"
+    content: str
+    options: Optional[List[Dict[str, str]]] = None
+    panel_type: Optional[str] = None
+    data: Optional[Dict[str, Any]] = None
+    accept: Optional[str] = None
+    multiple: Optional[bool] = None
+
+
 class SendMessageResponse(BaseModel):
     """Schema for message response with optional chart."""
     message: str
     data_table: Optional[List[Dict[str, Any]]] = None
     chart_config: Optional[Dict[str, Any]] = None
     sql: Optional[str] = None
+    structured: Optional[List[StructuredItem]] = None
+    setup_stage: Optional[str] = None
