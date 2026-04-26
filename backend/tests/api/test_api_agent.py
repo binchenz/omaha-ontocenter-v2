@@ -59,7 +59,7 @@ def client():
 def test_agent_chat_endpoint_exists(client):
     test_client, project_id = client
     mock_resp = AgentChatResponse(response="测试响应")
-    with patch("app.api.agent.AgentService.chat", return_value=mock_resp):
+    with patch("app.api.chat.agent.AgentService.chat", return_value=mock_resp):
         resp = test_client.post(
             f"/api/v1/agent/{project_id}/chat",
             json={"message": "列出所有业务对象"},
@@ -74,7 +74,7 @@ def test_agent_chat_returns_response_structure(client):
         tool_calls=[],
         sources=[],
     )
-    with patch("app.api.agent.AgentService.chat", return_value=mock_resp):
+    with patch("app.api.chat.agent.AgentService.chat", return_value=mock_resp):
         resp = test_client.post(
             f"/api/v1/agent/{project_id}/chat",
             json={"message": "列出所有业务对象"},
