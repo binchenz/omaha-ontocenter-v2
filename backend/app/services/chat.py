@@ -33,7 +33,7 @@ from app.services.omaha import OmahaService
 from app.services.semantic import semantic_service
 from app.services.chart_engine import ChartEngine
 from app.services.ontology_store import OntologyStore
-from app.services.agent import format_onboarding_context
+from app.services.agent.react import format_onboarding_context
 
 
 def _json_dumps(obj: Any) -> str:
