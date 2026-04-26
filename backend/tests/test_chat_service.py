@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
-from app.services.chat import ChatService
+from app.services.agent.chat_service import ChatService
 
 SEMANTIC_CONFIG = """
 datasources:
@@ -40,7 +40,7 @@ def test_build_ontology_context():
     """Test building ontology context from project config."""
     service = ChatService(project_id=1, db=Mock())
 
-    with patch('app.services.chat.omaha_service') as mock_omaha:
+    with patch('app.services.agent.chat_service.omaha_service') as mock_omaha:
         mock_omaha.build_ontology.return_value = {
             "valid": True,
             "ontology": {
@@ -83,7 +83,7 @@ def test_get_tool_schemas():
     assert "edit_ontology" in tool_names
 
 
-@patch('app.services.chat.openai')
+@patch('app.services.agent.chat_service.openai')
 def test_send_message_with_openai(mock_openai):
     """Test sending message with OpenAI."""
     mock_client = Mock()

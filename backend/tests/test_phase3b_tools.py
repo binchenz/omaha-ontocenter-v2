@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock
-from app.services.agent_tools import AgentToolkit
+from app.services.agent.toolkit import AgentToolkit
 from app.services.uploaded_table_store import UploadedTableStore
 
 
@@ -17,7 +17,7 @@ def toolkit():
 
 
 def test_load_template_known_industry(toolkit, monkeypatch):
-    from app.services import template_loader
+    from app.services.ontology import template_loader
     monkeypatch.setattr(
         template_loader.TemplateLoader, "load",
         staticmethod(lambda industry: {"industry": industry, "display_name": "test", "objects": [{"name": "订单", "properties": []}], "relationships": []})
@@ -27,7 +27,7 @@ def test_load_template_known_industry(toolkit, monkeypatch):
 
 
 def test_load_template_unknown_industry(toolkit, monkeypatch):
-    from app.services import template_loader
+    from app.services.ontology import template_loader
     monkeypatch.setattr(
         template_loader.TemplateLoader, "load",
         staticmethod(lambda industry: None)
@@ -148,7 +148,7 @@ def test_confirm_ontology_persists_draft_and_clears(monkeypatch, tmp_path):
     db.query.return_value.filter.return_value.first.return_value = fake_project
 
     imported = {}
-    from app.services import agent_tools as at_mod
+    from app.services.agent import toolkit as at_mod
 
     class FakeImporter:
         def __init__(self, _db):
@@ -195,7 +195,7 @@ def test_edit_ontology_blocks_non_ready_stage():
 
 
 def test_edit_ontology_rename_property(monkeypatch):
-    from app.services import agent_tools as at_mod
+    from app.services.agent import toolkit as at_mod
 
     fake_project = MagicMock(tenant_id=42, owner_id=42, setup_stage="ready")
     fake_object = MagicMock(id=10)
@@ -227,7 +227,7 @@ def test_edit_ontology_rename_property(monkeypatch):
 
 
 def test_edit_ontology_unknown_action(monkeypatch):
-    from app.services import agent_tools as at_mod
+    from app.services.agent import toolkit as at_mod
 
     fake_project = MagicMock(tenant_id=42, owner_id=42, setup_stage="ready")
     fake_object = MagicMock(id=10)

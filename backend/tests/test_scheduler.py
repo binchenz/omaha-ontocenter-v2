@@ -1,7 +1,7 @@
 """Tests for pipeline scheduler."""
 import pytest
 from unittest.mock import patch, MagicMock
-from app.services.scheduler import PipelineScheduler, _execute_pipeline
+from app.services.platform.scheduler import PipelineScheduler, _execute_pipeline
 
 
 class TestPipelineScheduler:
@@ -12,7 +12,7 @@ class TestPipelineScheduler:
         mock_pipeline.schedule = "0 * * * *"
         mock_pipeline.status = "active"
 
-        with patch("app.services.scheduler.SessionLocal") as mock_session_cls:
+        with patch("app.services.platform.scheduler.SessionLocal") as mock_session_cls:
             mock_db = MagicMock()
             mock_session_cls.return_value = mock_db
             mock_db.query.return_value.filter.return_value.all.return_value = [mock_pipeline]
@@ -55,7 +55,7 @@ class TestPipelineScheduler:
         mock_pipeline.schedule = "*/30 * * * *"
         mock_pipeline.status = "active"
 
-        with patch("app.services.scheduler.SessionLocal") as mock_session_cls:
+        with patch("app.services.platform.scheduler.SessionLocal") as mock_session_cls:
             mock_db = MagicMock()
             mock_session_cls.return_value = mock_db
             mock_db.query.return_value.filter.return_value.first.return_value = mock_pipeline
@@ -74,7 +74,7 @@ class TestPipelineScheduler:
         mock_pipeline.id = 10
         mock_pipeline.status = "paused"
 
-        with patch("app.services.scheduler.SessionLocal") as mock_session_cls:
+        with patch("app.services.platform.scheduler.SessionLocal") as mock_session_cls:
             mock_db = MagicMock()
             mock_session_cls.return_value = mock_db
             mock_db.query.return_value.filter.return_value.first.return_value = mock_pipeline
@@ -98,7 +98,7 @@ class TestExecutePipeline:
         mock_pipeline = MagicMock()
         mock_pipeline.status = "paused"
 
-        with patch("app.services.scheduler.SessionLocal") as mock_session_cls:
+        with patch("app.services.platform.scheduler.SessionLocal") as mock_session_cls:
             mock_db = MagicMock()
             mock_session_cls.return_value = mock_db
             mock_db.query.return_value.filter.return_value.first.return_value = mock_pipeline
@@ -107,7 +107,7 @@ class TestExecutePipeline:
             # Should not call run_pipeline
 
     def test_execute_skips_missing_pipeline(self):
-        with patch("app.services.scheduler.SessionLocal") as mock_session_cls:
+        with patch("app.services.platform.scheduler.SessionLocal") as mock_session_cls:
             mock_db = MagicMock()
             mock_session_cls.return_value = mock_db
             mock_db.query.return_value.filter.return_value.first.return_value = None
