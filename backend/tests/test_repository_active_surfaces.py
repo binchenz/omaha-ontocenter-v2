@@ -37,7 +37,7 @@ def test_current_active_surfaces_are_documented():
         "frontend/src/App.tsx",
         "frontend/src/components/Layout/Sidebar.tsx",
         "deployment/README.md",
-        "configs/financial_stock_analysis.yaml",
+        "configs/legacy/financial/financial_stock_analysis.yaml",
     ]
 
     for file_path in required_files:

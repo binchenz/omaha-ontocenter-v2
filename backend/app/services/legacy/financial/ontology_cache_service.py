@@ -15,7 +15,7 @@ class OntologyCacheService:
             import os
             # Get project root directory
             backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            config_path = os.path.join(backend_dir, 'configs/financial_stock_analysis.yaml')
+            config_path = os.path.join(backend_dir, 'configs/legacy/financial/financial_stock_analysis.yaml')
         with open(config_path, 'r') as f:
             self.config_yaml = f.read()
 

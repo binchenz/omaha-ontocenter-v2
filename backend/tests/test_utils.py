@@ -22,7 +22,7 @@ def print_section(title):
     print(f"{'='*80}\n")
 
 
-def load_config(config_path='configs/financial_stock_analysis.yaml'):
+def load_config(config_path='configs/legacy/financial/financial_stock_analysis.yaml'):
     """Load YAML configuration file."""
     with open(config_path, 'r', encoding='utf-8') as f:
         return f.read()

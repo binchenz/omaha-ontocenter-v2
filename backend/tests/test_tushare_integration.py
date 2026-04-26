@@ -19,7 +19,7 @@ class TestFinancialDataIntegration:
         sys.path.insert(0, '/Users/wangfushuaiqi/omaha_ontocenter/backend')
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -66,7 +66,7 @@ class TestFinancialDataIntegration:
         """Test industry comparison workflow."""
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -106,7 +106,7 @@ class TestFinancialDataIntegration:
         """Test price trend analysis for a specific stock."""
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -157,7 +157,7 @@ class TestFinancialDataIntegration:
         """Test that configuration is valid and complete."""
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -203,7 +203,7 @@ def test_financial_config_uses_environment_token():
     """Assert the financial config uses ${TUSHARE_TOKEN} and not a hardcoded token."""
     from pathlib import Path
 
-    config_path = Path(__file__).resolve().parents[2] / "configs" / "financial_stock_analysis.yaml"
+    config_path = Path(__file__).resolve().parents[2] / "configs" / "legacy" / "financial" / "financial_stock_analysis.yaml"
     content = config_path.read_text(encoding="utf-8")
 
     assert "${TUSHARE_TOKEN}" in content, "Expected ${TUSHARE_TOKEN} placeholder in config"

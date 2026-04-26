@@ -21,7 +21,7 @@ class TestStockBasic:
         from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -53,7 +53,7 @@ class TestStockBasic:
         """Test that default_filters (list_status='L') is applied to query."""
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -78,7 +78,7 @@ class TestStockBasic:
         """Test querying stocks - note: Tushare API doesn't support industry filtering."""
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 

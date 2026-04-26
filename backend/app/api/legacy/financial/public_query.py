@@ -32,7 +32,7 @@ RATE_LIMIT = 1000  # queries per hour
 
 # Load ontology config — file lives at backend/app/api/legacy/financial/, repo root is 6 dirnames up
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
-config_path = os.path.join(_REPO_ROOT, 'configs/financial_stock_analysis.yaml')
+config_path = os.path.join(_REPO_ROOT, 'configs/legacy/financial/financial_stock_analysis.yaml')
 with open(config_path, 'r') as f:
     ONTOLOGY_CONFIG = yaml.safe_load(f)
 

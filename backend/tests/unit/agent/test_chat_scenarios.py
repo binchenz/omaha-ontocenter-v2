@@ -13,7 +13,7 @@ from app.services.legacy.financial.omaha import OmahaService
 
 def load_config():
     """Load the financial stock analysis configuration."""
-    config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+    config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
     with open(config_path, 'r', encoding='utf-8') as f:
         return f.read()
 
