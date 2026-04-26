@@ -90,23 +90,47 @@ docker-compose up -d --build
 
 ```
 backend/
-├── app/                    # FastAPI application
-│   ├── api/               # API endpoints (auth, projects, datahub, ontology, query, assets, chat)
-│   ├── core/              # Security utilities (JWT, password hashing)
-│   ├── mcp/               # Model Context Protocol server implementation
-│   ├── models/            # SQLAlchemy ORM models (User, Project, Asset, ChatSession, QueryHistory, APIKey)
-│   ├── schemas/           # Pydantic schemas for request/response
-│   ├── services/          # Business logic layer
-│   │   ├── omaha.py       # Core service: YAML config parsing, query execution, multi-datasource support
-│   │   ├── semantic.py    # Semantic type formatting (currency, percentage, date, etc.)
-│   │   ├── query_builder.py        # Query builder with semantic enhancements
-│   │   ├── computed_property_engine.py  # Computed property evaluation
-│   │   └── semantic_formatter.py   # Format output based on semantic types
-│   ├── config.py          # Application settings
-│   ├── database.py        # Database connection
-│   └── main.py            # FastAPI app entry point
-├── alembic/               # Database migrations
-└── tests/                 # Test suite
+├── app/                         # FastAPI application
+│   ├── api/                    # API endpoints — domain-grouped
+│   │   ├── auth/               # Authentication routes (login, api_keys, public_auth)
+│   │   ├── chat/               # Chat session and agent routes
+│   │   ├── ontology/           # Ontology validation/build/store/semantic routes
+│   │   ├── pipelines/          # Pipeline management routes
+│   │   ├── projects/           # Project CRUD/members/assets/audit routes
+│   │   ├── legacy/financial/   # Legacy financial query/datasources/datahub/watchlist
+│   │   ├── deps.py             # Shared FastAPI dependencies
+│   │   └── public_deps.py      # Public-API key dependencies
+│   ├── models/                 # SQLAlchemy ORM — domain-grouped, __init__ re-exports all
+│   │   ├── auth/               # User, Tenant, ApiKey, InviteCode
+│   │   ├── chat/               # ChatSession, ChatMessage, QueryHistory, PublicQueryLog
+│   │   ├── ontology/           # OntologyObject, ObjectProperty, DatasetAsset, DataLineage
+│   │   ├── pipeline/           # Pipeline, PipelineRun
+│   │   ├── project/            # Project, ProjectMember, AuditLog
+│   │   └── legacy/financial/   # CachedStock, CachedFinancial, Watchlist
+│   ├── schemas/                # Pydantic schemas — domain-grouped
+│   │   ├── auth/               # User/Token/Login schemas
+│   │   ├── chat/               # Chat, agent, structured response schemas
+│   │   ├── ontology/           # Ontology, ontology_store, auto_model schemas
+│   │   ├── project/            # Project, asset schemas
+│   │   └── legacy/financial/   # Public query, watchlist schemas
+│   ├── services/               # Business logic — domain-grouped
+│   │   ├── agent/              # ReAct agent, toolkit, chat_service, chart_engine
+│   │   ├── data/               # Data cleaner, uploaded table store
+│   │   ├── ontology/           # Store, importer, inferrer, draft_store, template_loader, schema_scanner
+│   │   ├── platform/           # Scheduler, pipeline_runner, audit, datahub
+│   │   ├── semantic/           # Service, validator, formatter, computed_property
+│   │   └── legacy/financial/   # OmahaService, query_builder, ontology_cache_service
+│   ├── connectors/             # External data-source connectors (csv, mongodb, rest, sql, tushare)
+│   ├── core/                   # Security utilities (JWT, password hashing)
+│   ├── mcp/                    # Model Context Protocol server
+│   ├── config.py               # Application settings
+│   ├── database.py             # Database connection
+│   └── main.py                 # FastAPI app entry point
+├── alembic/                    # Database migrations
+└── tests/
+    ├── unit/{ontology,data,agent,semantic,platform}/  # Unit tests mirror services/
+    ├── api/                    # API endpoint tests
+    └── integration/            # Cross-service integration tests
 ```
 
 **Key API Routes:**
@@ -122,36 +146,38 @@ backend/
 
 ```
 frontend/src/
-├── components/            # Reusable UI components
-├── pages/                # Page components
-│   ├── Login.tsx
-│   ├── Register.tsx
-│   ├── ProjectList.tsx
-│   ├── ProjectDetail.tsx
-│   ├── ObjectExplorer.tsx
-│   └── AssetList.tsx
-├── services/             # API client services
-│   ├── api.ts           # Base axios configuration
-│   ├── auth.ts          # Authentication API
-│   ├── project.ts       # Project API
-│   ├── ontology.ts      # Ontology API
-│   ├── query.ts         # Query API
-│   ├── asset.ts         # Asset API
-│   └── chatApi.ts       # Chat API
-├── types/               # TypeScript type definitions
-├── hooks/               # Custom React hooks
-└── utils/               # Utility functions
+├── pages/                # Page components — domain-grouped
+│   ├── assistant/        # AssistantPage (v2 main chat UI)
+│   ├── ontology/         # ModelingPage, OntologyBrowser, OntologyGraph
+│   ├── dashboard/        # DashboardPage
+│   ├── apps/             # AppsPage, DatasourcePage, PipelinesPage
+│   ├── settings/         # SettingsPage, ApiKeysPage, AuditPage
+│   ├── legacy/           # v1 pages (ObjectExplorer, OntologyMap, QueryBuilder, etc.)
+│   └── (root)            # Login, Register, ProjectList, Settings, ChatAgent, ChatPage
+├── components/
+│   ├── chat/             # Chat UI components
+│   ├── layout/           # MainLayout, ProjectSwitcher, Sidebar
+│   ├── shared/           # PrivateRoute, RequireProject, ApiKeyManager, QueryChart
+│   ├── ui/               # shadcn primitives
+│   └── legacy/           # Legacy v1 components (map/, etc.)
+├── layouts/              # AppLayout, TopNav, ModuleSidebar, navConfig
+├── services/             # API client services (api, auth, project, ontology, query, asset, chatApi)
+├── types/                # TypeScript type definitions
+├── hooks/                # Custom React hooks
+└── contexts/             # React contexts
 ```
 
 ### Core Services
 
-The `app/services/` directory contains the core business logic:
+The `app/services/` directory contains the core business logic, grouped by domain:
 
-- **OmahaService** (`omaha.py`): Main service for YAML config parsing, query execution, and multi-datasource support (Tushare, PostgreSQL, MySQL, SQLite)
-- **SemanticService** (`semantic.py`): Handles semantic type formatting (currency, percentage, date, ratio, etc.)
-- **SemanticQueryBuilder** (`query_builder.py`): Builds queries with semantic enhancements and default filters
-- **ComputedPropertyEngine** (`computed_property_engine.py`): Evaluates computed properties defined in ontology configs
-- **SemanticTypeFormatter** (`semantic_formatter.py`): Formats query results based on semantic types
+- **OmahaService** (`legacy/financial/omaha.py`): YAML config parsing, query execution, multi-datasource support
+- **SemanticService** (`semantic/service.py`): Semantic type formatting (currency, percentage, date, ratio, etc.)
+- **SemanticQueryBuilder** (`legacy/financial/query_builder.py`): Queries with semantic enhancements and default filters
+- **ComputedPropertyEngine** (`semantic/computed_property.py`): Evaluates computed properties defined in ontology configs
+- **SemanticTypeFormatter** (`semantic/formatter.py`): Formats query results based on semantic types
+- **AgentToolkit** (`agent/toolkit.py`): LLM function-calling toolkit
+- **ChatService** (`agent/chat_service.py`): Chat session orchestration with LLM integration
 
 ### YAML Configuration Structure
 
@@ -188,7 +214,8 @@ Ontology configs (in `configs/`) define business objects with:
 - `TUSHARE_TOKEN` - Tushare Pro API token (for financial data)
 
 **Ontology Configs:** YAML files in `configs/` directory
-- Example: `configs/financial_stock_analysis.yaml`
+- Example: `configs/legacy/financial/financial_stock_analysis.yaml`
+- Industry templates: `configs/templates/*.yaml` (e.g. retail.yaml)
 - Environment variable substitution: Only uppercase patterns like `${TUSHARE_TOKEN}` are substituted
 - Lowercase patterns like `${var}` will NOT be substituted
 
