@@ -55,6 +55,8 @@ MAPPING = [
     (r"from app\.models\.cached_stock ", "from app.models.legacy.financial.cached_stock "),
     (r"from app\.models\.watchlist ", "from app.models.legacy.financial.watchlist "),
     # schemas domain — longer prefixes first to avoid partial matches
+    # WARNING: do NOT re-run this script after subpackage-level imports like
+    # `from app.schemas.auth import User` exist — these rules would corrupt them.
     (r"from app\.schemas\.public_auth ", "from app.schemas.auth.public_auth "),
     (r"from app\.schemas\.auth ", "from app.schemas.auth.auth "),
     (r"from app\.schemas\.user ", "from app.schemas.auth.user "),
