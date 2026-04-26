@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, '/Users/wangfushuaiqi/omaha_ontocenter/backend')
 
 import os
-from app.services.omaha import OmahaService
+from app.services.legacy.financial.omaha import OmahaService
 
 
 def load_config():

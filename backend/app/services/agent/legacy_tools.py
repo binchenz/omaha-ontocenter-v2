@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from app.services.ontology_store import OntologyStore
-from app.services.omaha import OmahaService
+from app.services.ontology.store import OntologyStore
+from app.services.legacy.financial.omaha import OmahaService
 
 
 def get_tools(db: Session) -> List[Dict[str, Any]]:

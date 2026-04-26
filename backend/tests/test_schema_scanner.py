@@ -3,7 +3,7 @@ import tempfile
 import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import StaticPool
-from app.services.schema_scanner import SchemaScanner, TableSummary
+from app.services.ontology.schema_scanner import SchemaScanner, TableSummary
 
 
 @pytest.fixture

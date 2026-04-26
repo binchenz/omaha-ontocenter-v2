@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
-from app.services.ontology_importer import OntologyImporter
-from app.services.ontology_store import OntologyStore
+from app.services.ontology.importer import OntologyImporter
+from app.services.ontology.store import OntologyStore
 
 
 def _summarize_dataframe(name: str, df) -> dict:
@@ -209,13 +209,13 @@ class AgentToolkit:
 
     def _load_tables(self) -> Dict:
         if self.project_id is not None and self.session_id is not None:
-            from app.services.uploaded_table_store import UploadedTableStore
+            from app.services.data.uploaded_table_store import UploadedTableStore
             return UploadedTableStore.load_all(self.project_id, self.session_id)
         return self._uploaded_tables
 
     def _persist_tables(self, tables: Dict) -> None:
         if self.project_id is not None and self.session_id is not None:
-            from app.services.uploaded_table_store import UploadedTableStore
+            from app.services.data.uploaded_table_store import UploadedTableStore
             UploadedTableStore.replace_all(self.project_id, self.session_id, tables)
         else:
             self._uploaded_tables = tables
@@ -245,7 +245,7 @@ class AgentToolkit:
             return {"success": False, "error": str(e)}
 
     def _assess_quality(self, params: dict) -> dict:
-        from app.services.data_cleaner import DataCleaner
+        from app.services.data.cleaner import DataCleaner
         tables = self._load_tables()
         if not tables:
             return {"success": False, "error": "没有已上传的数据，请先上传文件"}
@@ -253,7 +253,7 @@ class AgentToolkit:
         return {"success": True, "data": report.to_dict()}
 
     def _clean_data(self, params: dict) -> dict:
-        from app.services.data_cleaner import DataCleaner
+        from app.services.data.cleaner import DataCleaner
         tables = self._load_tables()
         if not tables:
             return {"success": False, "error": "没有已上传的数据"}
@@ -290,12 +290,12 @@ class AgentToolkit:
         return {"success": True, "data": {"tables": summaries}}
 
     def _infer_ontology(self, params: dict) -> dict:
-        from app.services.ontology_inferrer import (
+        from app.services.ontology.inferrer import (
             OntologyInferrer, compact_template, merge_template_semantic_types,
         )
-        from app.services.ontology_draft_store import OntologyDraftStore
+        from app.services.ontology.draft_store import OntologyDraftStore
         from app.services.ontology.template_loader import TemplateLoader
-        from app.services.schema_scanner import TableSummary
+        from app.services.ontology.schema_scanner import TableSummary
 
         if self.project_id is None or self.session_id is None:
             return {"success": False, "error": "project_id/session_id missing on toolkit"}
@@ -366,7 +366,7 @@ class AgentToolkit:
         }
 
     def _confirm_ontology(self, params: dict) -> dict:
-        from app.services.ontology_draft_store import OntologyDraftStore
+        from app.services.ontology.draft_store import OntologyDraftStore
         from app.models.project import Project
 
         if self.project_id is None or self.session_id is None:

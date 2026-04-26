@@ -16,7 +16,7 @@ class TestStockDailyQuoteRelationship:
         """Test querying stock with its daily quotes."""
         import sys
         sys.path.insert(0, '/Users/wangfushuaiqi/omaha_ontocenter/backend')
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -66,7 +66,7 @@ class TestStockIndustryRelationship:
 
     def test_stocks_by_industry(self):
         """Test querying stocks grouped by industry."""
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:

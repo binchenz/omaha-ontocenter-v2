@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.user import User
 from app.api.deps import get_current_user
-from app.services.datahub import datahub_service
+from app.services.platform.datahub import datahub_service
 
 router = APIRouter()
 

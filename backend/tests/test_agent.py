@@ -1,7 +1,7 @@
 import pytest
 import json
 from unittest.mock import MagicMock
-from app.services.agent import AgentService
+from app.services.agent.react import AgentService
 
 
 @pytest.fixture

@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from app.services.agent import AgentService, ONBOARDING_PROMPTS
+from app.services.agent.react import AgentService, ONBOARDING_PROMPTS
 
 
 def _make_service():

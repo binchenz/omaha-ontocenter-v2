@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
-from app.services.chat import ChatService
+from app.services.agent.chat_service import ChatService
 from app.schemas.agent import AgentChatResponse
 
 

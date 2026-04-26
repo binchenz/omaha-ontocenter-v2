@@ -8,10 +8,10 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models.tenant import Tenant
-from app.services.schema_scanner import SchemaScanner
-from app.services.ontology_inferrer import OntologyInferrer
-from app.services.ontology_importer import OntologyImporter
-from app.services.ontology_store import OntologyStore
+from app.services.ontology.schema_scanner import SchemaScanner
+from app.services.ontology.inferrer import OntologyInferrer
+from app.services.ontology.importer import OntologyImporter
+from app.services.ontology.store import OntologyStore
 
 
 @pytest.fixture

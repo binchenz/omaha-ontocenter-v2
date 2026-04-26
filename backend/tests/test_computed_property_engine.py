@@ -4,7 +4,7 @@
 
 import pytest
 import pandas as pd
-from app.services.computed_property_engine import ComputedPropertyEngine
+from app.services.semantic.computed_property import ComputedPropertyEngine
 
 
 class TestComputedPropertyEngine:

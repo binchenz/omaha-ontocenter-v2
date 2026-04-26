@@ -1,5 +1,5 @@
 import pytest
-from app.services.ontology_draft_store import OntologyDraftStore
+from app.services.ontology.draft_store import OntologyDraftStore
 
 
 @pytest.fixture(autouse=True)

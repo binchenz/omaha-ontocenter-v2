@@ -4,8 +4,8 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models.tenant import Tenant
 from app.models.ontology import OntologyObject, ObjectProperty, OntologyRelationship
-from app.services.ontology_store import OntologyStore
-from app.services.ontology_importer import OntologyImporter
+from app.services.ontology.store import OntologyStore
+from app.services.ontology.importer import OntologyImporter
 
 
 SAMPLE_YAML = """

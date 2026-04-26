@@ -10,7 +10,7 @@ from app.main import app
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.models.project import Project
-from app.services.schema_scanner import TableSummary
+from app.services.ontology.schema_scanner import TableSummary
 
 
 @pytest.fixture

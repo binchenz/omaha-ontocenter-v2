@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from app.services.data_cleaner import DataCleaner, QualityReport, QualityIssue
+from app.services.data.cleaner import DataCleaner, QualityReport, QualityIssue
 
 def test_assess_detects_duplicate_rows():
     df = pd.DataFrame({"name": ["张三", "张三", "李四"], "amount": [100, 100, 200]})

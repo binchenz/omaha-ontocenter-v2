@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.models.user import User
 from app.api.deps import get_current_user
-from app.services.omaha import omaha_service
+from app.services.legacy.financial.omaha import omaha_service
 
 router = APIRouter()
 
@@ -111,8 +111,8 @@ def generate_yaml(
 # ── CRUD endpoints for DB-backed ontology ──────────────────────────
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
-from app.services.ontology_store import OntologyStore
-from app.services.ontology_importer import OntologyImporter
+from app.services.ontology.store import OntologyStore
+from app.services.ontology.importer import OntologyImporter
 
 
 class OntologyObjectCreate(BaseModel):

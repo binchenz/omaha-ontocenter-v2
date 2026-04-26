@@ -14,7 +14,7 @@ from app.schemas.project import (
     ProjectUpdate,
 )
 from app.api.deps import get_current_user, get_project_for_owner
-from app.services.audit import log_action
+from app.services.platform.audit import log_action
 
 router = APIRouter()
 

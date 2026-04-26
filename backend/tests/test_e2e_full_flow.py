@@ -8,7 +8,7 @@ from app.main import app
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.models.project import Project
-from app.services.ontology_store import OntologyStore
+from app.services.ontology.store import OntologyStore
 
 
 @pytest.fixture

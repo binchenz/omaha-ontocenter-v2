@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from app.models.project import Project
-from app.services.agent_tools import AgentToolkit
+from app.services.agent.toolkit import AgentToolkit
 import pandas as pd
 
 def test_full_onboarding_flow():

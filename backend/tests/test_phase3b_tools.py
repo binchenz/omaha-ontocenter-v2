@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 from unittest.mock import MagicMock
 from app.services.agent.toolkit import AgentToolkit
-from app.services.uploaded_table_store import UploadedTableStore
+from app.services.data.uploaded_table_store import UploadedTableStore
 
 
 @pytest.fixture(autouse=True)
@@ -56,7 +56,7 @@ def test_infer_ontology_writes_draft(toolkit, monkeypatch):
     df = pd.DataFrame({"客户": ["a"], "金额": [100]})
     UploadedTableStore.save(1, 2, "orders", df)
 
-    from app.services import ontology_inferrer
+    from app.services.ontology import inferrer as ontology_inferrer
     from app.schemas.auto_model import InferredObject, InferredProperty
 
     fake_obj = InferredObject(
@@ -87,7 +87,7 @@ def test_infer_ontology_writes_draft(toolkit, monkeypatch):
     assert result["success"] is True
     assert result["data"]["objects_count"] == 1
 
-    from app.services.ontology_draft_store import OntologyDraftStore
+    from app.services.ontology.draft_store import OntologyDraftStore
     draft = OntologyDraftStore.load(1, 2)
     assert draft is not None
     assert len(draft["objects"]) == 1
@@ -95,13 +95,13 @@ def test_infer_ontology_writes_draft(toolkit, monkeypatch):
 
 
 def test_infer_ontology_overwrites_existing_draft(toolkit, monkeypatch):
-    from app.services.ontology_draft_store import OntologyDraftStore
+    from app.services.ontology.draft_store import OntologyDraftStore
     OntologyDraftStore.save(1, 2, [{"name": "old"}], [], [])
 
     df = pd.DataFrame({"x": [1]})
     UploadedTableStore.save(1, 2, "t", df)
 
-    from app.services import ontology_inferrer
+    from app.services.ontology import inferrer as ontology_inferrer
     from app.schemas.auto_model import InferredObject
 
     monkeypatch.setattr(ontology_inferrer.OntologyInferrer, "__init__", lambda self: None)
@@ -129,7 +129,7 @@ def test_infer_ontology_no_uploaded_data(toolkit):
 
 def test_confirm_ontology_persists_draft_and_clears(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
-    from app.services.ontology_draft_store import OntologyDraftStore
+    from app.services.ontology.draft_store import OntologyDraftStore
     OntologyDraftStore.save(
         project_id=1, session_id=2,
         objects=[{

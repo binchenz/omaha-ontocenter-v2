@@ -1,6 +1,6 @@
 """Test saving semantic config with granularity fields."""
 import pytest
-from app.services.semantic import semantic_service
+from app.services.semantic.service import semantic_service
 
 
 SAMPLE_CONFIG_WITH_GRANULARITY = """

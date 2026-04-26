@@ -123,7 +123,7 @@ def test_create_relationship(db_session, tenant):
     assert rel.id is not None
 
 
-from app.services.ontology_store import OntologyStore
+from app.services.ontology.store import OntologyStore
 
 
 def test_store_create_object(db_session, tenant):

@@ -22,7 +22,7 @@ from app.schemas.public_query import (
     WatchlistItemResponse,
     WatchlistListResponse,
 )
-from app.services.ontology_cache_service import OntologyCacheService
+from app.services.legacy.financial.ontology_cache_service import OntologyCacheService
 import yaml
 import os
 

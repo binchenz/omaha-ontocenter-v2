@@ -1,6 +1,6 @@
 """Tests for the structured response extraction in ChatService."""
 import json
-from app.services.chat import ChatService
+from app.services.agent.chat_service import ChatService
 
 
 def test_extract_structured_no_block():

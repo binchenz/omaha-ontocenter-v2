@@ -9,7 +9,7 @@ import re
 
 import yaml
 
-from app.services.semantic import semantic_service
+from app.services.semantic.service import semantic_service
 
 
 class SemanticQueryBuilder:

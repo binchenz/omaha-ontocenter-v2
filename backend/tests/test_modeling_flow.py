@@ -3,8 +3,8 @@ import pytest
 import pandas as pd
 from unittest.mock import MagicMock
 from app.services.agent.toolkit import AgentToolkit
-from app.services.uploaded_table_store import UploadedTableStore
-from app.services.ontology_draft_store import OntologyDraftStore
+from app.services.data.uploaded_table_store import UploadedTableStore
+from app.services.ontology.draft_store import OntologyDraftStore
 from app.schemas.auto_model import InferredObject, InferredProperty
 
 
@@ -52,11 +52,11 @@ def test_full_modeling_flow(monkeypatch):
 
     # Stub LLM
     monkeypatch.setattr(
-        "app.services.ontology_inferrer.OntologyInferrer.__init__",
+        "app.services.ontology.inferrer.OntologyInferrer.__init__",
         lambda self: None,
     )
     monkeypatch.setattr(
-        "app.services.ontology_inferrer.OntologyInferrer.infer_table",
+        "app.services.ontology.inferrer.OntologyInferrer.infer_table",
         lambda self, table, datasource_id, template_hint=None: InferredObject(
             name="订单",
             source_entity="orders",
@@ -69,7 +69,7 @@ def test_full_modeling_flow(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        "app.services.ontology_inferrer.OntologyInferrer.infer_relationships_by_naming",
+        "app.services.ontology.inferrer.OntologyInferrer.infer_relationships_by_naming",
         lambda self, objs: [],
     )
 

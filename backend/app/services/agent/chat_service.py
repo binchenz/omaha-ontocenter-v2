@@ -29,10 +29,10 @@ except ImportError:
 
 from app.models.chat_session import ChatSession, ChatMessage
 from app.models.project import Project
-from app.services.omaha import OmahaService
-from app.services.semantic import semantic_service
-from app.services.chart_engine import ChartEngine
-from app.services.ontology_store import OntologyStore
+from app.services.legacy.financial.omaha import OmahaService
+from app.services.semantic.service import semantic_service
+from app.services.agent.chart_engine import ChartEngine
+from app.services.ontology.store import OntologyStore
 from app.services.agent.react import format_onboarding_context
 
 

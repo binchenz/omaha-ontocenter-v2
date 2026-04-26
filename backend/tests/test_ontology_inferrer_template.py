@@ -1,4 +1,4 @@
-from app.services.ontology_inferrer import (
+from app.services.ontology.inferrer import (
     compact_template, merge_template_semantic_types,
 )
 from app.schemas.auto_model import InferredObject, InferredProperty

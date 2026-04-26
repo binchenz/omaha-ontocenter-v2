@@ -4,7 +4,7 @@ Phase 3 集成测试：语义类型和计算属性
 
 import pytest
 import yaml
-from app.services.omaha import OmahaService
+from app.services.legacy.financial.omaha import OmahaService
 
 
 class TestPhase3SemanticIntegration:

@@ -1,4 +1,4 @@
-from app.services.omaha import OmahaService
+from app.services.legacy.financial.omaha import OmahaService
 
 GENERAL_CONFIG = """
 datasources:

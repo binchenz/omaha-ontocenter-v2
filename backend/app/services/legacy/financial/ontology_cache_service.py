@@ -1,8 +1,8 @@
 """Ontology-based cache service using OmahaService."""
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from app.services.omaha import OmahaService
-from app.services.semantic_formatter import SemanticTypeFormatter
+from app.services.legacy.financial.omaha import OmahaService
+from app.services.semantic.formatter import SemanticTypeFormatter
 
 
 class OntologyCacheService:

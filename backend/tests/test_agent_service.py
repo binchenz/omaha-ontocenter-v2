@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models.tenant import Tenant
-from app.services.ontology_store import OntologyStore
+from app.services.ontology.store import OntologyStore
 from app.services.agent.legacy_agent_service import AgentService
 
 

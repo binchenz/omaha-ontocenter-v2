@@ -6,7 +6,7 @@ Semantic Type Validator
 
 from typing import List, Dict, Any, Set
 import re
-from app.services.semantic_formatter import SemanticTypeFormatter
+from app.services.semantic.formatter import SemanticTypeFormatter
 
 
 class SemanticTypeValidator:

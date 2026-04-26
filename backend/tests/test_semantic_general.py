@@ -1,4 +1,4 @@
-from app.services.semantic_formatter import SemanticTypeFormatter
+from app.services.semantic.formatter import SemanticTypeFormatter
 
 
 def test_format_phone():

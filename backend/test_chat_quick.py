@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
 from app.models.project import Project
 from app.models.user import User
-from app.services.ontology_store import OntologyStore
+from app.services.ontology.store import OntologyStore
 from app.models.ontology import OntologyObject
 
 # Database setup

@@ -7,7 +7,7 @@ import os
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.services.query_builder import SemanticQueryBuilder
+from app.services.legacy.financial.query_builder import SemanticQueryBuilder
 
 
 def test_computed_properties_in_select():

@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.database import Base, get_db
-from app.services.audit import log_action, get_audit_logs
+from app.services.platform.audit import log_action, get_audit_logs
 
 SQLALCHEMY_TEST_URL = "sqlite:///./test_audit.db"
 engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})

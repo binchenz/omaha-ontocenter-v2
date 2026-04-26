@@ -15,7 +15,7 @@ from app.schemas.chat import (
     SendMessageRequest,
     SendMessageResponse
 )
-from app.services.chat import ChatService
+from app.services.agent.chat_service import ChatService
 from app.api.deps import get_current_user, get_project_for_owner
 
 
@@ -126,8 +126,8 @@ async def upload_file_in_chat(
 ):
     """Upload a file within a chat session, persist it, and return a quality report."""
     import pandas as pd
-    from app.services.data_cleaner import DataCleaner
-    from app.services.uploaded_table_store import UploadedTableStore
+    from app.services.data.cleaner import DataCleaner
+    from app.services.data.uploaded_table_store import UploadedTableStore
 
     get_project_for_owner(project_id, current_user, db)
 

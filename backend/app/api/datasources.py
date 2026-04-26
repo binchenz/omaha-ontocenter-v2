@@ -9,7 +9,7 @@ from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
 from app.models.user import User
 from app.models.project import Project
-from app.services.omaha import omaha_service
+from app.services.legacy.financial.omaha import omaha_service
 from app.connectors import get_connector
 from app.connectors.csv_connector import CSVConnector
 

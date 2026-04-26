@@ -1,5 +1,5 @@
 import pytest
-from app.services.semantic import SemanticService
+from app.services.semantic.service import SemanticService
 
 SAMPLE_CONFIG = """
 datasources:
@@ -103,7 +103,7 @@ def test_invalid_formula_reference():
 
 def test_omaha_get_object_schema_uses_semantic():
     """Task 5: get_object_schema returns semantic-enriched schema."""
-    from app.services.omaha import omaha_service
+    from app.services.legacy.financial.omaha import omaha_service
     result = omaha_service.get_object_schema(SAMPLE_CONFIG, "Product")
     assert result["success"] is True
     col_names = [c["name"] for c in result["columns"]]

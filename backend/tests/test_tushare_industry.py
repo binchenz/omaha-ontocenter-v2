@@ -17,7 +17,7 @@ class TestIndustryBasic:
         """Test querying industry data from Tushare."""
         import sys
         sys.path.insert(0, '/Users/wangfushuaiqi/omaha_ontocenter/backend')
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -48,7 +48,7 @@ class TestIndustryBasic:
 
     def test_industry_has_required_fields(self):
         """Test that Industry object returns required fields."""
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:

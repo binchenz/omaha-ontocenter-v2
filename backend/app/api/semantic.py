@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.api.deps import get_current_user, get_project_for_owner
-from app.services.semantic import semantic_service
+from app.services.semantic.service import semantic_service
 
 router = APIRouter()
 

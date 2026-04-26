@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api import api_router
 from app.api import public_auth, public_query
-from app.services.scheduler import scheduler
+from app.services.platform.scheduler import scheduler
 
 
 @asynccontextmanager

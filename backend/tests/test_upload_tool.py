@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 import pandas as pd
-from app.services.agent_tools import AgentToolkit
+from app.services.agent.toolkit import AgentToolkit
 
 
 @pytest.fixture

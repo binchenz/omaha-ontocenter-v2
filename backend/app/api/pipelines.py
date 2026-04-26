@@ -8,8 +8,8 @@ from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
 from app.models.user import User
 from app.models.pipeline import Pipeline
-from app.services.pipeline_runner import run_pipeline
-from app.services.scheduler import scheduler
+from app.services.platform.pipeline_runner import run_pipeline
+from app.services.platform.scheduler import scheduler
 
 router = APIRouter(prefix="/projects", tags=["pipelines"])
 

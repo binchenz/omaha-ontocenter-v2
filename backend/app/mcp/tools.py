@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.asset import DatasetAsset, DataLineage
-from app.services.omaha import omaha_service
-from app.services.semantic import semantic_service
+from app.services.legacy.financial.omaha import omaha_service
+from app.services.semantic.service import semantic_service
 
 
 def list_objects(config_yaml: str) -> Dict[str, Any]:

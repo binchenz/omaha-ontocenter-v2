@@ -12,8 +12,8 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.query_history import QueryHistory
 from app.api.deps import get_current_user, get_project_for_owner
-from app.services.omaha import omaha_service
-from app.services.audit import log_action
+from app.services.legacy.financial.omaha import omaha_service
+from app.services.platform.audit import log_action
 
 router = APIRouter()
 

@@ -7,7 +7,7 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 from app.database import SessionLocal
 from app.models.pipeline import Pipeline
 from app.models.project import Project
-from app.services.pipeline_runner import run_pipeline
+from app.services.platform.pipeline_runner import run_pipeline
 
 logger = logging.getLogger(__name__)
 

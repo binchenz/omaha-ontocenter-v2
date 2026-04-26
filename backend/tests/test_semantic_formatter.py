@@ -3,7 +3,7 @@
 """
 
 import pytest
-from app.services.semantic_formatter import SemanticTypeFormatter
+from app.services.semantic.formatter import SemanticTypeFormatter
 
 
 class TestSemanticTypeFormatter:

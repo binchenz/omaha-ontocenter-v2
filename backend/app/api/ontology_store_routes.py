@@ -8,10 +8,10 @@ from app.schemas.auto_model import (
     InferRequest, InferResponse,
     ConfirmRequest, ConfirmResponse,
 )
-from app.services.ontology_store import OntologyStore
-from app.services.ontology_importer import OntologyImporter
-from app.services.schema_scanner import SchemaScanner
-from app.services.ontology_inferrer import OntologyInferrer
+from app.services.ontology.store import OntologyStore
+from app.services.ontology.importer import OntologyImporter
+from app.services.ontology.schema_scanner import SchemaScanner
+from app.services.ontology.inferrer import OntologyInferrer
 
 router = APIRouter(tags=["ontology-store"])
 

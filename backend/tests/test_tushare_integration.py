@@ -17,7 +17,7 @@ class TestFinancialDataIntegration:
         """Test complete stock analysis workflow."""
         import sys
         sys.path.insert(0, '/Users/wangfushuaiqi/omaha_ontocenter/backend')
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -64,7 +64,7 @@ class TestFinancialDataIntegration:
 
     def test_industry_comparison_workflow(self):
         """Test industry comparison workflow."""
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -104,7 +104,7 @@ class TestFinancialDataIntegration:
 
     def test_price_trend_analysis(self):
         """Test price trend analysis for a specific stock."""
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -155,7 +155,7 @@ class TestFinancialDataIntegration:
 
     def test_config_validation(self):
         """Test that configuration is valid and complete."""
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
         with open(config_path, 'r', encoding='utf-8') as f:

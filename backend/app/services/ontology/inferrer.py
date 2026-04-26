@@ -7,7 +7,7 @@ try:
     from openai import OpenAI
 except ImportError:
     OpenAI = None
-from app.services.schema_scanner import TableSummary
+from app.services.ontology.schema_scanner import TableSummary
 from app.schemas.auto_model import (
     TableClassification, InferredObject, InferredProperty,
     InferredRelationship, SEMANTIC_TYPES,

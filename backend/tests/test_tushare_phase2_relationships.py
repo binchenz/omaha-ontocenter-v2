@@ -20,7 +20,7 @@ class TestPhase2Relationships:
         os.environ['SECRET_KEY'] = 'test-secret-key'
         os.environ['DATAHUB_GMS_URL'] = 'http://localhost:8080'
 
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
@@ -75,7 +75,7 @@ class TestPhase2Relationships:
         os.environ['SECRET_KEY'] = 'test-secret-key'
         os.environ['DATAHUB_GMS_URL'] = 'http://localhost:8080'
 
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
         config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'

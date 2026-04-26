@@ -3,7 +3,7 @@
 """
 
 import pytest
-from app.services.semantic_validator import SemanticTypeValidator
+from app.services.semantic.validator import SemanticTypeValidator
 
 
 class TestSemanticTypeValidator:

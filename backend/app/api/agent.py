@@ -7,10 +7,10 @@ from app.models.user import User
 from app.api.deps import get_current_user, get_db, get_project_for_owner
 from app.services.agent.legacy_agent_service import AgentService as LegacyAgentService
 from app.schemas.agent import AgentChatRequest, AgentChatResponse
-from app.services.ontology_store import OntologyStore
-from app.services.agent_tools import AgentToolkit
-from app.services.agent import AgentService
-from app.services.omaha import OmahaService
+from app.services.ontology.store import OntologyStore
+from app.services.agent.toolkit import AgentToolkit
+from app.services.agent.react import AgentService
+from app.services.legacy.financial.omaha import OmahaService
 
 router = APIRouter()
 

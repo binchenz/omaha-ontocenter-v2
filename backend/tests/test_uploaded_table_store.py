@@ -4,8 +4,8 @@ import tempfile
 import pandas as pd
 import pytest
 
-from app.services.agent_tools import AgentToolkit
-from app.services.uploaded_table_store import UploadedTableStore
+from app.services.agent.toolkit import AgentToolkit
+from app.services.data.uploaded_table_store import UploadedTableStore
 
 
 @pytest.fixture(autouse=True)

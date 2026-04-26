@@ -1,4 +1,4 @@
-from app.services.agent_tools import AgentToolkit
+from app.services.agent.toolkit import AgentToolkit
 from unittest.mock import MagicMock
 
 

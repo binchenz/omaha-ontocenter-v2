@@ -1,8 +1,8 @@
 import json
 import pytest
 from unittest.mock import MagicMock, patch
-from app.services.agent import AgentService
-from app.services.agent_tools import AgentToolkit
+from app.services.agent.react import AgentService
+from app.services.agent.toolkit import AgentToolkit
 
 
 def _make_llm_response(content=None, tool_calls=None):

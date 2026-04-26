@@ -1,5 +1,5 @@
 import pytest
-from app.services.chart_engine import ChartEngine
+from app.services.agent.chart_engine import ChartEngine
 
 
 def test_select_chart_type_line():

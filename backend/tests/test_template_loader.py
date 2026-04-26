@@ -1,4 +1,4 @@
-from app.services.template_loader import TemplateLoader
+from app.services.ontology.template_loader import TemplateLoader
 
 
 def test_list_industries_includes_retail():

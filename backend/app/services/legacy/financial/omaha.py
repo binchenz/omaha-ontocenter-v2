@@ -12,10 +12,10 @@ import pandas as pd
 import tushare as ts
 import yaml
 
-from app.services.semantic import semantic_service
-from app.services.query_builder import SemanticQueryBuilder
-from app.services.computed_property_engine import ComputedPropertyEngine
-from app.services.semantic_formatter import SemanticTypeFormatter
+from app.services.semantic.service import semantic_service
+from app.services.legacy.financial.query_builder import SemanticQueryBuilder
+from app.services.semantic.computed_property import ComputedPropertyEngine
+from app.services.semantic.formatter import SemanticTypeFormatter
 
 
 # Operator lookup for client-side DataFrame filtering

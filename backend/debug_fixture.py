@@ -16,7 +16,7 @@ t = Tenant(name='Test Corp', plan='free')
 db_session.add(t)
 db_session.commit()
 print('Tenant created:', t.id)
-from app.services.ontology_store import OntologyStore
+from app.services.ontology.store import OntologyStore
 store = OntologyStore(db_session)
 obj = store.create_object(tenant_id=t.id, name='Order', source_entity='t_order', datasource_id='db1', datasource_type='sql')
 print('Object created:', obj.id)

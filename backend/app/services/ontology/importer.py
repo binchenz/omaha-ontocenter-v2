@@ -1,6 +1,6 @@
 import yaml
 from sqlalchemy.orm import Session
-from app.services.ontology_store import OntologyStore
+from app.services.ontology.store import OntologyStore
 
 
 class OntologyImporter:
