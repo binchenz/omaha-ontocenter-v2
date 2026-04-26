@@ -84,7 +84,7 @@ api/
 ├─ ontology/
 │   ├─ store.py              (was ontology_store_routes.py)
 │   ├─ legacy.py             (was ontology.py)
-│   └─ semantic.py
+│   └─ semantic.py           (was api/semantic.py)
 ├─ pipelines/
 │   └─ crud.py               (was pipelines.py)
 ├─ legacy/financial/
@@ -118,7 +118,7 @@ schemas/
 └─ legacy/financial/  (public_query, watchlist)
 ```
 
-**关键约束：** SQLAlchemy `Base.metadata` 必须能找到所有 models，alembic autogenerate 才能工作。`models/__init__.py` re-export 所有模型类，保证现有 import 不破。
+**关键约束：** SQLAlchemy `Base.metadata` 必须能找到所有 models，alembic autogenerate 才能工作。`models/__init__.py` re-export 所有模型类，保证 `from app.models import User, Project, ...` 等现有 import 全部可用。`app/main.py`、`app/database.py` 中的导入语句不需修改。
 
 ### 3.4 `backend/tests/`
 
@@ -149,7 +149,7 @@ frontend/src/
 │   └─ legacy/    (老 v1 pages: ObjectExplorer, OntologyEditor, OntologyMap, etc.)
 ├─ components/
 │   ├─ chat/
-│   ├─ ontology/  (was map/)
+│   ├─ legacy/   (ERDiagram/KnowledgeGraph/NodeDetailDrawer，was map/，仅服务 v1 OntologyMap 页面)
 │   ├─ layout/    (was Layout/)
 │   ├─ ui/        (shadcn primitives 不动)
 │   └─ shared/    (PrivateRoute, RequireProject, ApiKeyManager, QueryChart)
@@ -199,9 +199,10 @@ docs/
 ```python
 # backend/app/services/ontology_store.py  (旧位置，shim)
 """Deprecated path. Re-exports from app.services.ontology.store."""
-from app.services.ontology.store import *  # noqa: F401,F403
 from app.services.ontology.store import OntologyStore  # noqa: F401
 ```
+
+显式 re-export 关键符号（不用 `import *`，避免 `__all__` 限定漏字段）。
 
 旧 import 仍然工作 → 测试不会因路径变更挂掉 → 之后批量改 import → 删 shim。
 
@@ -223,8 +224,8 @@ mapping = {
     r"from app\.services\.schema_scanner ": "from app.services.ontology.schema_scanner ",
     r"from app\.services\.data_cleaner ": "from app.services.data.cleaner ",
     r"from app\.services\.uploaded_table_store ": "from app.services.data.uploaded_table_store ",
-    r"from app\.services\.agent ": "from app.services.agent.react ",
-    r"from app\.services\.agent_tools ": "from app.services.agent.toolkit ",
+    r"from app\.services\.agent_tools\b": "from app.services.agent.toolkit",
+    r"from app\.services\.agent\b(?!_|\.)": "from app.services.agent.react",
     r"from app\.services\.chat ": "from app.services.agent.chat_service ",
     r"from app\.services\.chart_engine ": "from app.services.agent.chart_engine ",
     r"from app\.services\.semantic ": "from app.services.semantic.service ",
@@ -257,7 +258,7 @@ mapping = {
 
 | Phase | 内容 | 风险 |
 |-------|------|------|
-| 0 | 准备：worktree、基线测试、确认 `agents/` 无人使用、写 rewrite_imports 脚本 | 低 |
+| 0 | 准备：worktree、**记录 pytest 基线（436 passed / 9 failed）**、确认 `agents/` 无人使用、写 rewrite_imports 脚本、复制 `omaha.db` 到 worktree | 低 |
 | 1 | 根目录清理（gitignore、移文件） | 低 |
 | 2 | services/ 重组：叶子层先挪 → 中层 → 顶层 → 删 agents/ | 高 |
 | 3 | services/ import 路径修正、删 shim | 中 |
@@ -270,6 +271,8 @@ mapping = {
 | 10 | 全套验证 + 启动 E2E + 更新 CLAUDE.md + 合并 | 低 |
 
 每个 phase 内部按"叶子优先"顺序挪文件。
+
+**关键顺序约束：** Phase 2-4（services/tests）期间 `app.models.*` 路径保持不变，避免 services 新文件刚写完又被 Phase 5 改一次。Phase 5 改 models 时 services 已稳定，只需更新 services 里的 model import。
 
 ## 6. agents/ 与 services/agent/ 命名冲突处理
 
@@ -292,19 +295,21 @@ models 分组的最大风险是 alembic autogenerate 找不到所有模型类。
 
 ## 8. 测试策略
 
-每个 phase 后跑：
+每个 phase 后跑（**所有命令在 `backend/` cwd 执行，不用 `cd`**）：
 
 ```bash
-# 全套后端
-cd backend && /Users/wangfushuaiqi/omaha_ontocenter/backend/venv311/bin/python -m pytest tests/ -q --tb=line
+# 全套后端 (cwd=backend)
+/Users/wangfushuaiqi/omaha_ontocenter/backend/venv311/bin/python -m pytest tests/ -q --tb=line
 
-# 启动检查
+# 启动检查 (cwd=backend)
 /Users/wangfushuaiqi/omaha_ontocenter/backend/venv311/bin/python -m app.main
 # 应能成功打印 "Application startup complete." 然后 ctrl+c
 
-# 前端（仅前端动了）
-cd frontend && npm run build
+# 前端（仅前端动了，cwd=frontend）
+npm run build
 ```
+
+**关于 `omaha.db`：** Phase 0 把主仓 `omaha.db` 复制到 worktree 根目录（`cp ../../omaha.db .`），避免 Phase 3b 那次 DB 不同步、testuser 缺失的坑。重组期间不动 schema，DB 复制后即可复用。
 
 最终 phase 10 跑一次完整 E2E 流程（参考 `/tmp/e2e_3b.py`）：登录 → 创建项目 → 上传 → 评估 → 建模 → 确认。
 

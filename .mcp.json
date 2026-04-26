@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "omaha": {
+      "command": "/Users/wangfushuaiqi/omaha_ontocenter/backend/venv311/bin/python3",
+      "args": ["-m", "app.mcp.server"],
+      "cwd": "/Users/wangfushuaiqi/omaha_ontocenter/backend",
+      "env": {
+        "OMAHA_API_KEY": "omaha_hNDLNwGCBtK7JMfZcjxdRl96YKW1IX5CazquZV_-AXM"
+      }
+    }
+  }
+}
