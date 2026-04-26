@@ -17,7 +17,7 @@ MAPPING = [
     (r"from app\.services\.uploaded_table_store ", "from app.services.data.uploaded_table_store "),
     # agent domain
     (r"from app\.services\.agent_tools\b", "from app.services.agent.toolkit"),
-    (r"from app\.services\.agent\b(?!_|\.)", "from app.services.agent.react"),
+    (r"from app\.services\.agent\b(?!_|\.| import)", "from app.services.agent.react"),
     (r"from app\.services\.chat ", "from app.services.agent.chat_service "),
     (r"from app\.services\.chart_engine ", "from app.services.agent.chart_engine "),
     # semantic domain
