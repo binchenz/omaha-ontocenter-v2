@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
-from app.models.user import User
-from app.models.pipeline import Pipeline
+from app.models.auth.user import User
+from app.models.pipeline.pipeline import Pipeline
 from app.services.platform.pipeline_runner import run_pipeline
 from app.services.platform.scheduler import scheduler
 
@@ -152,7 +152,7 @@ def list_pipeline_runs(
     """List execution history for a pipeline."""
     get_project_for_owner(project_id, user, db)
     _get_pipeline(project_id, pipeline_id, db)
-    from app.models.pipeline_run import PipelineRun
+    from app.models.pipeline.pipeline_run import PipelineRun
     runs = db.query(PipelineRun).filter(
         PipelineRun.pipeline_id == pipeline_id
     ).order_by(PipelineRun.created_at.desc()).limit(limit).all()

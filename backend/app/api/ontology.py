@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.models.user import User
+from app.models.auth.user import User
 from app.api.deps import get_current_user, get_db
 from app.schemas.ontology import GenerateYamlRequest, GenerateYamlResponse
 from app.services.legacy.financial.omaha import omaha_service

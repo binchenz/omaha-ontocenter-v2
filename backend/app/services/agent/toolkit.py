@@ -367,7 +367,7 @@ class AgentToolkit:
 
     def _confirm_ontology(self, params: dict) -> dict:
         from app.services.ontology.draft_store import OntologyDraftStore
-        from app.models.project import Project
+        from app.models.project.project import Project
 
         if self.project_id is None or self.session_id is None:
             return {"success": False, "error": "project_id/session_id missing on toolkit"}
@@ -428,7 +428,7 @@ class AgentToolkit:
         }
 
     def _edit_ontology(self, params: dict) -> dict:
-        from app.models.project import Project
+        from app.models.project.project import Project
         from sqlalchemy.exc import SQLAlchemyError
 
         if self.project_id is None or self.db is None:

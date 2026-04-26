@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from app.models.chat_session import ChatSession, ChatMessage
+from app.models.chat.chat_session import ChatSession, ChatMessage
 from app.database import Base, engine
 
 

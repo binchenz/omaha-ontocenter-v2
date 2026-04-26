@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.asset import DatasetAsset, DataLineage
+from app.models.ontology.asset import DatasetAsset, DataLineage
 from app.services.legacy.financial.omaha import omaha_service
 from app.services.semantic.service import semantic_service
 

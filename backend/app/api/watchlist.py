@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.user import User
-from app.models.watchlist import Watchlist
+from app.models.auth.user import User
+from app.models.legacy.financial.watchlist import Watchlist
 from app.schemas.watchlist import WatchlistCreate, WatchlistUpdate, WatchlistResponse
 from app.api.deps import get_current_user
 

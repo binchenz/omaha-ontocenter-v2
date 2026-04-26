@@ -1,0 +1,1 @@
+# legacy domain — subpackages only

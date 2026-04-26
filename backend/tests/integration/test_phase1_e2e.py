@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
-from app.models.tenant import Tenant
+from app.models.auth.tenant import Tenant
 from app.services.ontology.importer import OntologyImporter
 from app.services.ontology.store import OntologyStore
 from app.services.agent.toolkit import AgentToolkit

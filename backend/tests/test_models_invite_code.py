@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models.invite_code import InviteCode
-from app.models.user import User
+from app.models.auth.invite_code import InviteCode
+from app.models.auth.user import User
 from app.database import Base
 
 

@@ -27,8 +27,8 @@ try:
 except ImportError:
     anthropic = None
 
-from app.models.chat_session import ChatSession, ChatMessage
-from app.models.project import Project
+from app.models.chat.chat_session import ChatSession, ChatMessage
+from app.models.project.project import Project
 from app.services.legacy.financial.omaha import OmahaService
 from app.services.semantic.service import semantic_service
 from app.services.agent.chart_engine import ChartEngine

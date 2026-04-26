@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
-from app.models.user import User
+from app.models.auth.user import User
 from app.services.platform.audit import get_audit_logs
 
 router = APIRouter(prefix="/projects", tags=["audit"])

@@ -9,7 +9,7 @@ import argparse
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models.user import InviteCode
+from app.models.auth.user import InviteCode
 
 def generate_codes(db: Session, count: int, expires_days: int):
     """Generate invite codes."""

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, selectinload, joinedload
-from app.models.ontology import (
+from app.models.ontology.ontology import (
     OntologyObject,
     ObjectProperty,
     OntologyRelationship,

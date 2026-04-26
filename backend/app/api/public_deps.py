@@ -3,8 +3,8 @@ from datetime import datetime
 from fastapi import Header, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.user import User
-from app.models.public_api_key import PublicApiKey
+from app.models.auth.user import User
+from app.models.auth.public_api_key import PublicApiKey
 from app.core.security import hash_api_key
 
 

@@ -34,6 +34,26 @@ MAPPING = [
     (r"from app\.services\.omaha ", "from app.services.legacy.financial.omaha "),
     (r"from app\.services\.query_builder ", "from app.services.legacy.financial.query_builder "),
     (r"from app\.services\.ontology_cache_service ", "from app.services.legacy.financial.ontology_cache_service "),
+    # models domain — longer prefixes first to avoid partial matches
+    (r"from app\.models\.public_api_key ", "from app.models.auth.public_api_key "),
+    (r"from app\.models\.invite_code ", "from app.models.auth.invite_code "),
+    (r"from app\.models\.api_key ", "from app.models.auth.api_key "),
+    (r"from app\.models\.tenant ", "from app.models.auth.tenant "),
+    (r"from app\.models\.user ", "from app.models.auth.user "),
+    (r"from app\.models\.project_member ", "from app.models.project.project_member "),
+    (r"from app\.models\.audit_log ", "from app.models.project.audit_log "),
+    (r"from app\.models\.project ", "from app.models.project.project "),
+    (r"from app\.models\.ontology ", "from app.models.ontology.ontology "),
+    (r"from app\.models\.asset ", "from app.models.ontology.asset "),
+    (r"from app\.models\.chat_session ", "from app.models.chat.chat_session "),
+    (r"from app\.models\.query_history ", "from app.models.chat.query_history "),
+    (r"from app\.models\.public_query_log ", "from app.models.chat.public_query_log "),
+    (r"from app\.models\.pipeline_run ", "from app.models.pipeline.pipeline_run "),
+    (r"from app\.models\.pipeline ", "from app.models.pipeline.pipeline "),
+    (r"from app\.models\.cached_financial_statements ", "from app.models.legacy.financial.cached_financial_statements "),
+    (r"from app\.models\.cached_financial ", "from app.models.legacy.financial.cached_financial "),
+    (r"from app\.models\.cached_stock ", "from app.models.legacy.financial.cached_stock "),
+    (r"from app\.models\.watchlist ", "from app.models.legacy.financial.watchlist "),
 ]
 
 def rewrite_file(path: Path, dry_run: bool = False) -> list[str]:

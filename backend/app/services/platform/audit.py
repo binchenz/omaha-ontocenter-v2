@@ -1,7 +1,7 @@
 """Audit log service — write and query audit records."""
 from typing import Optional
 from sqlalchemy.orm import Session, joinedload
-from app.models.audit_log import AuditLog
+from app.models.project.audit_log import AuditLog
 
 
 def log_action(

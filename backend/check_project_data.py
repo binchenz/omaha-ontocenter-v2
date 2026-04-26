@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.project import Project
+from app.models.project.project import Project
 
 # Database setup
 DATABASE_URL = "sqlite:///./omaha.db"

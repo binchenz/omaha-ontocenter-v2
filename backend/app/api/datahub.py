@@ -4,7 +4,7 @@ DataHub endpoints.
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.models.user import User
+from app.models.auth.user import User
 from app.api.deps import get_current_user
 from app.services.platform.datahub import datahub_service
 

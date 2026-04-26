@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 
-from app.models.pipeline import Pipeline
-from app.models.pipeline_run import PipelineRun
+from app.models.pipeline.pipeline import Pipeline
+from app.models.pipeline.pipeline_run import PipelineRun
 from app.services.legacy.financial.omaha import omaha_service
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")

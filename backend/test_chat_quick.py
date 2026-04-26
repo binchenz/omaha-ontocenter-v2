@@ -8,10 +8,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
-from app.models.project import Project
-from app.models.user import User
+from app.models.project.project import Project
+from app.models.auth.user import User
 from app.services.ontology.store import OntologyStore
-from app.models.ontology import OntologyObject
+from app.models.ontology.ontology import OntologyObject
 
 # Database setup
 DATABASE_URL = "sqlite:///./omaha.db"

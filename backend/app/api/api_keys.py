@@ -7,8 +7,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.user import User
-from app.models.api_key import ProjectApiKey
+from app.models.auth.user import User
+from app.models.auth.api_key import ProjectApiKey
 from app.api.deps import get_current_user, get_project_for_owner
 from app.mcp.auth import _hash_key
 

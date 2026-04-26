@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from app.models.project import Project
+from app.models.project.project import Project
 from app.services.agent.toolkit import AgentToolkit
 import pandas as pd
 

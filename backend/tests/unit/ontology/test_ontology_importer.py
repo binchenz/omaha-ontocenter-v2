@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
-from app.models.tenant import Tenant
-from app.models.ontology import OntologyObject, ObjectProperty, OntologyRelationship
+from app.models.auth.tenant import Tenant
+from app.models.ontology.ontology import OntologyObject, ObjectProperty, OntologyRelationship
 from app.services.ontology.store import OntologyStore
 from app.services.ontology.importer import OntologyImporter
 

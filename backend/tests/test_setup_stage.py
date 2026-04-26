@@ -1,5 +1,5 @@
 import pytest
-from app.models.project import Project
+from app.models.project.project import Project
 
 def test_project_has_setup_stage_default():
     p = Project(name="test", owner_id=1)

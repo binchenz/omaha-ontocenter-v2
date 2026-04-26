@@ -6,8 +6,8 @@ from typing import Optional
 
 from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
-from app.models.user import User
-from app.models.project_member import ProjectMember
+from app.models.auth.user import User
+from app.models.project.project_member import ProjectMember
 
 router = APIRouter(prefix="/projects", tags=["members"])
 
@@ -130,7 +130,7 @@ def remove_member(
 
 def _require_member(project_id: int, user_id: int, db: Session) -> Optional[ProjectMember]:
     """Raise 403 if user is not a member or owner of the project. Returns None for owners."""
-    from app.models.project import Project
+    from app.models.project.project import Project
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from decimal import Decimal
 
 from app.database import get_db
-from app.models.user import User
-from app.models.project import Project
-from app.models.query_history import QueryHistory
+from app.models.auth.user import User
+from app.models.project.project import Project
+from app.models.chat.query_history import QueryHistory
 from app.api.deps import get_current_user, get_project_for_owner
 from app.services.legacy.financial.omaha import omaha_service
 from app.services.platform.audit import log_action

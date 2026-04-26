@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.user import User
-from app.models.project import Project
+from app.models.auth.user import User
+from app.models.project.project import Project
 from app.schemas.project import (
     Project as ProjectSchema,
     ProjectCreate,

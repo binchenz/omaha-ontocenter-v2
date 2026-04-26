@@ -6,8 +6,8 @@ from typing import Optional, Tuple
 
 from sqlalchemy.orm import Session
 
-from app.models.api_key import ProjectApiKey
-from app.models.project import Project
+from app.models.auth.api_key import ProjectApiKey
+from app.models.project.project import Project
 
 
 def _hash_key(key: str) -> str:

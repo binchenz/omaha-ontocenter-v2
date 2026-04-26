@@ -4,8 +4,8 @@ from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.api.public_deps import verify_api_key
-from app.models.user import User
-from app.models.public_api_key import PublicApiKey
+from app.models.auth.user import User
+from app.models.auth.public_api_key import PublicApiKey
 import hashlib
 
 
