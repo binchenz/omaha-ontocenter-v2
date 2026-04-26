@@ -1,4 +1,4 @@
-import OntologyMap from '../OntologyMap';
+import OntologyMap from '../legacy/OntologyMap';
 export default function OntologyGraph() {
   return <OntologyMap />;
 }

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NAV_MODULES } from './navConfig';
-import ProjectSwitcher from '@/components/Layout/ProjectSwitcher';
+import ProjectSwitcher from '@/components/layout/ProjectSwitcher';
 
 export default function TopNav() {
   const navigate = useNavigate();

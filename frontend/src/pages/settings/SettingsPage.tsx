@@ -1,4 +1,4 @@
-import MembersManager from '../MembersManager';
+import MembersManager from '../legacy/MembersManager';
 import { useProject } from '@/contexts/ProjectContext';
 
 export default function SettingsPage() {

@@ -1,4 +1,4 @@
-import DatasourceManager from '../DatasourceManager';
+import DatasourceManager from '../legacy/DatasourceManager';
 import { useProject } from '@/contexts/ProjectContext';
 
 export default function DatasourcePage() {

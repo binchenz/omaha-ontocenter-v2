@@ -1,4 +1,4 @@
-import PipelineManager from '../PipelineManager';
+import PipelineManager from '../legacy/PipelineManager';
 import { useProject } from '@/contexts/ProjectContext';
 
 export default function PipelinesPage() {

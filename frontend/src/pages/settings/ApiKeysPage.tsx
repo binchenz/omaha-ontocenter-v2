@@ -1,4 +1,4 @@
-import ApiKeyManager from '@/components/ApiKeyManager';
+import ApiKeyManager from '@/components/shared/ApiKeyManager';
 import { useProject } from '@/contexts/ProjectContext';
 
 export default function ApiKeysPage() {

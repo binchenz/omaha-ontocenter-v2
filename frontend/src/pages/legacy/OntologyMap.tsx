@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { semanticApi } from '@/services/semanticApi';
 import { useProject } from '@/contexts/ProjectContext';
-import ERDiagram from '../components/map/ERDiagram';
-import KnowledgeGraph from '../components/map/KnowledgeGraph';
-import NodeDetailDrawer from '../components/map/NodeDetailDrawer';
+import ERDiagram from '@/components/legacy/map/ERDiagram';
+import KnowledgeGraph from '@/components/legacy/map/KnowledgeGraph';
+import NodeDetailDrawer from '@/components/legacy/map/NodeDetailDrawer';
 
 type ViewMode = 'er' | 'kg';
 

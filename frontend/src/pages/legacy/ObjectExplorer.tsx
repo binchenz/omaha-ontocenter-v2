@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { queryService } from '@/services/query';
 import { assetService } from '@/services/asset';
-import QueryChart from '@/components/QueryChart';
+import QueryChart from '@/components/shared/QueryChart';
 
 interface ObjectExplorerProps {
   projectId?: number;

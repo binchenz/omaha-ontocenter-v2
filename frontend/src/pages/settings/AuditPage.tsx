@@ -1,4 +1,4 @@
-import AuditLogViewer from '../AuditLogViewer';
+import AuditLogViewer from '../legacy/AuditLogViewer';
 import { useProject } from '@/contexts/ProjectContext';
 
 export default function AuditPage() {
