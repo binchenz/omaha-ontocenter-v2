@@ -406,17 +406,21 @@ P0（核心，必须先完成）:
   - ExecutorAgent（ReAct 循环迁移）
   - 瘦 chat_service.py
   - Skill 定义 + SkillLoader + SkillResolver
+  - 渐进式本体确认（field_confirm 交互块 + 置信度策略）
+  - SnapshotManager + undo_last 工具
 
 P1（增强）:
   - PermissionEnforcer
   - Coordinator（复杂度判断 + 路由）
   - PlannerAgent + ReviewerAgent
-  - MCP 工具桥接
+  - 预置连接器：金蝶云、飞书多维表格 + 对应 Skill 变体
 
 P2（补全）:
   - EventBus + 事件类型定义
   - 审计日志 handler
   - 其余事件 handler（notification, lifecycle）
+  - MCP 通用桥接（供自定义连接器使用）
+  - 用友畅捷通、企业微信连接器
 ```
 
 ## 8. 测试策略
@@ -426,7 +430,158 @@ P2（补全）:
 - 新增测试：ToolRegistry 注册/发现/执行、SkillResolver 匹配逻辑、Coordinator 路由逻辑
 - 集成测试：完整 ChatService.send_message() 流程（mock LLM 响应）
 
-## 9. 不做的事
+## 9. 渐进式本体确认
+
+当前 `infer_ontology → confirm_ontology` 的一次性确认流程对非技术用户风险太高。改为逐步引导：
+
+### 9.1 确认流程
+
+```
+infer_ontology 返回草稿
+  → Agent 逐对象展示（不是一次性全部）
+  → 对每个对象：
+    1. "我发现了一个【客户】对象，包含这些字段："
+    2. 逐字段确认："【手机号】这列看起来是联系方式，对吗？"
+    3. 用户可以：确认 / 改名 / 跳过 / 标记为"不确定"
+  → 所有对象确认完毕后，展示完整本体预览
+  → 用户最终确认 → confirm_ontology
+```
+
+### 9.2 结构化交互块
+
+新增 `field_confirm` 类型的结构化输出：
+
+```json
+{
+  "type": "panel",
+  "panel_type": "field_confirm",
+  "content": "这列数据看起来是【客户姓名】",
+  "data": {
+    "object_name": "客户",
+    "field_name": "name",
+    "inferred_type": "string",
+    "inferred_semantic_type": "person_name",
+    "sample_values": ["张三", "李四", "王五"],
+    "confidence": 0.92
+  },
+  "options": [
+    {"label": "没错", "value": "confirm"},
+    {"label": "改个名字", "value": "rename"},
+    {"label": "这列不需要", "value": "skip"},
+    {"label": "不确定", "value": "unsure"}
+  ]
+}
+```
+
+### 9.3 置信度策略
+
+- 高置信度（>0.9）：展示但默认确认，用户可改
+- 中置信度（0.6-0.9）：必须用户明确确认
+- 低置信度（<0.6）：主动询问"这列是什么意思？"
+
+这样 agent 只在不确定的地方打扰用户，高置信度字段快速通过。
+
+## 10. 预置行业连接器
+
+MCP bridge 作为通用扩展机制保留，但第一版必须提供开箱即用的数据接入方式：
+
+### 10.1 第一版支持的数据源
+
+| 数据源 | 接入方式 | 优先级 |
+|--------|---------|--------|
+| Excel/CSV 文件上传 | 直接解析（已有） | P0 |
+| 金蝶云星空 | REST API 连接器 | P1 |
+| 飞书多维表格 | 飞书开放平台 API | P1 |
+| MySQL/PostgreSQL 直连 | SQL 连接器（已有） | P0 |
+| 用友畅捷通 T+ | REST API 连接器 | P2 |
+| 企业微信导出 | CSV 解析 + 格式适配 | P2 |
+
+### 10.2 连接器与 Skill 的关系
+
+每个连接器对应一个接入 Skill 变体：
+
+```yaml
+# skills/definitions/ingestion_kingdee.yaml
+name: ingestion_kingdee
+description: 金蝶云数据接入
+extends: data_ingestion
+system_prompt: |
+  用户正在接入金蝶云星空的数据。
+  引导用户提供：金蝶云地址、账号、数据中心ID。
+  连接成功后自动拉取科目表和凭证数据。
+allowed_tools:
+  - connect_kingdee
+  - assess_quality
+  - clean_data
+connector: kingdee_cloud
+```
+
+### 10.3 对话式接入流程
+
+```
+用户："我用金蝶管账"
+  → SkillResolver 匹配 ingestion_kingdee skill
+  → Agent："好的，请提供你的金蝶云地址和账号"
+  → 用户提供凭据
+  → Agent 调用 connect_kingdee 工具
+  → 自动拉取数据 → assess_quality → 展示质量报告
+```
+
+用户不需要知道 MCP 是什么，也不需要部署任何东西。
+
+## 11. 操作可逆性
+
+所有写操作（清洗、建模、编辑本体）支持撤销。
+
+### 11.1 快照机制
+
+```python
+class SnapshotManager:
+    async def take(self, project_id: int, operation: str, data: dict) -> int:
+        """在写操作前保存快照，返回 snapshot_id"""
+
+    async def restore(self, snapshot_id: int) -> None:
+        """恢复到指定快照"""
+
+    async def list(self, project_id: int, limit: int = 10) -> list[Snapshot]:
+        """列出最近的快照"""
+```
+
+### 11.2 快照触发点
+
+| 操作 | 快照内容 |
+|------|---------|
+| `clean_data` | 清洗前的原始数据副本 |
+| `confirm_ontology` | 确认前的本体草稿状态 |
+| `edit_ontology` | 编辑前的本体快照 |
+
+### 11.3 撤销交互
+
+用户说"撤销"或"回到上一步"时：
+
+```
+Agent："上一步操作是【确认建模】，要恢复到建模前的状态吗？"
+  → 用户确认
+  → SnapshotManager.restore()
+  → setup_stage 回退
+  → Agent："已恢复，我们重新来过。"
+```
+
+新增工具：
+
+```yaml
+- name: undo_last
+  description: 撤销上一步写操作，恢复到之前的状态
+  allowed_in: [data_ingestion, data_modeling, data_query]
+```
+
+### 11.4 快照存储
+
+- 本体快照：存储在 `ontology_snapshots` 表（JSON 格式）
+- 数据快照：对于小数据集（<10MB）存完整副本；大数据集只存操作日志（可重放）
+- 保留最近 20 个快照，超出自动清理
+
+## 12. 不做的事
 
 - 不引入外部 Agent 框架（LangChain/LangGraph/CrewAI）
 - 不改变前端 API 接口（ChatService 的输入输出格式保持兼容）
