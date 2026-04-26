@@ -68,6 +68,9 @@ class ChatService:
 - **查询一次后立即基于结果回答，不要反复查询**
 - 如果查询结果为空或不符合预期，直接告知用户，不要编造数据
 - 用户上传文件后，自动调用 assess_quality 评估数据质量并展示结果
+- **建模请求必须走工具链，不能用文字描述代替**：用户说"整理成业务对象"、"帮我建模"、"梳理数据"、"识别对象"等意图时，必须按顺序调用 load_template（如已知行业）→ scan_tables → infer_ontology。文字描述对象/字段不算建模。
+- **infer_ontology 成功后必须返回 ontology_preview 结构化块**，不允许只用 Markdown 表格代替（用户需要点击"确认建模"按钮）。
+- **用户说"确认建模"或"我确认"或"OK"且当前阶段是 modeling 时**，立即调用 confirm_ontology 工具，不要再让用户重复一遍。
 
 ## 结构化富组件输出
 
@@ -83,6 +86,12 @@ class ChatService:
 {{"type": "panel", "panel_type": "quality_report", "content": "数据质量报告", "data": {{"score": 67, "issues": [...]}}}}
 ```
 
+**展示建模草稿（infer_ontology 工具返回后，必须用此格式展示）：**
+```structured
+{{"type": "panel", "panel_type": "ontology_preview", "content": "我识别出这些业务对象，请确认", "data": {{"template_name": "零售/电商", "objects": [...], "relationships": [...], "warnings": [...]}}}}
+```
+注意：`data` 字段直接复制 infer_ontology 工具返回的 data 内容。
+
 注意：
 - `data` 直接复制 assess_quality 工具返回的 data 内容
 - structured 块外可以有自然语言文字解释，但选项/面板本身用块包裹
@@ -97,6 +106,13 @@ class ChatService:
 **清洗阶段**
 - assess_quality: 评估数据质量，返回评分和问题清单
 - clean_data: 执行清洗（rules: duplicate_rows / strip_whitespace / standardize_dates）
+
+**建模阶段**
+- load_template: 加载行业模板（用户告知行业后调用）
+- scan_tables: 扫描已上传数据
+- infer_ontology: LLM 推断业务对象 + 字段语义 + 关系（结果写草稿，可传 industry 参数复用模板）
+- confirm_ontology: 持久化草稿到本体库
+- edit_ontology: 修改已确认的本体（仅 setup_stage=ready 时可用）
 
 **查询阶段**
 - list_objects: 列出所有业务对象
@@ -442,6 +458,72 @@ class ChatService:
                         "required": ["rules"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "load_template",
+                    "description": "加载行业模板，返回该行业典型的业务对象定义。在用户告知行业后调用，结果可作为 infer_ontology 的先验。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "industry": {"type": "string", "description": "行业代码：retail / manufacturing / trade / service"}
+                        },
+                        "required": ["industry"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "scan_tables",
+                    "description": "扫描已上传的数据表，返回每张表的列、行数和样本值。在准备建模前调用。",
+                    "parameters": {"type": "object", "properties": {}, "required": []}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "infer_ontology",
+                    "description": "基于已上传数据 + 可选行业模板，调 LLM 推断本体。结果存为草稿，用户确认后才生效。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "industry": {"type": "string", "description": "行业代码（可选）"}
+                        },
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "confirm_ontology",
+                    "description": "用户确认建模草稿后调用。把草稿持久化到本体库，setup_stage 推到 ready。",
+                    "parameters": {"type": "object", "properties": {}, "required": []}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "edit_ontology",
+                    "description": "修改已确认的本体。setup_stage 必须为 ready 才能调用。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "action": {"type": "string", "description": "rename_object|rename_property|change_semantic_type|update_description|add_property|remove_property|add_relationship|remove_relationship"},
+                            "object_name": {"type": "string"},
+                            "property_name": {"type": "string"},
+                            "new_value": {"type": "string"},
+                            "data_type": {"type": "string"},
+                            "semantic_type": {"type": "string"},
+                            "to_object": {"type": "string"},
+                            "from_field": {"type": "string"},
+                            "to_field": {"type": "string"}
+                        },
+                        "required": ["action", "object_name"]
+                    }
+                }
             }
         ]
 
@@ -521,20 +603,44 @@ class ChatService:
                 # This would call the assets API internally
                 return {"lineage": []}
 
-            elif tool_name in ("assess_quality", "clean_data"):
+            elif tool_name in (
+                "assess_quality", "clean_data",
+                "load_template", "scan_tables",
+                "infer_ontology", "confirm_ontology", "edit_ontology",
+            ):
                 from app.services.agent_tools import AgentToolkit
                 toolkit = AgentToolkit(
                     omaha_service=None,
                     project_id=self.project_id,
                     session_id=getattr(self, "_current_session_id", None),
+                    db=self.db,
                 )
-                return toolkit.execute_tool(tool_name, tool_args)
+                result = toolkit.execute_tool(tool_name, tool_args)
+                if result.get("success"):
+                    self._advance_setup_stage_for_tool(tool_name)
+                return result
 
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
 
         except Exception as e:
             return {"error": str(e)}
+
+    def _advance_setup_stage_for_tool(self, tool_name: str) -> None:
+        """Advance project.setup_stage based on tool that just succeeded."""
+        if not self.project:
+            return
+        transitions = {
+            "clean_data": ("cleaning", "modeling"),
+            # confirm_ontology already sets setup_stage=ready inside the toolkit
+        }
+        pair = transitions.get(tool_name)
+        if not pair:
+            return
+        expected, next_stage = pair
+        if self.project.setup_stage == expected:
+            self.project.setup_stage = next_stage
+            self.db.commit()
 
     def _screen_stocks(self, args: Dict[str, Any], config_yaml: str) -> Dict[str, Any]:
         """Screen stocks with multi-object filtering (financial + valuation + technical)."""

@@ -94,6 +94,77 @@ class OntologyStore:
             object_id=object_id, content=content, source=source,
         ))
 
+    def rename_object(self, tenant_id: int, old_name: str, new_name: str) -> bool:
+        obj = self.get_object(tenant_id, old_name)
+        if obj is None:
+            return False
+        obj.name = new_name
+        self.db.flush()
+        return True
+
+    def update_object_description(self, tenant_id: int, name: str, description: str) -> bool:
+        obj = self.get_object(tenant_id, name)
+        if obj is None:
+            return False
+        obj.description = description
+        self.db.flush()
+        return True
+
+    def rename_property(self, object_id: int, old_name: str, new_name: str) -> bool:
+        prop = self.db.query(ObjectProperty).filter(
+            ObjectProperty.object_id == object_id,
+            ObjectProperty.name == old_name,
+        ).first()
+        if prop is None:
+            return False
+        prop.name = new_name
+        self.db.flush()
+        return True
+
+    def update_property_semantic_type(self, object_id: int, name: str, semantic_type: str | None) -> bool:
+        prop = self.db.query(ObjectProperty).filter(
+            ObjectProperty.object_id == object_id,
+            ObjectProperty.name == name,
+        ).first()
+        if prop is None:
+            return False
+        prop.semantic_type = semantic_type
+        self.db.flush()
+        return True
+
+    def update_property_description(self, object_id: int, name: str, description: str) -> bool:
+        prop = self.db.query(ObjectProperty).filter(
+            ObjectProperty.object_id == object_id,
+            ObjectProperty.name == name,
+        ).first()
+        if prop is None:
+            return False
+        prop.description = description
+        self.db.flush()
+        return True
+
+    def remove_property(self, object_id: int, name: str) -> bool:
+        prop = self.db.query(ObjectProperty).filter(
+            ObjectProperty.object_id == object_id,
+            ObjectProperty.name == name,
+        ).first()
+        if prop is None:
+            return False
+        self.db.delete(prop)
+        self.db.flush()
+        return True
+
+    def remove_relationship(self, tenant_id: int, name: str) -> bool:
+        rel = self.db.query(OntologyRelationship).filter(
+            OntologyRelationship.tenant_id == tenant_id,
+            OntologyRelationship.name == name,
+        ).first()
+        if rel is None:
+            return False
+        self.db.delete(rel)
+        self.db.flush()
+        return True
+
     def get_full_ontology(self, tenant_id: int) -> dict:
         objects = (
             self.db.query(OntologyObject)

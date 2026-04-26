@@ -2,7 +2,9 @@ import type { ReactNode } from 'react';
 import { StructuredItem } from '../../types/chat';
 import { OptionCards } from './OptionCards';
 import { QualityPanel } from './QualityPanel';
+import { OntologyConfirmPanel } from './OntologyConfirmPanel';
 import { FileUploadZone } from './FileUploadZone';
+import { MODELING_CONFIRM_TRIGGER, MODELING_RETRY_TRIGGER } from './modelingActions';
 
 interface Props {
   items: StructuredItem[];
@@ -36,6 +38,16 @@ export function StructuredMessage({ items, onOptionSelect, onFileUpload }: Props
             if (item.panel_type === 'quality_report') {
               const qdata = item.data as { score: number; issues: any[] } | undefined;
               return <QualityPanel key={i} data={qdata || { score: 0, issues: [] }} />;
+            }
+            if (item.panel_type === 'ontology_preview') {
+              return (
+                <OntologyConfirmPanel
+                  key={i}
+                  data={item.data as any || { objects: [], relationships: [] }}
+                  onConfirm={() => onOptionSelect?.(MODELING_CONFIRM_TRIGGER)}
+                  onRetry={() => onOptionSelect?.(MODELING_RETRY_TRIGGER)}
+                />
+              );
             }
             return <p key={i} className="text-sm">{item.content}</p>;
           case 'file_upload':
