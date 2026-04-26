@@ -181,12 +181,18 @@ docs/
 └─ superpowers/              (现有保留)
 ```
 
-### 3.8 根目录清理
+### 3.8 不动的目录
+
+- `backend/app/connectors/`（csv/mongodb/rest/sql/tushare）保持原状——已经按数据源分文件，不需要再分组。后续新增 SaaS 连接器（金蝶/用友）直接加 `connectors/kingdee.py` 等。
+- `backend/app/core/`、`backend/app/mcp/`、`backend/alembic/` 不动。
+- 前端 `services/`、`hooks/`、`contexts/`、`layouts/`、`ui/` 不动。
+
+### 3.9 根目录清理
 
 | 文件 | 处理 |
 |------|------|
-| `omaha.db` | `.gitignore` + 从 git 移除（不删本地） |
-| `111.pem` | `.gitignore` + 从 git 移除（敏感） |
+| `omaha.db` | `.gitignore`（当前未被 git 跟踪，无需移除） |
+| `111.pem` | `.gitignore` + `git rm --cached 111.pem`（敏感） |
 | `test_tushare_config.yaml` | 移到 `backend/tests/fixtures/` |
 | 根目录 `__pycache__/` | `.gitignore` |
 
