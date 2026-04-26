@@ -4,10 +4,14 @@ Ontology endpoints.
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_db
+from app.schemas.ontology import GenerateYamlRequest, GenerateYamlResponse
 from app.services.legacy.financial.omaha import omaha_service
+from app.services.ontology.store import OntologyStore
+from app.services.ontology.importer import OntologyImporter
 
 router = APIRouter()
 
@@ -42,9 +46,6 @@ async def build_ontology(
     """Build ontology from configuration."""
     result = omaha_service.build_ontology(request.config_yaml)
     return result
-
-
-from app.schemas.ontology import GenerateYamlRequest, GenerateYamlResponse
 
 
 @router.post("/generate", response_model=GenerateYamlResponse)
@@ -109,10 +110,6 @@ def generate_yaml(
 
 
 # ── CRUD endpoints for DB-backed ontology ──────────────────────────
-from sqlalchemy.orm import Session
-from app.api.deps import get_db
-from app.services.ontology.store import OntologyStore
-from app.services.ontology.importer import OntologyImporter
 
 
 class OntologyObjectCreate(BaseModel):
