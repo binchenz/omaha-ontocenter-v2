@@ -31,7 +31,7 @@ router = APIRouter()
 RATE_LIMIT = 1000  # queries per hour
 
 # Load ontology config
-backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 config_path = os.path.join(backend_dir, 'configs/financial_stock_analysis.yaml')
 if not os.path.exists(config_path):
     # fallback: one level up from backend_dir

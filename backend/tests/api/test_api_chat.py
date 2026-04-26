@@ -68,7 +68,7 @@ client = TestClient(app)
 
 def test_create_chat_session():
     """Test creating a chat session."""
-    with patch('app.api.chat.get_project_for_owner', return_value=mock_project):
+    with patch('app.api.chat.chat.get_project_for_owner', return_value=mock_project):
         response = client.post(
             "/api/v1/chat/1/sessions",
             json={"title": "Test Chat"},
@@ -81,7 +81,7 @@ def test_create_chat_session():
 
 def test_list_chat_sessions():
     """Test listing chat sessions."""
-    with patch('app.api.chat.get_project_for_owner', return_value=mock_project):
+    with patch('app.api.chat.chat.get_project_for_owner', return_value=mock_project):
         response = client.get(
             "/api/v1/chat/1/sessions",
             headers={"Authorization": "Bearer test-token"}
@@ -93,8 +93,8 @@ def test_list_chat_sessions():
 
 def test_send_message():
     """Test sending a message."""
-    with patch('app.api.chat.get_project_for_owner', return_value=mock_project):
-        with patch('app.api.chat.ChatService') as mock_service:
+    with patch('app.api.chat.chat.get_project_for_owner', return_value=mock_project):
+        with patch('app.api.chat.chat.ChatService') as mock_service:
             mock_service.return_value.send_message.return_value = {
                 "message": "测试响应",
                 "data_table": None,
@@ -113,7 +113,7 @@ def test_send_message():
 
 def test_delete_chat_session():
     """Test deleting a chat session."""
-    with patch('app.api.chat.get_project_for_owner', return_value=mock_project):
+    with patch('app.api.chat.chat.get_project_for_owner', return_value=mock_project):
         response = client.delete(
             "/api/v1/chat/1/sessions/1",
             headers={"Authorization": "Bearer test-token"}

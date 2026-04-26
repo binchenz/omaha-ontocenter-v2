@@ -64,7 +64,7 @@ def test_scan_endpoint(client):
                      columns=[{"name": "id", "type": "INTEGER", "nullable": False}],
                      sample_values={"id": ["1", "2", "3"]}),
     ]
-    with patch("app.api.ontology_store_routes.SchemaScanner") as MockScanner:
+    with patch("app.api.ontology.store.SchemaScanner") as MockScanner:
         MockScanner.return_value.scan_all.return_value = mock_tables
         MockScanner.return_value.close.return_value = None
         resp = test_client.post(
@@ -90,8 +90,8 @@ def test_infer_endpoint(client):
         datasource_id="test_db", datasource_type="sql",
         properties=[InferredProperty(name="id", data_type="integer", semantic_type="id")],
     )
-    with patch("app.api.ontology_store_routes.SchemaScanner") as MockScanner, \
-         patch("app.api.ontology_store_routes.OntologyInferrer") as MockInferrer:
+    with patch("app.api.ontology.store.SchemaScanner") as MockScanner, \
+         patch("app.api.ontology.store.OntologyInferrer") as MockInferrer:
         MockScanner.return_value.scan_table.return_value = mock_tables[0]
         MockScanner.return_value.close.return_value = None
         MockInferrer.return_value.infer_table.return_value = mock_obj
