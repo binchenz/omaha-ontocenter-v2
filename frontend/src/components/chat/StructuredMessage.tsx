@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { StructuredItem } from '../../types/chat';
 import { OptionCards } from './OptionCards';
 import { QualityPanel } from './QualityPanel';
+import { OntologyConfirmPanel } from './OntologyConfirmPanel';
 import { FileUploadZone } from './FileUploadZone';
 
 interface Props {
@@ -36,6 +37,16 @@ export function StructuredMessage({ items, onOptionSelect, onFileUpload }: Props
             if (item.panel_type === 'quality_report') {
               const qdata = item.data as { score: number; issues: any[] } | undefined;
               return <QualityPanel key={i} data={qdata || { score: 0, issues: [] }} />;
+            }
+            if (item.panel_type === 'ontology_preview') {
+              return (
+                <OntologyConfirmPanel
+                  key={i}
+                  data={item.data as any || { objects: [], relationships: [] }}
+                  onConfirm={() => onOptionSelect?.('确认建模')}
+                  onRetry={() => onOptionSelect?.('重新分析建模')}
+                />
+              );
             }
             return <p key={i} className="text-sm">{item.content}</p>;
           case 'file_upload':

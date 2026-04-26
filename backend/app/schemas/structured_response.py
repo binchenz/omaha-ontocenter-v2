@@ -21,7 +21,7 @@ class OptionsResponse(BaseModel):
 class PanelResponse(BaseModel):
     type: Literal["panel"] = "panel"
     content: str
-    panel_type: Literal["quality_report"]
+    panel_type: Literal["quality_report", "ontology_preview"]
     data: dict[str, Any]
 
 
