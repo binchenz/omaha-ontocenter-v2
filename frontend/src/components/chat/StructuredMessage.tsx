@@ -4,6 +4,7 @@ import { OptionCards } from './OptionCards';
 import { QualityPanel } from './QualityPanel';
 import { OntologyConfirmPanel } from './OntologyConfirmPanel';
 import { FileUploadZone } from './FileUploadZone';
+import { MODELING_CONFIRM_TRIGGER, MODELING_RETRY_TRIGGER } from './modelingActions';
 
 interface Props {
   items: StructuredItem[];
@@ -43,8 +44,8 @@ export function StructuredMessage({ items, onOptionSelect, onFileUpload }: Props
                 <OntologyConfirmPanel
                   key={i}
                   data={item.data as any || { objects: [], relationships: [] }}
-                  onConfirm={() => onOptionSelect?.('确认建模')}
-                  onRetry={() => onOptionSelect?.('重新分析建模')}
+                  onConfirm={() => onOptionSelect?.(MODELING_CONFIRM_TRIGGER)}
+                  onRetry={() => onOptionSelect?.(MODELING_RETRY_TRIGGER)}
                 />
               );
             }

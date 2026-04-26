@@ -4,6 +4,19 @@ from app.services.ontology_importer import OntologyImporter
 from app.services.ontology_store import OntologyStore
 
 
+def _summarize_dataframe(name: str, df) -> dict:
+    """Convert a pandas DataFrame to the summary shape shared by scan_tables and infer_ontology."""
+    return {
+        "name": name,
+        "row_count": int(len(df)),
+        "columns": [{"name": str(c), "type": str(df[c].dtype)} for c in df.columns],
+        "sample_values": {
+            str(c): [str(v) for v in df[c].dropna().astype(str).head(20).tolist()]
+            for c in df.columns
+        },
+    }
+
+
 class AgentToolkit:
     def __init__(
         self,
@@ -273,17 +286,7 @@ class AgentToolkit:
         tables = self._load_tables()
         if not tables:
             return {"success": False, "error": "没有已上传的数据，请先上传文件"}
-        summaries = []
-        for name, df in tables.items():
-            summaries.append({
-                "name": name,
-                "row_count": int(len(df)),
-                "columns": [{"name": str(c), "type": str(df[c].dtype)} for c in df.columns],
-                "sample_values": {
-                    str(c): [str(v) for v in df[c].dropna().astype(str).head(20).tolist()]
-                    for c in df.columns
-                },
-            })
+        summaries = [_summarize_dataframe(name, df) for name, df in tables.items()]
         return {"success": True, "data": {"tables": summaries}}
 
     def _infer_ontology(self, params: dict) -> dict:
@@ -313,14 +316,12 @@ class AgentToolkit:
         inferred_objects = []
         warnings: list[str] = []
         for name, df in tables.items():
+            summary_dict = _summarize_dataframe(name, df)
             summary = TableSummary(
-                name=name,
-                row_count=int(len(df)),
-                columns=[{"name": str(c), "type": str(df[c].dtype), "nullable": True} for c in df.columns],
-                sample_values={
-                    str(c): [str(v) for v in df[c].dropna().astype(str).head(20).tolist()]
-                    for c in df.columns
-                },
+                name=summary_dict["name"],
+                row_count=summary_dict["row_count"],
+                columns=[{**c, "nullable": True} for c in summary_dict["columns"]],
+                sample_values=summary_dict["sample_values"],
             )
             try:
                 obj = inferrer.infer_table(summary, datasource_id="upload", template_hint=template_hint)
@@ -428,6 +429,7 @@ class AgentToolkit:
 
     def _edit_ontology(self, params: dict) -> dict:
         from app.models.project import Project
+        from sqlalchemy.exc import SQLAlchemyError
 
         if self.project_id is None or self.db is None:
             return {"success": False, "error": "project_id/db missing on toolkit"}
@@ -438,16 +440,34 @@ class AgentToolkit:
         if project.setup_stage != "ready":
             return {"success": False, "error": "edit_ontology 仅在已确认本体后可用 (setup_stage=ready)"}
 
-        tenant_id = project.tenant_id or project.owner_id
-        store = OntologyStore(self.db)
-
         action = params.get("action")
         object_name = params.get("object_name")
         if not action or not object_name:
             return {"success": False, "error": "action 和 object_name 必填"}
 
+        # Per-action required-key validation up front so missing keys produce
+        # a clear error instead of being swallowed by the broad except below.
+        required_by_action = {
+            "rename_object": ("new_value",),
+            "rename_property": ("property_name", "new_value"),
+            "change_semantic_type": ("property_name", "new_value"),
+            "update_description": ("new_value",),
+            "add_property": ("property_name",),
+            "remove_property": ("property_name",),
+            "add_relationship": ("to_object", "from_field", "to_field"),
+            "remove_relationship": (),
+        }
+        if action not in required_by_action:
+            return {"success": False, "error": f"未知 action: {action}"}
+        missing = [k for k in required_by_action[action] if not params.get(k)]
+        if missing:
+            return {"success": False, "error": f"缺少参数: {', '.join(missing)}"}
+
+        tenant_id = project.tenant_id or project.owner_id
+        store = OntologyStore(self.db)
+
         obj = store.get_object(tenant_id, object_name)
-        if obj is None and action != "add_relationship":
+        if obj is None:
             return {"success": False, "error": f"未找到对象: {object_name}"}
 
         try:
@@ -479,17 +499,15 @@ class AgentToolkit:
                 store.add_relationship(
                     tenant_id=tenant_id,
                     name=f"{object_name}_{params['to_object']}",
-                    from_object_id=obj.id if obj else None,
+                    from_object_id=obj.id,
                     to_object_id=to_obj.id,
-                    relationship_type="belongs_to",
+                    relationship_type=params.get("relationship_type", "belongs_to"),
                     from_field=params["from_field"],
                     to_field=params["to_field"],
                 )
                 ok = True
-            elif action == "remove_relationship":
+            else:  # remove_relationship
                 ok = store.remove_relationship(tenant_id, params.get("new_value") or object_name)
-            else:
-                return {"success": False, "error": f"未知 action: {action}"}
 
             if not ok:
                 return {"success": False, "error": f"操作失败: {action}"}
@@ -497,6 +515,6 @@ class AgentToolkit:
             self.db.commit()
             return {"success": True, "data": {"action": action, "object_name": object_name}}
 
-        except Exception as e:
+        except SQLAlchemyError as e:
             self.db.rollback()
-            return {"success": False, "error": f"操作异常: {e}"}
+            return {"success": False, "error": f"数据库错误: {e}"}

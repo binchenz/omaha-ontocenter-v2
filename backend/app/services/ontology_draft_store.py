@@ -1,8 +1,9 @@
-"""Pickle-based ontology draft storage scoped by (project_id, session_id)."""
-import pickle
+"""JSON-based ontology draft storage scoped by (project_id, session_id)."""
+import json
 from pathlib import Path
 
-
+# Mirror Phase 3a UploadedTableStore convention (data/uploads under cwd at process start).
+# UploadedTableStore is also CWD-relative; switching one without the other would split storage.
 _BASE = Path("data/uploads")
 
 
@@ -11,7 +12,7 @@ def _draft_dir(project_id: int, session_id: int) -> Path:
 
 
 def _draft_path(project_id: int, session_id: int) -> Path:
-    return _draft_dir(project_id, session_id) / "draft.pkl"
+    return _draft_dir(project_id, session_id) / "draft.json"
 
 
 class OntologyDraftStore:
@@ -30,16 +31,16 @@ class OntologyDraftStore:
             "relationships": relationships,
             "warnings": warnings,
         }
-        with _draft_path(project_id, session_id).open("wb") as f:
-            pickle.dump(payload, f)
+        _draft_path(project_id, session_id).write_text(
+            json.dumps(payload, ensure_ascii=False), encoding="utf-8"
+        )
 
     @staticmethod
     def load(project_id: int, session_id: int) -> dict | None:
         p = _draft_path(project_id, session_id)
         if not p.exists():
             return None
-        with p.open("rb") as f:
-            return pickle.load(f)
+        return json.loads(p.read_text(encoding="utf-8"))
 
     @staticmethod
     def clear(project_id: int, session_id: int) -> None:
