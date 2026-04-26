@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models.auth.tenant import Tenant
 from app.services.ontology.store import OntologyStore
-from app.services.agent.legacy_agent_service import AgentService
+from app.services.agent.legacy_agent_service import LegacyAgentService as AgentService
 
 
 @pytest.fixture

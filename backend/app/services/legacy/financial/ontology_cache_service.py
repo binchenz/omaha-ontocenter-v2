@@ -1,6 +1,8 @@
 """Ontology-based cache service using OmahaService."""
 from typing import List, Dict, Any, Optional
+import yaml
 from sqlalchemy.orm import Session
+from app._paths import LEGACY_FINANCIAL_CONFIG
 from app.services.legacy.financial.omaha import OmahaService
 from app.services.semantic.formatter import SemanticTypeFormatter
 
@@ -11,13 +13,10 @@ class OntologyCacheService:
     def __init__(self, db: Session, config_path: str = None):
         self.db = db
         self.omaha = OmahaService()
-        if config_path is None:
-            import os
-            # Get project root directory — file lives in backend/app/services/legacy/financial/
-            repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-            config_path = os.path.join(repo_root, 'configs', 'legacy', 'financial', 'financial_stock_analysis.yaml')
-        with open(config_path, 'r') as f:
+        path = config_path if config_path is not None else LEGACY_FINANCIAL_CONFIG
+        with open(path, 'r') as f:
             self.config_yaml = f.read()
+        self.config = yaml.safe_load(self.config_yaml)
 
     def query_objects(
         self,
@@ -73,10 +72,7 @@ class OntologyCacheService:
 
     def _format_data(self, object_type: str, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Format data based on semantic types from ontology."""
-        # Get object definition
-        import yaml
-        config = yaml.safe_load(self.config_yaml)
-        obj_def = next((o for o in config['ontology']['objects'] if o['name'] == object_type), None)
+        obj_def = next((o for o in self.config['ontology']['objects'] if o['name'] == object_type), None)
         if not obj_def:
             return data
 
@@ -130,9 +126,7 @@ class OntologyCacheService:
 
     def get_object_schema(self, object_type: str) -> Dict[str, Any]:
         """Get object schema with business context."""
-        import yaml
-        config = yaml.safe_load(self.config_yaml)
-        obj_def = next((o for o in config['ontology']['objects'] if o['name'] == object_type), None)
+        obj_def = next((o for o in self.config['ontology']['objects'] if o['name'] == object_type), None)
         if not obj_def:
             return {}
 

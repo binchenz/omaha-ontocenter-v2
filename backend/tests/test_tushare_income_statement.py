@@ -1,4 +1,4 @@
-from pathlib import Path
+from tests.conftest import LEGACY_FINANCIAL_CONFIG
 """
 测试 IncomeStatement 对象（利润表）
 基于 Tushare Pro 数据源
@@ -24,7 +24,7 @@ class TestIncomeStatement:
         from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
+        config_path = str(LEGACY_FINANCIAL_CONFIG)
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -67,7 +67,7 @@ class TestIncomeStatement:
         from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
+        config_path = str(LEGACY_FINANCIAL_CONFIG)
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -107,7 +107,7 @@ class TestIncomeStatement:
         from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
+        config_path = str(LEGACY_FINANCIAL_CONFIG)
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 

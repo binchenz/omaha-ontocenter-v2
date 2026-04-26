@@ -8,6 +8,7 @@ from app.main import app
 from app.database import Base, get_db
 from app.models.auth.user import User
 from app.core.security import get_password_hash
+from app._paths import REPO_ROOT, LEGACY_FINANCIAL_CONFIG  # noqa: F401 — re-exported for tests
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 

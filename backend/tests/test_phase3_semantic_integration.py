@@ -18,11 +18,8 @@ class TestPhase3SemanticIntegration:
     @pytest.fixture
     def config_yaml(self):
         """加载配置文件"""
-        import os
-        # 获取项目根目录
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(os.path.dirname(current_dir))
-        config_path = os.path.join(project_root, 'configs', 'legacy', 'financial', 'financial_stock_analysis.yaml')
+        from tests.conftest import LEGACY_FINANCIAL_CONFIG
+        config_path = str(LEGACY_FINANCIAL_CONFIG)
 
         with open(config_path, 'r', encoding='utf-8') as f:
             return f.read()

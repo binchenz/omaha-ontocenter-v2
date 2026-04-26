@@ -4,7 +4,7 @@ from app.services.ontology.store import OntologyStore
 from app.services.agent.legacy_tools import get_tools, execute_tool
 
 
-class AgentService:
+class LegacyAgentService:
     """Agent service that dispatches tool calls based on user queries."""
 
     def __init__(self, db: Session, tenant_id: int, config_yaml: str = None):

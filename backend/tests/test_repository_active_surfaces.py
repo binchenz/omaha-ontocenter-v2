@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def _path_exists_in_head(root: Path, relative_path: str) -> bool:
     result = subprocess.run(
@@ -28,7 +29,7 @@ def _root_entries_in_head(root: Path) -> set[str]:
 
 
 def test_current_active_surfaces_are_documented():
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = REPO_ROOT
 
     required_files = [
         "backend/app/main.py",
@@ -45,7 +46,7 @@ def test_current_active_surfaces_are_documented():
 
 
 def test_repository_root_excludes_generated_and_archive_clutter():
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = REPO_ROOT
 
     disallowed_paths = [
         ".DS_Store",
@@ -64,7 +65,7 @@ def test_repository_root_excludes_generated_and_archive_clutter():
 
 
 def test_root_level_one_off_tests_and_temp_configs_are_absent():
-    root = Path(__file__).resolve().parents[2]
+    root = REPO_ROOT
 
     disallowed_paths = [
         "test_aggregate_api.py",
@@ -93,7 +94,7 @@ def test_root_level_one_off_tests_and_temp_configs_are_absent():
 
 
 def test_docs_are_reduced_to_current_operational_materials():
-    root = Path(__file__).resolve().parents[2]
+    root = REPO_ROOT
 
     required_files = [
         "README.md",
@@ -135,7 +136,7 @@ def test_docs_are_reduced_to_current_operational_materials():
 
 
 def test_only_current_design_references_remain_under_docs_superpowers():
-    root = Path(__file__).resolve().parents[2]
+    root = REPO_ROOT
 
     required_files = [
         "docs/superpowers/specs/2026-04-21-repo-cleanup-design.md",
@@ -184,7 +185,7 @@ def test_only_current_design_references_remain_under_docs_superpowers():
 
 
 def test_backend_and_deployment_leftovers_are_removed():
-    root = Path(__file__).resolve().parents[2]
+    root = REPO_ROOT
 
     removed_files = [
         "backend/E2E_TEST_REPORT.md",
@@ -206,7 +207,7 @@ def test_backend_and_deployment_leftovers_are_removed():
 
 
 def test_repository_root_contains_only_intentional_entrypoints():
-    root = Path(__file__).resolve().parents[2]
+    root = REPO_ROOT
 
     allowed_root_entries = {
         ".claude",
@@ -216,7 +217,6 @@ def test_repository_root_contains_only_intentional_entrypoints():
         ".git",
         ".gitignore",
         ".mcp.json",
-        "111.pem",
         "CLAUDE.md",
         "LOCAL_SETUP.md",
         "README.md",
@@ -236,7 +236,7 @@ def test_repository_root_contains_only_intentional_entrypoints():
 
 
 def test_frontend_dead_surfaces_are_removed():
-    root = Path(__file__).resolve().parents[2]
+    root = REPO_ROOT
 
     required_files = [
         "frontend/src/App.tsx",
@@ -277,7 +277,7 @@ def test_frontend_dead_surfaces_are_removed():
 
 
 def test_backend_requirements_pin_locally_verified_runtime_versions():
-    root = Path(__file__).resolve().parents[2]
+    root = REPO_ROOT
     requirements = (root / "backend" / "requirements.txt").read_text(encoding="utf-8")
 
     assert "fastapi==0.135.1" in requirements

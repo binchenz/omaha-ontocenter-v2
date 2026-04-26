@@ -1,6 +1,7 @@
 """
 FastAPI application entry point.
 """
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,9 +16,9 @@ from app.services.platform.scheduler import scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.start()
+    await asyncio.to_thread(scheduler.start)
     yield
-    scheduler.stop()
+    await asyncio.to_thread(scheduler.stop)
 
 
 app = FastAPI(

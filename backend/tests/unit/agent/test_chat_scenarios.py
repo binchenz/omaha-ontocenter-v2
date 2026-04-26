@@ -1,4 +1,4 @@
-from pathlib import Path
+from tests.conftest import LEGACY_FINANCIAL_CONFIG
 """
 Chat scenario tests for Phase 1 financial data objects.
 
@@ -14,7 +14,7 @@ from app.services.legacy.financial.omaha import OmahaService
 
 def load_config():
     """Load the financial stock analysis configuration."""
-    config_path = str(Path(__file__).resolve().parents[4] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
+    config_path = str(LEGACY_FINANCIAL_CONFIG)
     with open(config_path, 'r', encoding='utf-8') as f:
         return f.read()
 

@@ -1,10 +1,10 @@
 """Public query API endpoints."""
 import time
-from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+import yaml
 
+from app._paths import LEGACY_FINANCIAL_CONFIG
 from app.database import get_db
 from app.models.auth.user import User
 from app.models.chat.public_query_log import PublicQueryLog
@@ -23,34 +23,16 @@ from app.schemas.legacy.financial.public_query import (
     WatchlistListResponse,
 )
 from app.services.legacy.financial.ontology_cache_service import OntologyCacheService
-import yaml
-import os
 
 router = APIRouter()
 
-RATE_LIMIT = 1000  # queries per hour
-
-# Load ontology config — file lives at backend/app/api/legacy/financial/, repo root is 6 dirnames up
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
-config_path = os.path.join(_REPO_ROOT, 'configs/legacy/financial/financial_stock_analysis.yaml')
-with open(config_path, 'r') as f:
+with open(LEGACY_FINANCIAL_CONFIG, 'r') as f:
     ONTOLOGY_CONFIG = yaml.safe_load(f)
+
 
 def get_available_objects():
     """Get list of available objects from ontology config."""
     return [obj['name'] for obj in ONTOLOGY_CONFIG['ontology']['objects']]
-
-
-def check_rate_limit(user: User, db: Session):
-    """Check if user has exceeded rate limit."""
-    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-    count = db.query(func.count(PublicQueryLog.id)).filter(
-        PublicQueryLog.user_id == user.id,
-        PublicQueryLog.created_at >= one_hour_ago
-    ).scalar()
-
-    if count >= RATE_LIMIT:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
 
 @router.get("/objects", response_model=ObjectListResponse)
@@ -59,8 +41,6 @@ def list_objects(
     db: Session = Depends(get_db)
 ):
     """List available objects."""
-    # check_rate_limit(user, db)  # Rate limit disabled
-
     log = PublicQueryLog(
         user_id=user.id,
         query_type="list_objects",
@@ -84,8 +64,6 @@ def get_schema(
     db: Session = Depends(get_db)
 ):
     """Get object schema."""
-    # check_rate_limit(user, db)  # Rate limit disabled
-
     if object_type not in get_available_objects():
         raise HTTPException(status_code=404, detail="Object type not found")
 
@@ -111,9 +89,7 @@ def query_data(
     user: User = Depends(verify_api_key),
     db: Session = Depends(get_db)
 ):
-    """Query data with rate limiting."""
-    # check_rate_limit(user, db)  # Rate limit disabled
-
+    """Query data."""
     if request.object_type not in get_available_objects():
         raise HTTPException(status_code=400, detail="Unsupported object type")
 
@@ -158,8 +134,6 @@ def aggregate_data(
     db: Session = Depends(get_db)
 ):
     """Aggregate data with statistical functions."""
-    # check_rate_limit(user, db)  # Rate limit disabled
-
     if request.object_type not in get_available_objects():
         raise HTTPException(status_code=400, detail="Unsupported object type")
 

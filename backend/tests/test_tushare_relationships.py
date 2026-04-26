@@ -1,4 +1,4 @@
-from pathlib import Path
+from tests.conftest import LEGACY_FINANCIAL_CONFIG
 """
 Test cases for relationships between financial objects.
 
@@ -19,7 +19,7 @@ class TestStockDailyQuoteRelationship:
         sys.path.insert(0, '/Users/wangfushuaiqi/omaha_ontocenter/backend')
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
+        config_path = str(LEGACY_FINANCIAL_CONFIG)
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -69,7 +69,7 @@ class TestStockIndustryRelationship:
         """Test querying stocks grouped by industry."""
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
+        config_path = str(LEGACY_FINANCIAL_CONFIG)
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
