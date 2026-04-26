@@ -35,11 +35,15 @@ INFER_PROMPT = """分析以下数据库表，推断其业务含义。
 3. description: 一句话描述这张表的业务含义
 4. business_context: 描述这张表在业务流程中的角色
 5. domain: 推断所属行业（retail/manufacturing/trade/service等）
-6. properties: 为每个字段推断semantic_type，必须从以下列表中选择：
+6. properties: 必须是 JSON 数组 (list of objects)，每个元素形如
+   {{"name": "字段名", "data_type": "string|number|datetime|...", "semantic_type": "..."}}
+   semantic_type 必须从以下列表中选择，找不到合适的设为 null：
    {semantic_types}
-   如果没有合适的类型，设为null
 
-只输出JSON对象，不要其他文字。"""
+只输出JSON对象（顶层是 dict，properties 是 array），不要其他文字。
+
+示例（仅供格式参考，实际内容根据数据推断）：
+{{"name": "订单", "source_entity": "{table_name}", "description": "...", "business_context": "...", "domain": "retail", "properties": [{{"name": "order_id", "data_type": "string", "semantic_type": "order_id"}}, {{"name": "amount", "data_type": "number", "semantic_type": "currency_cny"}}]}}"""
 
 
 class OntologyInferrer:

@@ -345,6 +345,13 @@ class AgentToolkit:
             warnings=warnings,
         )
 
+        if not inferred_objects:
+            return {
+                "success": False,
+                "error": "LLM 未能从已上传数据推断出业务对象。" + ("; ".join(warnings) if warnings else ""),
+                "data": {"warnings": warnings},
+            }
+
         return {
             "success": True,
             "data": {
