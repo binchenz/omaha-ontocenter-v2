@@ -1,3 +1,4 @@
+from pathlib import Path
 """
 Test cases for DailyQuote object via Tushare datasource.
 
@@ -20,7 +21,7 @@ class TestDailyQuoteBasic:
         sys.path.insert(0, '/Users/wangfushuaiqi/omaha_ontocenter/backend')
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
+        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -54,7 +55,7 @@ class TestDailyQuoteBasic:
         """Test filtering daily quotes by trade date."""
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
+        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -85,7 +86,7 @@ class TestDailyQuoteBasic:
         """Test that volume and amount data are present."""
         from app.services.legacy.financial.omaha import OmahaService
 
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
+        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 

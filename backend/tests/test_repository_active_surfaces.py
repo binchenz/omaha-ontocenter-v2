@@ -100,7 +100,11 @@ def test_docs_are_reduced_to_current_operational_materials():
         "LOCAL_SETUP.md",
         "RUNNING.md",
         "deployment/README.md",
-        "docs/repository-structure.md",
+        "docs/api/API_USAGE_GUIDE.md",
+        "docs/guides/omaha-intro.md",
+        "docs/guides/ONTOLOGY_DEMO.md",
+        "docs/guides/university-talk.md",
+        "docs/design/repository-structure.md",
     ]
 
     removed_files = [

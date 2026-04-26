@@ -1,3 +1,4 @@
+from pathlib import Path
 """
 测试 Phase 2 财务对象的关系
 测试 Stock 与 FinancialIndicator、IncomeStatement 的关联查询
@@ -23,7 +24,7 @@ class TestPhase2Relationships:
         from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
+        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -78,7 +79,7 @@ class TestPhase2Relationships:
         from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/legacy/financial/financial_stock_analysis.yaml'
+        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 

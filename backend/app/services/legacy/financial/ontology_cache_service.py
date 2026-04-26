@@ -13,9 +13,9 @@ class OntologyCacheService:
         self.omaha = OmahaService()
         if config_path is None:
             import os
-            # Get project root directory
-            backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            config_path = os.path.join(backend_dir, 'configs/legacy/financial/financial_stock_analysis.yaml')
+            # Get project root directory — file lives in backend/app/services/legacy/financial/
+            repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+            config_path = os.path.join(repo_root, 'configs', 'legacy', 'financial', 'financial_stock_analysis.yaml')
         with open(config_path, 'r') as f:
             self.config_yaml = f.read()
 
