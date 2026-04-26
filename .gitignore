@@ -77,6 +77,7 @@ test_tushare_config.yaml
 
 # Git worktrees
 .worktrees/
+.claude/worktrees/
 
 # Phase 1 cleanup
 111.pem
