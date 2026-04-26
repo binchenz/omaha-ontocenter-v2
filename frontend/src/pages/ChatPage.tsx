@@ -1,5 +1,5 @@
 import React from 'react';
-import RequireProject from '@/components/RequireProject';
+import RequireProject from '@/components/shared/RequireProject';
 import ChatWithSessions from './ChatWithSessions';
 
 const ChatPage: React.FC = () => (

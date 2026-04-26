@@ -1,3 +1,4 @@
+from pathlib import Path
 """
 Phase 2 集成测试：财务分析场景
 测试完整的财务分析流程
@@ -20,10 +21,10 @@ class TestPhase2Integration:
         os.environ['SECRET_KEY'] = 'test-secret-key'
         os.environ['DATAHUB_GMS_URL'] = 'http://localhost:8080'
 
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -96,10 +97,10 @@ class TestPhase2Integration:
         os.environ['SECRET_KEY'] = 'test-secret-key'
         os.environ['DATAHUB_GMS_URL'] = 'http://localhost:8080'
 
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -139,10 +140,10 @@ class TestPhase2Integration:
         os.environ['SECRET_KEY'] = 'test-secret-key'
         os.environ['DATAHUB_GMS_URL'] = 'http://localhost:8080'
 
-        from app.services.omaha import OmahaService
+        from app.services.legacy.financial.omaha import OmahaService
 
         # Load config
-        config_path = '/Users/wangfushuaiqi/omaha_ontocenter/configs/financial_stock_analysis.yaml'
+        config_path = str(Path(__file__).resolve().parents[2] / 'configs' / 'legacy' / 'financial' / 'financial_stock_analysis.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 

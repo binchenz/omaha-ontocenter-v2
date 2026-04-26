@@ -6,12 +6,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
-from app.models.tenant import Tenant
-from app.services.ontology_importer import OntologyImporter
-from app.services.ontology_store import OntologyStore
-from app.services.agent_tools import AgentToolkit
-from app.services.agent import AgentService
-from app.services.omaha import OmahaService
+from app.models.auth.tenant import Tenant
+from app.services.ontology.importer import OntologyImporter
+from app.services.ontology.store import OntologyStore
+from app.services.agent.toolkit import AgentToolkit
+from app.services.agent.react import AgentService
+from app.services.legacy.financial.omaha import OmahaService
 
 
 RETAIL_YAML = """

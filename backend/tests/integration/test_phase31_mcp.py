@@ -13,9 +13,9 @@ from unittest.mock import patch
 from app.main import app
 from app.database import Base, get_db
 from app.api.deps import get_current_user
-from app.models.user import User
-from app.models.project import Project
-from app.models.api_key import ProjectApiKey
+from app.models.auth.user import User
+from app.models.project.project import Project
+from app.models.auth.api_key import ProjectApiKey
 
 # --- In-memory test DB ---
 

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import TopNav from './TopNav';
 import ModuleSidebar from './ModuleSidebar';
-import RequireProject from '@/components/RequireProject';
+import RequireProject from '@/components/shared/RequireProject';
 
 export default function AppLayout() {
   const renderOutlet = useCallback(

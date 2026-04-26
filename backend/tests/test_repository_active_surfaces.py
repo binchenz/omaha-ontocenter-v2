@@ -35,9 +35,9 @@ def test_current_active_surfaces_are_documented():
         "backend/app/api/__init__.py",
         "backend/app/mcp/server.py",
         "frontend/src/App.tsx",
-        "frontend/src/components/Layout/Sidebar.tsx",
+        "frontend/src/components/layout/Sidebar.tsx",
         "deployment/README.md",
-        "configs/financial_stock_analysis.yaml",
+        "configs/legacy/financial/financial_stock_analysis.yaml",
     ]
 
     for file_path in required_files:
@@ -100,7 +100,11 @@ def test_docs_are_reduced_to_current_operational_materials():
         "LOCAL_SETUP.md",
         "RUNNING.md",
         "deployment/README.md",
-        "docs/repository-structure.md",
+        "docs/api/API_USAGE_GUIDE.md",
+        "docs/guides/omaha-intro.md",
+        "docs/guides/ONTOLOGY_DEMO.md",
+        "docs/guides/university-talk.md",
+        "docs/design/repository-structure.md",
     ]
 
     removed_files = [
@@ -208,8 +212,10 @@ def test_repository_root_contains_only_intentional_entrypoints():
         ".claude",
         ".env",
         ".env.example",
+        ".esdata",
         ".git",
         ".gitignore",
+        ".mcp.json",
         "111.pem",
         "CLAUDE.md",
         "LOCAL_SETUP.md",
@@ -221,6 +227,7 @@ def test_repository_root_contains_only_intentional_entrypoints():
         "docker-compose.yml",
         "docs",
         "frontend",
+        "scripts",
     }
 
     actual_entries = _root_entries_in_head(root)
@@ -236,17 +243,17 @@ def test_frontend_dead_surfaces_are_removed():
         "frontend/src/pages/Login.tsx",
         "frontend/src/pages/Register.tsx",
         "frontend/src/pages/ProjectList.tsx",
-        "frontend/src/pages/Explorer.tsx",
+        "frontend/src/pages/legacy/Explorer.tsx",
         "frontend/src/pages/ChatPage.tsx",
         "frontend/src/pages/Settings.tsx",
-        "frontend/src/pages/OntologyMap.tsx",
-        "frontend/src/pages/Watchlist.tsx",
-        "frontend/src/pages/DatasourceManager.tsx",
-        "frontend/src/components/Layout/MainLayout.tsx",
-        "frontend/src/components/Layout/Sidebar.tsx",
-        "frontend/src/components/Layout/ProjectSwitcher.tsx",
-        "frontend/src/components/RequireProject.tsx",
-        "frontend/src/components/PrivateRoute.tsx",
+        "frontend/src/pages/legacy/OntologyMap.tsx",
+        "frontend/src/pages/legacy/Watchlist.tsx",
+        "frontend/src/pages/legacy/DatasourceManager.tsx",
+        "frontend/src/components/layout/MainLayout.tsx",
+        "frontend/src/components/layout/Sidebar.tsx",
+        "frontend/src/components/layout/ProjectSwitcher.tsx",
+        "frontend/src/components/shared/RequireProject.tsx",
+        "frontend/src/components/shared/PrivateRoute.tsx",
         "frontend/src/contexts/ProjectContext.tsx",
     ]
 

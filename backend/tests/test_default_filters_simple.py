@@ -2,7 +2,7 @@
 Simple unit tests for default_filters functionality.
 Tests query_builder directly without importing other app modules.
 """
-from app.services.query_builder import SemanticQueryBuilder
+from app.services.legacy.financial.query_builder import SemanticQueryBuilder
 
 
 def test_default_filters_loaded():

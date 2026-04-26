@@ -2,10 +2,10 @@
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock
-from app.services.agent_tools import AgentToolkit
-from app.services.uploaded_table_store import UploadedTableStore
-from app.services.ontology_draft_store import OntologyDraftStore
-from app.schemas.auto_model import InferredObject, InferredProperty
+from app.services.agent.toolkit import AgentToolkit
+from app.services.data.uploaded_table_store import UploadedTableStore
+from app.services.ontology.draft_store import OntologyDraftStore
+from app.schemas.ontology.auto_model import InferredObject, InferredProperty
 
 
 @pytest.fixture(autouse=True)
@@ -37,7 +37,7 @@ def isolate(tmp_path, monkeypatch):
 def test_full_modeling_flow(monkeypatch):
     # TemplateLoader uses an absolute path resolved at import time. Override it
     # to point at the tmp_path templates dir so this test is hermetic.
-    from app.services import template_loader
+    from app.services.ontology import template_loader
     monkeypatch.setattr(
         template_loader, "_TEMPLATE_DIR", template_loader.Path("configs/templates")
     )
@@ -52,11 +52,11 @@ def test_full_modeling_flow(monkeypatch):
 
     # Stub LLM
     monkeypatch.setattr(
-        "app.services.ontology_inferrer.OntologyInferrer.__init__",
+        "app.services.ontology.inferrer.OntologyInferrer.__init__",
         lambda self: None,
     )
     monkeypatch.setattr(
-        "app.services.ontology_inferrer.OntologyInferrer.infer_table",
+        "app.services.ontology.inferrer.OntologyInferrer.infer_table",
         lambda self, table, datasource_id, template_hint=None: InferredObject(
             name="订单",
             source_entity="orders",
@@ -69,7 +69,7 @@ def test_full_modeling_flow(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        "app.services.ontology_inferrer.OntologyInferrer.infer_relationships_by_naming",
+        "app.services.ontology.inferrer.OntologyInferrer.infer_relationships_by_naming",
         lambda self, objs: [],
     )
 
@@ -85,7 +85,7 @@ def test_full_modeling_flow(monkeypatch):
             imported["object_count"] = len(config["ontology"]["objects"])
             return {"objects_created": len(config["ontology"]["objects"]), "objects_updated": 0, "relationships_created": 0}
 
-    monkeypatch.setattr("app.services.agent_tools.OntologyImporter", FakeImporter)
+    monkeypatch.setattr("app.services.agent.toolkit.OntologyImporter", FakeImporter)
 
     toolkit = AgentToolkit(omaha_service=MagicMock(), project_id=1, session_id=2, db=db)
 
@@ -134,7 +134,7 @@ def test_full_modeling_flow(monkeypatch):
         def rename_property(self, object_id, old_name, new_name):
             return True
 
-    monkeypatch.setattr("app.services.agent_tools.OntologyStore", FakeStore)
+    monkeypatch.setattr("app.services.agent.toolkit.OntologyStore", FakeStore)
     r = toolkit.execute_tool("edit_ontology", {
         "action": "rename_property",
         "object_name": "订单",

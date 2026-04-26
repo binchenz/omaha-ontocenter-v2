@@ -4,7 +4,7 @@ Phase 3 集成测试：语义类型和计算属性
 
 import pytest
 import yaml
-from app.services.omaha import OmahaService
+from app.services.legacy.financial.omaha import OmahaService
 
 
 class TestPhase3SemanticIntegration:
@@ -22,7 +22,7 @@ class TestPhase3SemanticIntegration:
         # 获取项目根目录
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(os.path.dirname(current_dir))
-        config_path = os.path.join(project_root, 'configs', 'financial_stock_analysis.yaml')
+        config_path = os.path.join(project_root, 'configs', 'legacy', 'financial', 'financial_stock_analysis.yaml')
 
         with open(config_path, 'r', encoding='utf-8') as f:
             return f.read()

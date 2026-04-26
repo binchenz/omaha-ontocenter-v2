@@ -8,13 +8,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
-from app.models.project import Project
-from app.models.chat_session import ChatSession
-from app.services.chat import ChatService
-from app.services.ontology_store import OntologyStore
-from app.services.omaha import OmahaService
-from app.services.agent_tools import AgentToolkit
-from app.services.agent import AgentService
+from app.models.project.project import Project
+from app.models.chat.chat_session import ChatSession
+from app.services.agent.chat_service import ChatService
+from app.services.ontology.store import OntologyStore
+from app.services.legacy.financial.omaha import OmahaService
+from app.services.agent.toolkit import AgentToolkit
+from app.services.agent.react import AgentService
 
 # Database setup
 DATABASE_URL = "sqlite:///./omaha.db"

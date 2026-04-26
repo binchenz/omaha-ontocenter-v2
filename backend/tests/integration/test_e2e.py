@@ -193,7 +193,7 @@ class TestObjectExplorer:
         assert "relationships" in data
 
     def test_query_objects(self):
-        with patch('app.services.omaha.OmahaService.query_objects') as mock_query:
+        with patch('app.services.legacy.financial.omaha.OmahaService.query_objects') as mock_query:
             mock_query.return_value = {
                 "success": True,
                 "data": [{"id": 1, "name": "Widget", "price": 9.99}],
@@ -314,7 +314,7 @@ class TestChatAgent:
         assert any(s["id"] == state["session_id"] for s in data)
 
     def test_send_message(self):
-        with patch('app.services.chat.ChatService.send_message') as mock_send:
+        with patch('app.services.agent.chat_service.ChatService.send_message') as mock_send:
             mock_send.return_value = {
                 "message": "找到 1 条 Product 记录",
                 "data_table": [{"id": 1, "name": "Widget"}],
@@ -333,7 +333,7 @@ class TestChatAgent:
             assert data["data_table"] is not None
 
     def test_send_second_message_multi_turn(self):
-        with patch('app.services.chat.ChatService.send_message') as mock_send:
+        with patch('app.services.agent.chat_service.ChatService.send_message') as mock_send:
             mock_send.return_value = {
                 "message": "价格最高的商品是 Widget，价格 99.99",
                 "data_table": [{"name": "Widget", "price": 99.99}],

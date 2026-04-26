@@ -3,8 +3,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models.public_api_key import PublicApiKey
-from app.models.user import User
+from app.models.auth.public_api_key import PublicApiKey
+from app.models.auth.user import User
 from app.database import Base
 
 

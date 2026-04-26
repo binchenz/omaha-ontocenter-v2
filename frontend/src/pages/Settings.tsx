@@ -8,12 +8,12 @@ import { useProject } from '@/contexts/ProjectContext';
 import { projectService } from '@/services/project';
 import { ontologyService } from '@/services/ontology';
 import ProjectList from './ProjectList';
-import ApiKeyManager from '../components/ApiKeyManager';
-import DatasourceManager from './DatasourceManager';
-import OntologyEditor from './OntologyEditor';
-import MembersManager from './MembersManager';
-import AuditLogViewer from './AuditLogViewer';
-import PipelineManager from './PipelineManager';
+import ApiKeyManager from '../components/shared/ApiKeyManager';
+import DatasourceManager from './legacy/DatasourceManager';
+import OntologyEditor from './legacy/OntologyEditor';
+import MembersManager from './legacy/MembersManager';
+import AuditLogViewer from './legacy/AuditLogViewer';
+import PipelineManager from './legacy/PipelineManager';
 
 const NoProjectHint = () => (
   <p className="text-slate-400 text-sm text-center py-8">请先在顶部选择一个项目</p>
