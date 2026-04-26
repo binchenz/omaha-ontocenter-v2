@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from app.schemas.chat import ChatSessionCreate, ChatMessageCreate, ChatMessageResponse, SendMessageRequest
+from app.schemas.chat.chat import ChatSessionCreate, ChatMessageCreate, ChatMessageResponse, SendMessageRequest
 
 
 def test_chat_session_create_valid():

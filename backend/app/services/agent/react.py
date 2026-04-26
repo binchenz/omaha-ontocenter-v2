@@ -2,7 +2,7 @@ import json
 from typing import Any, Literal
 
 from app.config import settings
-from app.schemas.agent import AgentChatResponse, ToolCallRecord
+from app.schemas.chat.agent import AgentChatResponse, ToolCallRecord
 
 try:
     import openai

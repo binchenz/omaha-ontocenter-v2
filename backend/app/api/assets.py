@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.auth.user import User
 from app.models.ontology.asset import DatasetAsset, DataLineage
-from app.schemas.asset import (
+from app.schemas.project.asset import (
     Asset as AssetSchema,
     AssetCreate,
     Lineage as LineageSchema,

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.auth.user import User
 from app.models.chat.chat_session import ChatSession
-from app.schemas.chat import (
+from app.schemas.chat.chat import (
     ChatSessionCreate,
     ChatSessionResponse,
     SendMessageRequest,

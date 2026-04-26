@@ -6,7 +6,7 @@ import secrets
 
 from app.database import get_db
 from app.models import User, InviteCode, PublicApiKey
-from app.schemas.public_auth import (
+from app.schemas.auth.public_auth import (
     RegisterRequest,
     UserResponse,
     ApiKeyRequest,

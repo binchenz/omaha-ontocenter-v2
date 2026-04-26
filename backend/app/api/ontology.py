@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models.auth.user import User
 from app.api.deps import get_current_user, get_db
-from app.schemas.ontology import GenerateYamlRequest, GenerateYamlResponse
+from app.schemas.ontology.ontology import GenerateYamlRequest, GenerateYamlResponse
 from app.services.legacy.financial.omaha import omaha_service
 from app.services.ontology.store import OntologyStore
 from app.services.ontology.importer import OntologyImporter

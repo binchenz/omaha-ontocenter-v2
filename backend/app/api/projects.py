@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.auth.user import User
 from app.models.project.project import Project
-from app.schemas.project import (
+from app.schemas.project.project import (
     Project as ProjectSchema,
     ProjectCreate,
     ProjectUpdate,

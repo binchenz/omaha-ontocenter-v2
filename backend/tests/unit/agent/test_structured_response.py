@@ -1,5 +1,5 @@
 import pytest
-from app.schemas.structured_response import (
+from app.schemas.chat.structured_response import (
     TextResponse, OptionsResponse, PanelResponse, Option, StructuredContent
 )
 

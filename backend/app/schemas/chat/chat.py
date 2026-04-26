@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-from app.schemas.structured_response import StructuredItem
+from app.schemas.chat.structured_response import StructuredItem
 
 
 class ChatSessionCreate(BaseModel):

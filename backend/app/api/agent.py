@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.auth.user import User
 from app.api.deps import get_current_user, get_db, get_project_for_owner
 from app.services.agent.legacy_agent_service import AgentService as LegacyAgentService
-from app.schemas.agent import AgentChatRequest, AgentChatResponse
+from app.schemas.chat.agent import AgentChatRequest, AgentChatResponse
 from app.services.ontology.store import OntologyStore
 from app.services.agent.toolkit import AgentToolkit
 from app.services.agent.react import AgentService

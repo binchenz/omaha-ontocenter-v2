@@ -54,6 +54,20 @@ MAPPING = [
     (r"from app\.models\.cached_financial ", "from app.models.legacy.financial.cached_financial "),
     (r"from app\.models\.cached_stock ", "from app.models.legacy.financial.cached_stock "),
     (r"from app\.models\.watchlist ", "from app.models.legacy.financial.watchlist "),
+    # schemas domain — longer prefixes first to avoid partial matches
+    (r"from app\.schemas\.public_auth ", "from app.schemas.auth.public_auth "),
+    (r"from app\.schemas\.auth ", "from app.schemas.auth.auth "),
+    (r"from app\.schemas\.user ", "from app.schemas.auth.user "),
+    (r"from app\.schemas\.asset ", "from app.schemas.project.asset "),
+    (r"from app\.schemas\.project ", "from app.schemas.project.project "),
+    (r"from app\.schemas\.structured_response ", "from app.schemas.chat.structured_response "),
+    (r"from app\.schemas\.agent ", "from app.schemas.chat.agent "),
+    (r"from app\.schemas\.chat ", "from app.schemas.chat.chat "),
+    (r"from app\.schemas\.ontology_store ", "from app.schemas.ontology.ontology_store "),
+    (r"from app\.schemas\.auto_model ", "from app.schemas.ontology.auto_model "),
+    (r"from app\.schemas\.ontology ", "from app.schemas.ontology.ontology "),
+    (r"from app\.schemas\.public_query ", "from app.schemas.legacy.financial.public_query "),
+    (r"from app\.schemas\.watchlist ", "from app.schemas.legacy.financial.watchlist "),
 ]
 
 def rewrite_file(path: Path, dry_run: bool = False) -> list[str]:

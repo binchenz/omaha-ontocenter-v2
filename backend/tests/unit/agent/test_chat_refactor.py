@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.services.agent.chat_service import ChatService
-from app.schemas.agent import AgentChatResponse
+from app.schemas.chat.agent import AgentChatResponse
 
 
 @pytest.fixture

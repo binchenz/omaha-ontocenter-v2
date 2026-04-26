@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
-from app.schemas.ontology_store import YAMLImportRequest, YAMLImportResponse, OntologyObjectSummary
-from app.schemas.auto_model import (
+from app.schemas.ontology.ontology_store import YAMLImportRequest, YAMLImportResponse, OntologyObjectSummary
+from app.schemas.ontology.auto_model import (
     ScanRequest, ScanResponse, TableSummaryResponse, ColumnInfo,
     InferRequest, InferResponse,
     ConfirmRequest, ConfirmResponse,

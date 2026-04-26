@@ -84,7 +84,7 @@ def test_infer_endpoint(client):
                      columns=[{"name": "id", "type": "INTEGER", "nullable": False}],
                      sample_values={"id": ["1", "2"]}),
     ]
-    from app.schemas.auto_model import InferredObject, InferredProperty
+    from app.schemas.ontology.auto_model import InferredObject, InferredProperty
     mock_obj = InferredObject(
         name="订单", source_entity="t_order", description="订单表",
         datasource_id="test_db", datasource_type="sql",

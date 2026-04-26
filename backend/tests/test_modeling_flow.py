@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 from app.services.agent.toolkit import AgentToolkit
 from app.services.data.uploaded_table_store import UploadedTableStore
 from app.services.ontology.draft_store import OntologyDraftStore
-from app.schemas.auto_model import InferredObject, InferredProperty
+from app.schemas.ontology.auto_model import InferredObject, InferredProperty
 
 
 @pytest.fixture(autouse=True)

@@ -10,7 +10,7 @@ from app.models.auth.user import User
 from app.models.chat.public_query_log import PublicQueryLog
 from app.models.legacy.financial.watchlist import Watchlist
 from app.api.public_deps import verify_api_key
-from app.schemas.public_query import (
+from app.schemas.legacy.financial.public_query import (
     QueryRequest,
     QueryResponse,
     ObjectListResponse,

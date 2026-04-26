@@ -1,7 +1,7 @@
 from app.services.ontology.inferrer import (
     compact_template, merge_template_semantic_types,
 )
-from app.schemas.auto_model import InferredObject, InferredProperty
+from app.schemas.ontology.auto_model import InferredObject, InferredProperty
 
 
 RETAIL_TEMPLATE = {

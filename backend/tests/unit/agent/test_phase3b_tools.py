@@ -57,7 +57,7 @@ def test_infer_ontology_writes_draft(toolkit, monkeypatch):
     UploadedTableStore.save(1, 2, "orders", df)
 
     from app.services.ontology import inferrer as ontology_inferrer
-    from app.schemas.auto_model import InferredObject, InferredProperty
+    from app.schemas.ontology.auto_model import InferredObject, InferredProperty
 
     fake_obj = InferredObject(
         name="订单",
@@ -102,7 +102,7 @@ def test_infer_ontology_overwrites_existing_draft(toolkit, monkeypatch):
     UploadedTableStore.save(1, 2, "t", df)
 
     from app.services.ontology import inferrer as ontology_inferrer
-    from app.schemas.auto_model import InferredObject
+    from app.schemas.ontology.auto_model import InferredObject
 
     monkeypatch.setattr(ontology_inferrer.OntologyInferrer, "__init__", lambda self: None)
     monkeypatch.setattr(

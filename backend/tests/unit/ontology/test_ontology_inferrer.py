@@ -3,7 +3,7 @@ import json
 from unittest.mock import patch, MagicMock
 from app.services.ontology.inferrer import OntologyInferrer
 from app.services.ontology.schema_scanner import TableSummary
-from app.schemas.auto_model import (
+from app.schemas.ontology.auto_model import (
     TableClassification, InferredObject, InferredRelationship, SEMANTIC_TYPES,
 )
 
