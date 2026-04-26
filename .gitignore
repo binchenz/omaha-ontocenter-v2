@@ -80,3 +80,4 @@ test_tushare_config.yaml
 
 # Phase 1 cleanup
 111.pem
+backend/app/api/data/
