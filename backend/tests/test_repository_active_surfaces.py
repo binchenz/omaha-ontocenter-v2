@@ -215,6 +215,7 @@ def test_repository_root_contains_only_intentional_entrypoints():
         ".esdata",
         ".git",
         ".gitignore",
+        ".mcp.json",
         "111.pem",
         "CLAUDE.md",
         "LOCAL_SETUP.md",
