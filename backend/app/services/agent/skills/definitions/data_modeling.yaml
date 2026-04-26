@@ -1,0 +1,15 @@
+name: data_modeling
+description: 语义建模
+trigger_keywords: ["建模", "整理", "梳理", "识别", "对象", "模板", "修改对象", "编辑本体"]
+system_prompt: |
+  ## 当前状态：语义建模中
+  数据已清洗，正在构建本体。引导用户确认业务对象和字段含义。
+  建模请求必须走工具链：load_template → scan_tables → infer_ontology。
+  infer_ontology 成功后必须返回 ontology_preview 结构化块。
+  用户说"确认"时立即调用 confirm_ontology。
+allowed_tools:
+  - load_template
+  - scan_tables
+  - infer_ontology
+  - confirm_ontology
+  - edit_ontology
