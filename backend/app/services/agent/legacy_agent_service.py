@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from app.services.ontology_store import OntologyStore
-from app.services.agent.tools import get_tools, execute_tool
+from app.services.agent.legacy_tools import get_tools, execute_tool
 
 
 class AgentService:
