@@ -7,51 +7,47 @@ Ensures:
 """
 from __future__ import annotations
 
+import os
 import shutil
 import sqlite3
 from pathlib import Path
 
 # Paths
 WORKTREE_BACKEND = Path(__file__).resolve().parents[2]
-MAIN_REPO_BACKEND = Path("/Users/wangfushuaiqi/omaha_ontocenter/backend")
-SOURCE_DB = MAIN_REPO_BACKEND / "omaha.db"
+DEFAULT_MAIN_DB = WORKTREE_BACKEND.parent.parent.parent / "backend" / "omaha.db"
+SOURCE_DB = Path(os.environ.get("E2E_MAIN_DB", str(DEFAULT_MAIN_DB)))
 TARGET_DB = WORKTREE_BACKEND / "test.db"
-
-
-class ProviderError(Exception):
-    """Raised when LLM provider returns transient error (502, etc.)."""
-    pass
 
 
 def ensure_test_db() -> None:
     """Copy source DB to worktree if target is empty or missing project 10."""
-    if not TARGET_DB.exists():
+    recopy = not TARGET_DB.exists()
+    if recopy:
         print(f"[_env] test.db not found, copying from {SOURCE_DB}")
-        shutil.copy2(SOURCE_DB, TARGET_DB)
-        _ensure_slug_columns()
-        return
-
-    # Check if project 10 exists
-    conn = sqlite3.connect(TARGET_DB)
-    try:
-        cur = conn.execute("SELECT COUNT(*) FROM projects WHERE id = 10")
-        count = cur.fetchone()[0]
-        if count == 0:
-            print(f"[_env] project 10 missing, re-copying from {SOURCE_DB}")
+    else:
+        conn = sqlite3.connect(TARGET_DB)
+        try:
+            cur = conn.execute("SELECT COUNT(*) FROM projects WHERE id = 10")
+            recopy = cur.fetchone()[0] == 0
+        finally:
             conn.close()
-            shutil.copy2(SOURCE_DB, TARGET_DB)
-            _ensure_slug_columns()
-        else:
-            _ensure_slug_columns()
-    finally:
-        conn.close()
+        if recopy:
+            print(f"[_env] project 10 missing, re-copying from {SOURCE_DB}")
+
+    if recopy:
+        shutil.copy2(SOURCE_DB, TARGET_DB)
+
+    _ensure_slug_columns()
 
 
 def _ensure_slug_columns() -> None:
-    """Add slug columns if missing and populate them."""
+    """Add slug columns if missing and populate them for Stage 1 E2E runs.
+
+    E2E uses a copied SQLite DB rather than invoking Alembic so the suites can run
+    from a worktree without mutating the main repo database.
+    """
     conn = sqlite3.connect(TARGET_DB)
     try:
-        # Check ontology_objects
         cur = conn.execute("PRAGMA table_info(ontology_objects)")
         cols = {row[1] for row in cur.fetchall()}
         if "slug" not in cols:
@@ -60,34 +56,15 @@ def _ensure_slug_columns() -> None:
             conn.execute("UPDATE ontology_objects SET slug = lower(name)")
             conn.commit()
 
-        # Check projects (if needed in future)
-        cur = conn.execute("PRAGMA table_info(projects)")
+        cur = conn.execute("PRAGMA table_info(object_properties)")
         cols = {row[1] for row in cur.fetchall()}
         if "slug" not in cols:
-            print("[_env] adding slug to projects")
-            conn.execute("ALTER TABLE projects ADD COLUMN slug VARCHAR")
-            conn.execute("UPDATE projects SET slug = lower(name)")
+            print("[_env] adding slug to object_properties")
+            conn.execute("ALTER TABLE object_properties ADD COLUMN slug VARCHAR")
+            conn.execute("UPDATE object_properties SET slug = lower(name)")
             conn.commit()
     finally:
         conn.close()
-
-
-def wrap_provider_errors(func):
-    """Decorator to catch and re-raise provider errors clearly."""
-    async def wrapper(*args, **kwargs):
-        try:
-            return await func(*args, **kwargs)
-        except Exception as e:
-            err_str = str(e).lower()
-            err_type = type(e).__name__.lower()
-            # Check for 502, bad gateway, or InternalServerError
-            if any(x in err_str for x in ["502", "bad gateway"]) or "internalservererror" in err_type:
-                raise ProviderError(
-                    f"LLM provider error (502/transient): {type(e).__name__}: {e}\n"
-                    "This is an infrastructure/provider issue, not a product regression."
-                ) from e
-            raise
-    return wrapper
 
 
 def is_provider_error(exc: Exception) -> bool:

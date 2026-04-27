@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from tests.e2e._env import ensure_test_db, is_provider_error, ProviderError
+from tests.e2e._env import ensure_test_db, is_provider_error
 
 ensure_test_db()
 

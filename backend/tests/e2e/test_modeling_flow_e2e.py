@@ -48,6 +48,9 @@ def _make_sample_csv() -> Path:
 
 async def main() -> int:
     db = SessionLocal()
+    provider_errors = 0
+    product_failures = 0
+    csv_path: Path | None = None
     try:
         proj = db.query(Project).filter(Project.id == 1).first()
         if not proj:
@@ -70,11 +73,23 @@ async def main() -> int:
                 print(f"[{i}/{len(MODELING_TURNS)}] {dt}s tools={tc}  {preview}")
             except Exception as e:
                 if is_provider_error(e):
+                    provider_errors += 1
                     print(f"[{i}] PROVIDER ERROR: {type(e).__name__}: {e}")
                 else:
+                    product_failures += 1
                     print(f"[{i}] FAIL {type(e).__name__}: {e}")
+        if provider_errors:
+            print(f"NOTE: {provider_errors} failures are PROVIDER ERRORS (502/transient from Anthropic).")
+        if product_failures:
+            print(f"WARN: {product_failures} are product failures.")
+        if product_failures:
+            return 1
+        if provider_errors:
+            return 2
         return 0
     finally:
+        if csv_path and csv_path.exists():
+            csv_path.unlink(missing_ok=True)
         db.close()
 
 
