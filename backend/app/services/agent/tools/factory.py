@@ -77,11 +77,11 @@ class ObjectTypeToolFactory:
             properties = obj.get("properties", [])
             for prop in properties:
                 if prop.get("type") == "link":
-                    target_name = prop.get("link_target")
-                    if target_name:
+                    link_info = prop.get("link")
+                    if link_info:
                         tools.append(
                             ObjectTypeToolFactory._build_reverse_nav_tool(
-                                obj, prop, target_name, objects
+                                obj, prop, link_info, objects
                             )
                         )
 
@@ -220,17 +220,15 @@ class ObjectTypeToolFactory:
     def _build_reverse_nav_tool(
         source_obj: dict[str, Any],
         link_prop: dict[str, Any],
-        target_name: str,
+        link_info: dict[str, Any],
         all_objects: list[dict[str, Any]],
     ) -> ToolSpec:
         """Build reverse navigation tool for a link property."""
         source_slug = source_obj["slug"]
         source_name = source_obj["name"]
-        target_obj = next((o for o in all_objects if o["name"] == target_name), None)
-        if not target_obj:
-            raise ValueError(f"Target object {target_name} not found")
+        target_name = link_info["target"]
+        target_slug = link_info["target_slug"]
 
-        target_slug = target_obj["slug"]
         tool_name = f"get_{target_slug}_{source_slug}s"
 
         return ToolSpec(

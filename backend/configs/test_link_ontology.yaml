@@ -1,0 +1,68 @@
+datasources:
+  - id: test_db
+    type: mysql
+    host: localhost
+    database: test_ecommerce
+
+ontology:
+  objects:
+    - name: Category
+      slug: category
+      datasource: test_db
+      source_entity: categories
+      properties:
+        - name: 类目ID
+          slug: category_id
+          type: string
+        - name: 类目名称
+          slug: name
+          type: string
+        - name: 父类目
+          slug: parent
+          type: link
+          target: Category
+          foreign_key: parent_id
+          target_key: category_id
+
+    - name: Product
+      slug: product
+      datasource: test_db
+      source_entity: products
+      properties:
+        - name: 产品ID
+          slug: product_id
+          type: string
+        - name: 产品名称
+          slug: name
+          type: string
+        - name: 价格
+          slug: price
+          type: number
+          semantic_type: currency_cny
+        - name: 类目
+          slug: category
+          type: link
+          target: Category
+          foreign_key: category_id
+          target_key: category_id
+
+    - name: Review
+      slug: review
+      datasource: test_db
+      source_entity: reviews
+      properties:
+        - name: 评论ID
+          slug: review_id
+          type: string
+        - name: 评分
+          slug: rating
+          type: integer
+        - name: 内容
+          slug: content
+          type: string
+        - name: 产品
+          slug: product
+          type: link
+          target: Product
+          foreign_key: product_id
+          target_key: product_id

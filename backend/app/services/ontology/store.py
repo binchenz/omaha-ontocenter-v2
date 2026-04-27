@@ -218,7 +218,7 @@ class OntologyStore:
             self.db.query(OntologyObject)
             .filter(OntologyObject.tenant_id == tenant_id)
             .options(
-                selectinload(OntologyObject.properties),
+                selectinload(OntologyObject.properties).selectinload(ObjectProperty.link_target),
                 selectinload(OntologyObject.health_rules),
                 selectinload(OntologyObject.business_goals),
                 selectinload(OntologyObject.domain_knowledge_items),
@@ -232,12 +232,12 @@ class OntologyStore:
                 "slug": obj.slug,
                 "source_entity": obj.source_entity,
                 "datasource_id": obj.datasource_id,
+                "datasource_type": obj.datasource_type,
                 "description": obj.description,
                 "business_context": obj.business_context,
                 "domain": obj.domain,
                 "properties": [
-                    {"name": p.name, "slug": p.slug, "type": p.data_type, "semantic_type": p.semantic_type,
-                     "description": p.description, "is_computed": p.is_computed}
+                    self._serialize_property(p)
                     for p in obj.properties
                 ],
                 "health_rules": [
@@ -267,3 +267,26 @@ class OntologyStore:
             for r in rels
         ]
         return {"objects": result, "relationships": relationships}
+
+    def _serialize_property(self, prop: ObjectProperty) -> dict:
+        """序列化属性（包含Link信息）"""
+        data = {
+            "name": prop.name,
+            "slug": prop.slug,
+            "type": prop.data_type,
+            "semantic_type": prop.semantic_type,
+            "description": prop.description,
+            "is_computed": prop.is_computed,
+        }
+
+        # 如果是Link类型，添加Link信息
+        if prop.data_type == "link" and prop.link_target:
+            data["link"] = {
+                "target": prop.link_target.name,
+                "target_slug": prop.link_target.slug,
+                "foreign_key": prop.link_foreign_key,
+                "target_key": prop.link_target_key or "id",
+            }
+
+        return data
+
