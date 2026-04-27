@@ -1,3 +1,4 @@
+from __future__ import annotations
 from sqlalchemy.orm import Session, selectinload, joinedload
 from app.models.ontology.ontology import (
     OntologyObject,
@@ -7,6 +8,7 @@ from app.models.ontology.ontology import (
     BusinessGoal,
     DomainKnowledge,
 )
+from app.services.ontology.slug import slugify_name, ensure_unique_slug
 
 
 class OntologyStore:
@@ -22,9 +24,14 @@ class OntologyStore:
     def create_object(self, tenant_id: int, name: str, source_entity: str,
                       datasource_id: str, datasource_type: str,
                       description: str = None, business_context: str = None,
-                      domain: str = None, default_filters: list = None) -> OntologyObject:
+                      domain: str = None, default_filters: list = None,
+                      slug: str = None) -> OntologyObject:
+        if slug is None:
+            base_slug = slugify_name(name)
+            slug = ensure_unique_slug(self.db, base_slug, "ontology_objects", "slug",
+                                      tenant_id=tenant_id)
         return self._persist(OntologyObject(
-            tenant_id=tenant_id, name=name, source_entity=source_entity,
+            tenant_id=tenant_id, name=name, slug=slug, source_entity=source_entity,
             datasource_id=datasource_id, datasource_type=datasource_type,
             description=description, business_context=business_context,
             domain=domain, default_filters=default_filters or [],
@@ -54,9 +61,14 @@ class OntologyStore:
 
     def add_property(self, object_id: int, name: str, data_type: str,
                      semantic_type: str = None, description: str = None,
-                     is_computed: bool = False, expression: str = None) -> ObjectProperty:
+                     is_computed: bool = False, expression: str = None,
+                     slug: str = None) -> ObjectProperty:
+        if slug is None:
+            base_slug = slugify_name(name)
+            slug = ensure_unique_slug(self.db, base_slug, "object_properties", "slug",
+                                      object_id=object_id)
         return self._persist(ObjectProperty(
-            object_id=object_id, name=name, data_type=data_type,
+            object_id=object_id, name=name, slug=slug, data_type=data_type,
             semantic_type=semantic_type, description=description,
             is_computed=is_computed, expression=expression,
         ))
@@ -99,6 +111,9 @@ class OntologyStore:
         if obj is None:
             return False
         obj.name = new_name
+        base_slug = slugify_name(new_name)
+        obj.slug = ensure_unique_slug(self.db, base_slug, "ontology_objects", "slug",
+                                      exclude_id=obj.id, tenant_id=tenant_id)
         self.db.flush()
         return True
 
@@ -118,6 +133,9 @@ class OntologyStore:
         if prop is None:
             return False
         prop.name = new_name
+        base_slug = slugify_name(new_name)
+        prop.slug = ensure_unique_slug(self.db, base_slug, "object_properties", "slug",
+                                       exclude_id=prop.id, object_id=object_id)
         self.db.flush()
         return True
 
@@ -181,13 +199,14 @@ class OntologyStore:
         for obj in objects:
             result.append({
                 "name": obj.name,
+                "slug": obj.slug,
                 "source_entity": obj.source_entity,
                 "datasource_id": obj.datasource_id,
                 "description": obj.description,
                 "business_context": obj.business_context,
                 "domain": obj.domain,
                 "properties": [
-                    {"name": p.name, "type": p.data_type, "semantic_type": p.semantic_type,
+                    {"name": p.name, "slug": p.slug, "type": p.data_type, "semantic_type": p.semantic_type,
                      "description": p.description, "is_computed": p.is_computed}
                     for p in obj.properties
                 ],
