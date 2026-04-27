@@ -1,8 +1,7 @@
-"""End-to-end chat scenarios — hits real LLM via ChatServiceV2.
+"""E2E chat suite — basic / intermediate / complex scenarios via real LLM.
 
-Usage:  python -m tests.e2e.test_chat_scenarios_e2e
-
-Uses project 10 (setup_stage=ready, has Product + GoodsMallMapping objects).
+Usage: python -m tests.e2e.test_chat_scenarios_e2e
+Uses project 10 (setup_stage=ready, has Product + GoodsMallMapping).
 """
 from __future__ import annotations
 
@@ -15,10 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from app.database import SessionLocal  # noqa: E402
-from app.models.chat import ChatSession  # noqa: E402
-from app.models.project import Project  # noqa: E402
-from app.services.agent.chat_service import ChatServiceV2  # noqa: E402
+from app.database import SessionLocal
+from app.models.chat import ChatSession
+from app.models.project import Project
+from app.services.agent.chat_service import ChatServiceV2
 
 PROJECT_ID = 10
 
@@ -32,40 +31,40 @@ class Scenario:
 
 
 SCENARIOS: list[Scenario] = [
-    # === 基础（greeting / introspection） ===
+    # === 基础 ===
     Scenario("basic-greeting", "你好，介绍一下你能做什么", expect_tool_calls=False),
     Scenario("capability-question", "我能问你哪些问题？", expect_tool_calls=False),
-    Scenario("list-objects", "我现在有哪些业务对象可以查询？", ["Product"], expect_tool_calls=True),
-    Scenario("get-schema", "Product 对象有哪些字段？", ["sku", "price"], expect_tool_calls=True),
-    Scenario("get-relationships", "Product 和 GoodsMallMapping 之间有什么关系？", [], expect_tool_calls=True),
+    Scenario("list-objects", "我现在有哪些业务对象可以查询？", ["Product"]),
+    Scenario("get-schema", "Product 对象有哪些字段？", ["sku", "price"]),
+    Scenario("get-relationships", "Product 和 GoodsMallMapping 之间有什么关系？"),
 
-    # === 进阶（single-table query） ===
-    Scenario("simple-query", "列出前 5 个商品的名称和价格", ["sku", "price"], expect_tool_calls=True),
-    Scenario("select-columns", "只显示商品名称和城市这两列，给我 10 条", ["sku", "city"], expect_tool_calls=True),
-    Scenario("filtered-query-cn", "查一下深圳的商品有哪些", ["深圳"], expect_tool_calls=True),
-    Scenario("filtered-numeric", "价格大于 30 元的商品有哪些？", ["30"], expect_tool_calls=True),
-    Scenario("filtered-multi", "深圳且价格大于 20 元的商品", ["深圳"], expect_tool_calls=True),
-    Scenario("sorted-desc", "价格最高的 5 个商品是哪些？", ["price"], expect_tool_calls=True),
-    Scenario("sorted-asc", "价格最低的 5 个商品", ["price"], expect_tool_calls=True),
-    Scenario("limit-only", "随便给我看 3 个商品", [], expect_tool_calls=True),
+    # === 进阶 ===
+    Scenario("simple-query", "列出前 5 个商品的名称和价格", ["sku"]),
+    Scenario("select-columns", "只显示商品名称和城市这两列，给我 10 条", ["city"]),
+    Scenario("filtered-query-cn", "查一下深圳的商品有哪些", ["深圳"]),
+    Scenario("filtered-numeric", "价格大于 30 元的商品有哪些？"),
+    Scenario("filtered-multi", "深圳且价格大于 20 元的商品", ["深圳"]),
+    Scenario("sorted-desc", "价格最高的 5 个商品是哪些？"),
+    Scenario("sorted-asc", "价格最低的 5 个商品"),
+    Scenario("limit-only", "随便给我看 3 个商品"),
 
-    # === 复杂（aggregation / computation / multi-turn） ===
-    Scenario("aggregation-count", "每个城市有多少个商品？", ["城市"], expect_tool_calls=True),
-    Scenario("aggregation-avg", "每个城市的商品平均价格是多少？", ["平均"], expect_tool_calls=True),
-    Scenario("computation", "计算每个商品的毛利（价格 - 成本），列出前 5 个", ["毛利"], expect_tool_calls=True),
-    Scenario("computation-rate", "哪些商品的毛利率低于 20%？", ["毛利率"], expect_tool_calls=True),
-    Scenario("top-n-by-margin", "毛利率最高的 3 个商品", ["毛利"], expect_tool_calls=True),
+    # === 复杂 ===
+    Scenario("aggregation-count", "每个城市有多少个商品？", ["城市"]),
+    Scenario("aggregation-avg", "每个城市的商品平均价格是多少？"),
+    Scenario("computation", "计算每个商品的毛利（价格-成本），列出前 5 个", ["毛利"]),
+    Scenario("computation-rate", "哪些商品的毛利率低于 20%？", ["毛利"]),
+    Scenario("top-n-by-margin", "毛利率最高的 3 个商品", ["毛利"]),
 
-    # === 异常 / 边界 ===
-    Scenario("unknown-object", "查询不存在的对象 XYZ 的数据", [], expect_tool_calls=True),
-    Scenario("unknown-field", "列出商品的 nonexistent_field 字段", [], expect_tool_calls=True),
-    Scenario("ambiguous", "帮我看看销售情况", [], expect_tool_calls=False),
-    Scenario("empty-result", "价格大于一百万的商品有哪些？", [], expect_tool_calls=True),
-    Scenario("out-of-scope", "今天天气怎么样？", [], expect_tool_calls=False),
+    # === 异常 ===
+    Scenario("unknown-object", "查询不存在的对象 XYZ 的数据"),
+    Scenario("unknown-field", "列出商品的 nonexistent_field 字段"),
+    Scenario("ambiguous", "帮我看看销售情况", expect_tool_calls=False),
+    Scenario("empty-result", "价格大于一百万的商品有哪些？"),
+    Scenario("out-of-scope", "今天天气怎么样？", expect_tool_calls=False),
 
     # === 元能力 ===
-    Scenario("chinese-english-mix", "show me top 5 products by price", ["price"], expect_tool_calls=True),
-    Scenario("clarification", "再多看几个", [], expect_tool_calls=False),  # 多轮上下文
+    Scenario("chinese-english-mix", "show me top 5 products by price", ["price"]),
+    Scenario("clarification", "再多看几个", expect_tool_calls=False),
 ]
 
 
@@ -82,23 +81,17 @@ async def run_scenario(svc: ChatServiceV2, sess_id: int, sc: Scenario) -> dict:
             and (not sc.expect_keywords or len(keyword_hits) > 0)
         )
         return {
-            "name": sc.name,
-            "prompt": sc.prompt,
-            "elapsed": round(elapsed, 2),
-            "passed": passed,
+            "name": sc.name, "prompt": sc.prompt,
+            "elapsed": round(elapsed, 2), "passed": passed,
             "tool_calls": len(tool_calls),
             "keyword_hits": keyword_hits,
             "expected_keywords": sc.expect_keywords,
             "reply_preview": msg[:160],
         }
-    except Exception as e:  # noqa: BLE001
-        return {
-            "name": sc.name,
-            "prompt": sc.prompt,
-            "elapsed": round(time.time() - t0, 2),
-            "passed": False,
-            "error": f"{type(e).__name__}: {e}",
-        }
+    except Exception as e:
+        return {"name": sc.name, "prompt": sc.prompt,
+                "elapsed": round(time.time() - t0, 2),
+                "passed": False, "error": f"{type(e).__name__}: {e}"}
 
 
 async def main() -> int:
@@ -106,28 +99,21 @@ async def main() -> int:
     try:
         project = db.query(Project).filter(Project.id == PROJECT_ID).first()
         if not project:
-            print(f"project {PROJECT_ID} not found")
-            return 2
-
+            print(f"project {PROJECT_ID} not found"); return 2
         sess = ChatSession(project_id=PROJECT_ID, user_id=project.owner_id, title="e2e suite")
-        db.add(sess)
-        db.commit()
-        db.refresh(sess)
-
+        db.add(sess); db.commit(); db.refresh(sess)
         svc = ChatServiceV2(project=project, db=db)
-
         results = []
         for sc in SCENARIOS:
             print(f"\n>>> {sc.name}: {sc.prompt}")
             r = await run_scenario(svc, sess.id, sc)
-            print(f"    {'PASS' if r['passed'] else 'FAIL'}  {r.get('elapsed')}s  tools={r.get('tool_calls', '?')}")
+            mark = "PASS" if r["passed"] else "FAIL"
+            print(f"    {mark}  {r.get('elapsed')}s  tools={r.get('tool_calls', '?')}")
             if not r["passed"]:
                 print(f"    reply: {r.get('reply_preview') or r.get('error')}")
             results.append(r)
-
         passed = sum(1 for r in results if r["passed"])
         print(f"\n=== {passed}/{len(results)} passed ===")
-
         out = Path(__file__).parent / f"e2e_report_{int(time.time())}.json"
         out.write_text(json.dumps(results, ensure_ascii=False, indent=2))
         print(f"report: {out}")
