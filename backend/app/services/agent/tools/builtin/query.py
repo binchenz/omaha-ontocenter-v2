@@ -16,13 +16,13 @@ from app.services.agent.tools.registry import ToolContext, ToolResult, register_
             },
             "filters": {
                 "type": "array",
-                "items": {"type": "object"},
+                "items": {"type": "object", "additionalProperties": True},
                 "description": "Filter conditions: [{field, operator, value}]",
             },
             "joins": {
                 "type": "array",
-                "items": {"type": "object"},
-                "description": "Join definitions.",
+                "items": {"type": "object", "additionalProperties": True},
+                "description": "Join definitions: [{object, on, type}]",
             },
             "limit": {"type": "integer", "description": "Max rows to return (default 100)"},
         },
