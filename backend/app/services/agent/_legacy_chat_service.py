@@ -849,7 +849,7 @@ class ChatService:
         }
 
     @staticmethod
-    def _extract_structured(message: str) -> tuple[str, list[dict] | None]:
+    def _extract_structured(message: str) -> tuple:
         """Extract ```structured ...``` JSON blocks from the message.
 
         Returns (cleaned_message, structured_items or None).
