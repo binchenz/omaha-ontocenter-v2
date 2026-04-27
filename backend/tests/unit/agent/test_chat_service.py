@@ -40,7 +40,10 @@ def test_build_ontology_context():
     """Test building ontology context from project config."""
     service = ChatService(project_id=1, db=Mock())
 
-    with patch('app.services.agent.chat_service.omaha_service') as mock_omaha:
+    with patch.object(service, '_get_ontology_context', return_value={}), \
+         patch('app.services.agent._legacy_chat_service.OmahaService') as MockOmahaService:
+        mock_omaha = Mock()
+        MockOmahaService.return_value = mock_omaha
         mock_omaha.build_ontology.return_value = {
             "valid": True,
             "ontology": {
@@ -57,11 +60,14 @@ def test_build_ontology_context():
 def test_build_ontology_context_uses_semantic_service():
     """Test that _build_ontology_context uses semantic_service for enriched context."""
     service = ChatService(project_id=1, db=Mock())
-    context = service._build_ontology_context(SEMANTIC_CONFIG)
-    assert "Product" in context
-    assert "CNY" in context
-    assert "毛利率 > 30% 视为健康" in context
-    assert "gross_margin" in context
+
+    # Patch _get_ontology_context to return empty dict so fallback to semantic_service is used
+    with patch.object(service, '_get_ontology_context', return_value={}):
+        context = service._build_ontology_context(SEMANTIC_CONFIG)
+        assert "Product" in context
+        assert "CNY" in context
+        assert "毛利率 > 30% 视为健康" in context
+        assert "gross_margin" in context
 
 
 def test_get_tool_schemas():
