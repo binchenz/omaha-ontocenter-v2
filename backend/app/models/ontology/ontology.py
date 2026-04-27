@@ -53,7 +53,13 @@ class ObjectProperty(Base):
     expression = Column(Text)
     is_required = Column(Boolean, default=False)
 
+    # Link type fields
+    link_target_id = Column(Integer, ForeignKey("ontology_objects.id"), nullable=True, index=True)
+    link_foreign_key = Column(String, nullable=True)
+    link_target_key = Column(String, nullable=True, default="id")
+
     object = relationship("OntologyObject", back_populates="properties")
+    link_target = relationship("OntologyObject", foreign_keys=[link_target_id])
 
     __table_args__ = (
         UniqueConstraint("object_id", "name", name="uq_object_property_name"),
