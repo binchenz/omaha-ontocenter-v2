@@ -1,7 +1,7 @@
 """add slug columns to ontology objects and properties
 
 Revision ID: 001_add_ontology_slugs
-Revises: eae86371d799
+Revises: 2cf16b1a0c59
 Create Date: 2026-04-27 12:00:00.000000
 
 """
@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = '001_add_ontology_slugs'
-down_revision = 'eae86371d799'
+down_revision = '2cf16b1a0c59'
 branch_labels = None
 depends_on = None
 
@@ -109,17 +109,21 @@ def upgrade() -> None:
             conn.execute(text("UPDATE object_properties SET slug = :s WHERE id = :id"),
                          {"s": f"{slug}-{i}", "id": row_id})
 
-    # Make NOT NULL
-    op.alter_column('ontology_objects', 'slug', nullable=False)
-    op.alter_column('object_properties', 'slug', nullable=False)
+    # Make NOT NULL and add unique constraints via batch mode for SQLite
+    with op.batch_alter_table('ontology_objects') as batch_op:
+        batch_op.alter_column('slug', existing_type=sa.String(), nullable=False)
+        batch_op.create_unique_constraint('uq_tenant_object_slug', ['tenant_id', 'slug'])
 
-    # Add unique constraints
-    op.create_unique_constraint('uq_tenant_object_slug', 'ontology_objects', ['tenant_id', 'slug'])
-    op.create_unique_constraint('uq_object_property_slug', 'object_properties', ['object_id', 'slug'])
+    with op.batch_alter_table('object_properties') as batch_op:
+        batch_op.alter_column('slug', existing_type=sa.String(), nullable=False)
+        batch_op.create_unique_constraint('uq_object_property_slug', ['object_id', 'slug'])
 
 
 def downgrade() -> None:
-    op.drop_constraint('uq_object_property_slug', 'object_properties', type_='unique')
-    op.drop_constraint('uq_tenant_object_slug', 'ontology_objects', type_='unique')
-    op.drop_column('object_properties', 'slug')
-    op.drop_column('ontology_objects', 'slug')
+    with op.batch_alter_table('object_properties') as batch_op:
+        batch_op.drop_constraint('uq_object_property_slug', type_='unique')
+        batch_op.drop_column('slug')
+
+    with op.batch_alter_table('ontology_objects') as batch_op:
+        batch_op.drop_constraint('uq_tenant_object_slug', type_='unique')
+        batch_op.drop_column('slug')
