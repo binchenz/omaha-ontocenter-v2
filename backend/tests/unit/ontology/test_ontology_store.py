@@ -227,3 +227,99 @@ def test_store_delete_object_cascades(db_session, tenant):
     )
     store.delete_object(tenant_id=tenant.id, name="Order")
     assert store.get_object(tenant_id=tenant.id, name="Order") is None
+
+
+def test_add_link_property(db_session, tenant):
+    store = OntologyStore(db_session)
+    order = store.create_object(
+        tenant_id=tenant.id, name="Order",
+        source_entity="t_order", datasource_id="mysql_erp", datasource_type="sql",
+    )
+    customer = store.create_object(
+        tenant_id=tenant.id, name="Customer",
+        source_entity="t_customer", datasource_id="mysql_erp", datasource_type="sql",
+    )
+
+    link_prop = store.add_property(
+        object_id=order.id,
+        name="customer",
+        data_type="link",
+        link_target="Customer",
+        link_foreign_key="customer_id",
+        link_target_key="id",
+    )
+
+    assert link_prop.data_type == "link"
+    assert link_prop.link_target_id == customer.id
+    assert link_prop.link_foreign_key == "customer_id"
+    assert link_prop.link_target_key == "id"
+
+
+def test_add_self_referencing_link(db_session, tenant):
+    store = OntologyStore(db_session)
+    category = store.create_object(
+        tenant_id=tenant.id, name="Category",
+        source_entity="t_category", datasource_id="mysql_erp", datasource_type="sql",
+    )
+
+    link_prop = store.add_property(
+        object_id=category.id,
+        name="parent",
+        data_type="link",
+        link_target="Category",
+        link_foreign_key="parent_id",
+    )
+
+    assert link_prop.data_type == "link"
+    assert link_prop.link_target_id == category.id
+    assert link_prop.link_foreign_key == "parent_id"
+    assert link_prop.link_target_key == "id"
+
+
+def test_add_link_property_missing_target(db_session, tenant):
+    store = OntologyStore(db_session)
+    order = store.create_object(
+        tenant_id=tenant.id, name="Order",
+        source_entity="t_order", datasource_id="mysql_erp", datasource_type="sql",
+    )
+
+    with pytest.raises(ValueError, match="Link type requires link_target"):
+        store.add_property(
+            object_id=order.id,
+            name="customer",
+            data_type="link",
+            link_foreign_key="customer_id",
+        )
+
+
+def test_add_link_property_missing_foreign_key(db_session, tenant):
+    store = OntologyStore(db_session)
+    order = store.create_object(
+        tenant_id=tenant.id, name="Order",
+        source_entity="t_order", datasource_id="mysql_erp", datasource_type="sql",
+    )
+
+    with pytest.raises(ValueError, match="Link type requires link_foreign_key"):
+        store.add_property(
+            object_id=order.id,
+            name="customer",
+            data_type="link",
+            link_target="Customer",
+        )
+
+
+def test_add_link_property_target_not_found(db_session, tenant):
+    store = OntologyStore(db_session)
+    order = store.create_object(
+        tenant_id=tenant.id, name="Order",
+        source_entity="t_order", datasource_id="mysql_erp", datasource_type="sql",
+    )
+
+    with pytest.raises(ValueError, match="Target object 'Customer' not found"):
+        store.add_property(
+            object_id=order.id,
+            name="customer",
+            data_type="link",
+            link_target="Customer",
+            link_foreign_key="customer_id",
+        )

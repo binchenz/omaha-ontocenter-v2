@@ -62,7 +62,33 @@ class OntologyStore:
     def add_property(self, object_id: int, name: str, data_type: str,
                      semantic_type: str = None, description: str = None,
                      is_computed: bool = False, expression: str = None,
-                     slug: str = None) -> ObjectProperty:
+                     slug: str = None, link_target: str = None,
+                     link_foreign_key: str = None, link_target_key: str = "id") -> ObjectProperty:
+        if data_type == "link":
+            if not link_target:
+                raise ValueError("Link type requires link_target")
+            if not link_foreign_key:
+                raise ValueError("Link type requires link_foreign_key")
+
+            obj = self.db.query(OntologyObject).filter(
+                OntologyObject.id == object_id
+            ).first()
+            if not obj:
+                raise ValueError(f"Object with id {object_id} not found")
+
+            target_obj = self.db.query(OntologyObject).filter(
+                OntologyObject.tenant_id == obj.tenant_id,
+                OntologyObject.name == link_target
+            ).first()
+            if not target_obj:
+                raise ValueError(f"Target object '{link_target}' not found")
+
+            link_target_id = target_obj.id
+        else:
+            link_target_id = None
+            link_foreign_key = None
+            link_target_key = None
+
         if slug is None:
             base_slug = slugify_name(name)
             slug = ensure_unique_slug(self.db, base_slug, "object_properties", "slug",
@@ -71,6 +97,8 @@ class OntologyStore:
             object_id=object_id, name=name, slug=slug, data_type=data_type,
             semantic_type=semantic_type, description=description,
             is_computed=is_computed, expression=expression,
+            link_target_id=link_target_id, link_foreign_key=link_foreign_key,
+            link_target_key=link_target_key,
         ))
 
     def add_health_rule(self, object_id: int, metric: str, expression: str,

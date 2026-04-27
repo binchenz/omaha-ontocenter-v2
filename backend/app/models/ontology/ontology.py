@@ -28,7 +28,7 @@ class OntologyObject(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    properties = relationship("ObjectProperty", back_populates="object", cascade="all, delete-orphan")
+    properties = relationship("ObjectProperty", back_populates="object", cascade="all, delete-orphan", foreign_keys="[ObjectProperty.object_id]")
     health_rules = relationship("HealthRule", back_populates="object", cascade="all, delete-orphan")
     business_goals = relationship("BusinessGoal", back_populates="object", cascade="all, delete-orphan")
     domain_knowledge_items = relationship("DomainKnowledge", back_populates="object", cascade="all, delete-orphan")
@@ -58,7 +58,7 @@ class ObjectProperty(Base):
     link_foreign_key = Column(String, nullable=True)
     link_target_key = Column(String, nullable=True, default="id")
 
-    object = relationship("OntologyObject", back_populates="properties")
+    object = relationship("OntologyObject", back_populates="properties", foreign_keys=[object_id])
     link_target = relationship("OntologyObject", foreign_keys=[link_target_id])
 
     __table_args__ = (
