@@ -1,7 +1,4 @@
-"""E2E modeling flow — upload → assess → infer → confirm → query.
-
-Uses a temp project (setup_stage=idle) and a synthetic CSV.
-"""
+"""E2E modeling flow — upload → assess → infer → confirm → query."""
 from __future__ import annotations
 
 import asyncio
@@ -48,19 +45,16 @@ def _make_sample_csv() -> Path:
 async def main() -> int:
     db = SessionLocal()
     try:
-        proj = db.query(Project).filter(Project.id == 1).first()  # idle project
+        proj = db.query(Project).filter(Project.id == 1).first()
         if not proj:
             print("no idle project")
             return 2
-
         sess = ChatSession(project_id=proj.id, user_id=proj.owner_id, title="modeling e2e")
         db.add(sess); db.commit(); db.refresh(sess)
-
         csv_path = _make_sample_csv()
         df = pd.read_csv(csv_path)
         UploadedTableStore.save(proj.id, sess.id, "sales", df)
         print(f"uploaded sample table sales ({len(df)} rows) for session {sess.id}")
-
         svc = ChatServiceV2(project=proj, db=db)
         for i, turn in enumerate(MODELING_TURNS, 1):
             t0 = time.time()

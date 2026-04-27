@@ -1,4 +1,4 @@
-"""E2E concurrency / latency — N parallel sessions, measure p50/p95/p99."""
+"""E2E concurrency / latency — N parallel sessions, measure p50/p95."""
 from __future__ import annotations
 
 import asyncio
@@ -16,13 +16,7 @@ from app.services.agent.chat_service import ChatServiceV2
 
 PROJECT_ID = 10
 CONCURRENCY = 5
-PROMPTS = [
-    "列出 5 个商品",
-    "价格最高的商品",
-    "深圳的商品",
-    "商品总数",
-    "显示商品名和价格",
-]
+PROMPTS = ["列出 5 个商品", "价格最高的商品", "深圳的商品", "商品总数", "显示商品名和价格"]
 
 
 async def one_call(svc: ChatServiceV2, db, project, prompt: str) -> float:
@@ -42,20 +36,16 @@ async def main() -> int:
     try:
         project = db.query(Project).filter(Project.id == PROJECT_ID).first()
         svc = ChatServiceV2(project=project, db=db)
-
         print(f"running {CONCURRENCY} parallel calls...")
         tasks = [one_call(svc, db, project, PROMPTS[i % len(PROMPTS)]) for i in range(CONCURRENCY)]
         latencies = await asyncio.gather(*tasks)
-        ok = [x for x in latencies if x > 0]
+        ok = sorted(x for x in latencies if x > 0)
         if not ok:
-            print("all calls failed")
-            return 1
-
-        ok.sort()
-        print(f"\n=== latency over {len(ok)}/{CONCURRENCY} successful calls ===")
+            print("all calls failed"); return 1
+        print(f"\n=== latency over {len(ok)}/{CONCURRENCY} calls ===")
         print(f"  min:  {min(ok):.2f}s")
         print(f"  p50:  {statistics.median(ok):.2f}s")
-        print(f"  p95:  {ok[int(len(ok) * 0.95) - 1] if len(ok) > 1 else ok[0]:.2f}s")
+        print(f"  p95:  {ok[max(0, int(len(ok)*0.95)-1)]:.2f}s")
         print(f"  max:  {max(ok):.2f}s")
         print(f"  mean: {statistics.mean(ok):.2f}s")
         return 0

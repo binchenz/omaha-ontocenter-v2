@@ -1,4 +1,4 @@
-"""E2E multi-turn context retention — does the agent remember earlier turns?"""
+"""E2E multi-turn context retention."""
 from __future__ import annotations
 
 import asyncio
@@ -16,35 +16,10 @@ from app.services.agent.chat_service import ChatServiceV2
 PROJECT_ID = 10
 
 CONVERSATIONS = [
-    {
-        "name": "refer-back-by-pronoun",
-        "turns": [
-            ("价格最高的 3 个商品", ["price"]),
-            ("它们在哪些城市销售？", ["city"]),  # "它们" 指代
-        ],
-    },
-    {
-        "name": "narrow-then-broaden",
-        "turns": [
-            ("深圳的商品有哪些？", ["深圳"]),
-            ("那北京呢？", ["北京"]),
-            ("加上上海一起列出来", ["上海"]),
-        ],
-    },
-    {
-        "name": "correction",
-        "turns": [
-            ("列出所有商品价格", ["price"]),
-            ("刚才的查询，再加上类目字段", ["category"]),
-        ],
-    },
-    {
-        "name": "followup-aggregation",
-        "turns": [
-            ("展示前 10 个商品", []),
-            ("这些商品里最贵的是哪个？", ["price"]),
-        ],
-    },
+    {"name": "refer-back-by-pronoun", "turns": [("价格最高的 3 个商品", ["price"]), ("它们在哪些城市销售？", ["city"])]},
+    {"name": "narrow-then-broaden", "turns": [("深圳的商品有哪些？", ["深圳"]), ("那北京呢？", ["北京"]), ("加上上海一起列出来", ["上海"])]},
+    {"name": "correction", "turns": [("列出所有商品价格", ["price"]), ("刚才的查询，再加上类目字段", ["category"])]},
+    {"name": "followup-aggregation", "turns": [("展示前 10 个商品", []), ("这些商品里最贵的是哪个？", ["price"])]},
 ]
 
 
@@ -53,7 +28,6 @@ async def main() -> int:
     try:
         project = db.query(Project).filter(Project.id == PROJECT_ID).first()
         svc = ChatServiceV2(project=project, db=db)
-
         all_pass = True
         for conv in CONVERSATIONS:
             sess = ChatSession(project_id=PROJECT_ID, user_id=project.owner_id, title=conv["name"])
