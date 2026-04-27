@@ -128,6 +128,7 @@ class ChatServiceV2:
         # 13. Return response dict
         return {
             "message": response.message,
+            "tool_calls": response.tool_calls,
             "data_table": response.data_table,
             "chart_config": response.chart_config,
             "sql": response.sql,
