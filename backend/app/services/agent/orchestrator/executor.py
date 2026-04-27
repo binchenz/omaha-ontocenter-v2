@@ -70,17 +70,10 @@ class ExecutorAgent:
         sql: str | None = None
         tool_call_log: list[dict] = []
         force_answer = False
-        first_turn = True
 
         for _iteration in range(self.max_iterations):
             # Determine tool_choice
-            if force_answer:
-                tool_choice = "none"
-            elif first_turn and has_tools:
-                tool_choice = "required"
-            else:
-                tool_choice = "auto"
-            first_turn = False
+            tool_choice = "none" if force_answer else "auto"
 
             messages = runtime.get_messages_for_llm()
             llm_response = await self.provider.send(

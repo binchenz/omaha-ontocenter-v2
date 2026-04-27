@@ -7,6 +7,8 @@ system_prompt: |
   - 查询一次后立即基于结果回答，不要反复查询
   - 如果数据触发健康规则阈值，主动提醒
 allowed_tools:
+  - search_*
+  - count_*
   - query_data
   - list_objects
   - get_schema

@@ -18,6 +18,8 @@ from app.services.agent.providers.base import ProviderAdapter
 from app.services.agent.providers.openai_compat import OpenAICompatAdapter
 from app.services.agent.providers.anthropic import AnthropicAdapter
 from app.services.agent.tools.registry import global_registry, ToolContext
+from app.services.agent.tools.view import ToolRegistryView
+from app.services.agent.tools.factory import ObjectTypeToolFactory
 from app.services.agent.skills.loader import SkillLoader
 from app.services.agent.skills.resolver import SkillResolver
 from app.services.agent.runtime.conversation import ConversationRuntime
@@ -91,21 +93,28 @@ class ChatServiceV2:
         # 7. Append current user message
         runtime.append_user_message(user_message)
 
-        # 8. Build ToolContext
+        # 8. Build derived tool specs from ontology
+        derived_specs = ObjectTypeToolFactory().build(ontology_context)
+
+        # 9. Create ToolRegistryView
+        tool_view = ToolRegistryView(builtin=global_registry, derived=derived_specs)
+
+        # 10. Build ToolContext with omaha_service
+        omaha_service = self._build_omaha_service()
         ctx = ToolContext(
             db=self.db,
-            omaha_service=None,
+            omaha_service=omaha_service,
             tenant_id=self.tenant_id,
             project_id=self.project.id,
             session_id=session_id,
             ontology_context=ontology_context,
         )
 
-        # 9. Run ExecutorAgent
-        executor = ExecutorAgent(provider=provider, registry=global_registry)
+        # 11. Run ExecutorAgent with tool_view
+        executor = ExecutorAgent(provider=provider, registry=tool_view)
         response = await executor.run(runtime, ctx)
 
-        # 10. Save messages
+        # 12. Save messages
         SessionManager.save_messages(
             self.db,
             session_id,
@@ -114,7 +123,7 @@ class ChatServiceV2:
             chart_config=response.chart_config,
         )
 
-        # 11. Return response dict
+        # 13. Return response dict
         return {
             "message": response.message,
             "data_table": response.data_table,

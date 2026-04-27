@@ -149,3 +149,24 @@ async def test_executor_max_iterations(skill, registry):
     assert "超时" in response.message
     # provider.send should have been called exactly max_iterations times
     assert provider.send.call_count == 3
+
+
+# ---------------------------------------------------------------------------
+# Test 4: first turn uses 'auto' tool_choice
+# ---------------------------------------------------------------------------
+
+async def test_executor_uses_auto_on_first_turn(skill, registry):
+    """Verify that ExecutorAgent uses tool_choice='auto' on first turn."""
+    provider = AsyncMock()
+    provider.send = AsyncMock(return_value=_text_response("直接回答"))
+
+    agent = ExecutorAgent(provider=provider, registry=registry)
+    runtime = _make_runtime(skill)
+    ctx = _make_ctx()
+
+    await agent.run(runtime, ctx)
+
+    # Check that provider.send was called with tool_choice='auto'
+    assert provider.send.call_count == 1
+    call_kwargs = provider.send.call_args[1]
+    assert call_kwargs.get("tool_choice") == "auto"

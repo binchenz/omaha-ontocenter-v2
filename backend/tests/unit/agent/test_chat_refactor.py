@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.services.agent.chat_service import ChatService
 from app.schemas.chat.agent import AgentChatResponse
+from app.services.agent.skills.loader import SkillLoader
 
 
 @pytest.fixture
@@ -39,3 +40,14 @@ def test_send_message_delegates_to_agent(db_session):
     assert result["message"] == "订单总额500元"
     assert result["data_table"] == [{"id": 1, "amount": 500}]
     assert result["sql"] == "SELECT * FROM t_order"
+
+
+def test_data_query_skill_accepts_wildcards():
+    """Verify that data_query skill includes search_* and count_* wildcards."""
+    loader = SkillLoader()
+    skill = loader.load("data_query")
+
+    assert skill is not None
+    assert "search_*" in skill.allowed_tools
+    assert "count_*" in skill.allowed_tools
+    assert "query_data" in skill.allowed_tools
