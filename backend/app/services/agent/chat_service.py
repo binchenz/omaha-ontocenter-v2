@@ -123,3 +123,14 @@ class ChatServiceV2:
             "setup_stage": setup_stage,
             "structured": response.structured,
         }
+
+    def _build_omaha_service(self):
+        """Build OmahaService from project.omaha_config if available."""
+        config_yaml = getattr(self.project, "omaha_config", None)
+        if not config_yaml:
+            return None
+        try:
+            from app.services.legacy.financial.omaha import OmahaService
+            return OmahaService(config_yaml)
+        except Exception:
+            return None

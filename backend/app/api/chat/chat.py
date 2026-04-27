@@ -15,7 +15,7 @@ from app.schemas.chat.chat import (
     SendMessageRequest,
     SendMessageResponse
 )
-from app.services.agent.chat_service import ChatService
+from app.services.agent.chat_service import ChatServiceV2
 from app.api.deps import get_current_user, get_project_for_owner
 
 
@@ -63,14 +63,14 @@ def list_chat_sessions(
 
 
 @router.post("/chat/{project_id}/sessions/{session_id}/message", response_model=SendMessageResponse)
-def send_message(
+async def send_message(
     project_id: int,
     session_id: int,
     request: SendMessageRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Send a message and get response."""
+    """Send a message and get response (uses new ChatServiceV2 layered agent)."""
     project = get_project_for_owner(project_id, current_user, db)
 
     session = (
@@ -81,12 +81,10 @@ def send_message(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    chat_service = ChatService(project_id=project_id, db=db)
-    result = chat_service.send_message(
+    chat_service = ChatServiceV2(project=project, db=db)
+    result = await chat_service.send_message(
         session_id=session_id,
         user_message=request.message,
-        config_yaml=project.omaha_config,
-        llm_provider="deepseek"
     )
 
     return SendMessageResponse(**result)
