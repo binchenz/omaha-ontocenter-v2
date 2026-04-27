@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import itertools
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 
 from app.services.agent.tools.registry import ToolContext, ToolResult, register_tool
 

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 import tushare as ts
 import pandas as pd
 from app.connectors.base import BaseConnector, ColumnDef

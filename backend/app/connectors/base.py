@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 
 
 @dataclass
@@ -27,7 +27,7 @@ class BaseConnector(ABC):
         source: str,
         columns: list[str] | None = None,
         filters: list[dict] | None = None,
-        limit: int | None = None,
+        limit: Optional[int] = None,
     ) -> list[dict[str, Any]]: ...
 
     def close(self) -> None:

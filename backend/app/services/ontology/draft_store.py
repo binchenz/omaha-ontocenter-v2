@@ -1,3 +1,5 @@
+from typing import Optional, List, Dict, Union
+
 """JSON-based ontology draft storage scoped by (project_id, session_id)."""
 import json
 from pathlib import Path

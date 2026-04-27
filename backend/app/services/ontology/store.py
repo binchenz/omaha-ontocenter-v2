@@ -1,4 +1,6 @@
 from __future__ import annotations
+from typing import Optional, List, Dict, Union
+
 from sqlalchemy.orm import Session, selectinload, joinedload
 from app.models.ontology.ontology import (
     OntologyObject,
@@ -167,7 +169,7 @@ class OntologyStore:
         self.db.flush()
         return True
 
-    def update_property_semantic_type(self, object_id: int, name: str, semantic_type: str | None) -> bool:
+    def update_property_semantic_type(self, object_id: int, name: str, semantic_type: Optional[str]) -> bool:
         prop = self.db.query(ObjectProperty).filter(
             ObjectProperty.object_id == object_id,
             ObjectProperty.name == name,

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Optional, List, Dict, Union
+
+
 from app.services.agent.skills.loader import Skill, SkillLoader
 
 _STAGE_MAP: dict[str, str] = {
@@ -15,7 +18,7 @@ class SkillResolver:
     def __init__(self, loader: SkillLoader):
         self._loader = loader
 
-    def resolve(self, setup_stage: str | None, user_message: str) -> Skill:
+    def resolve(self, setup_stage: Optional[str], user_message: str) -> Skill:
         skill_name = _STAGE_MAP.get(setup_stage or "idle", "onboarding")
 
         # In ready stage, check if any skill's keywords match the message

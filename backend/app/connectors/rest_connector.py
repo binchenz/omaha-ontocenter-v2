@@ -1,5 +1,5 @@
 import base64
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 import httpx
 from app.connectors.base import BaseConnector, ColumnDef
 

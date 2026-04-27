@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Optional
+from typing import Optional, Union, Dict, List
 from app.config import settings
 
 try:
@@ -76,7 +76,7 @@ class OntologyInferrer:
         )
         return response.choices[0].message.content or ""
 
-    def _extract_json(self, text: str) -> Optional[dict | list]:
+    def _extract_json(self, text: str) -> Optional[Union[dict, list]]:
         for pattern in [r'\{[\s\S]*\}', r'\[[\s\S]*\]']:
             match = re.search(pattern, text)
             if match:
@@ -107,7 +107,7 @@ class OntologyInferrer:
         except Exception:
             return [TableClassification(name=t.name) for t in tables]
 
-    def infer_table(self, table: TableSummary, datasource_id: str, template_hint: dict | None = None) -> Optional[InferredObject]:
+    def infer_table(self, table: TableSummary, datasource_id: str, template_hint: Optional[dict] = None) -> Optional[InferredObject]:
         columns_text = "\n".join(
             f"- {c['name']} ({c['type']}) 样本值: {table.sample_values.get(c['name'], [])[:10]}"
             for c in table.columns

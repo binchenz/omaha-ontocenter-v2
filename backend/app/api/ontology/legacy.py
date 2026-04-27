@@ -1,7 +1,7 @@
 """
 Ontology endpoints.
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List, Dict, Union
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -117,16 +117,16 @@ class OntologyObjectCreate(BaseModel):
     source_entity: str
     datasource_id: str
     datasource_type: str = "sql"
-    description: str | None = None
-    business_context: str | None = None
-    domain: str | None = None
+    description: Optional[str] = None
+    business_context: Optional[str] = None
+    domain: Optional[str] = None
 
 
 class PropertyCreate(BaseModel):
     name: str
     data_type: str
-    semantic_type: str | None = None
-    description: str | None = None
+    semantic_type: Optional[str] = None
+    description: Optional[str] = None
 
 
 @router.get("/objects")

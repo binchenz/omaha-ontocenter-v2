@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 
 
@@ -24,8 +24,8 @@ class ObjectConfig(BaseModel):
     api_name: Optional[str] = None
     primary_key: Optional[str] = None
     description: Optional[str] = None
-    properties: list[PropertyConfig] = []
-    relationships: list[RelationshipConfig] = []
+    properties: List[PropertyConfig] = []
+    relationships: List[RelationshipConfig] = []
 
 
 class DatasourceConfig(BaseModel):
@@ -36,8 +36,8 @@ class DatasourceConfig(BaseModel):
 
 
 class OntologyModel(BaseModel):
-    datasources: list[DatasourceConfig] = []
-    objects: list[ObjectConfig] = []
+    datasources: List[DatasourceConfig] = []
+    objects: List[ObjectConfig] = []
 
 
 class GenerateYamlRequest(BaseModel):

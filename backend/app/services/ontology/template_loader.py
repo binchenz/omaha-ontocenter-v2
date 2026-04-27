@@ -1,3 +1,5 @@
+from typing import Optional, List, Dict, Union
+
 """Loads industry templates from configs/templates/*.yaml."""
 from pathlib import Path
 import yaml

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict
-from typing import Literal
+from typing import Literal, Optional, List, Dict, Union
 import pandas as pd
 import re
 
@@ -16,7 +16,7 @@ _DATE_PATTERNS = [
 @dataclass
 class QualityIssue:
     table: str
-    column: str | None
+    column: Optional[str]
     issue_type: str  # duplicate_rows, missing_values, inconsistent_format
     count: int
     examples: list[str]

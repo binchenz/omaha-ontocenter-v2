@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 
 from app.services.agent.skills.loader import Skill
 from app.services.agent.providers.base import Message, ToolCall
@@ -57,7 +57,7 @@ class ConversationRuntime:
 
     def append_assistant_message(
         self,
-        content: str | None,
+        content: Optional[str],
         tool_calls: list[ToolCall] | None,
     ) -> None:
         self.messages.append(Message(role="assistant", content=content, tool_calls=tool_calls))

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Union
+from typing import Optional, Union, List, Dict
 
 
 class AgentChatRequest(BaseModel):
@@ -15,8 +15,8 @@ class ToolCallRecord(BaseModel):
 
 class AgentChatResponse(BaseModel):
     response: str
-    tool_calls: list[ToolCallRecord] = []
-    sources: list[str] = []
-    data_table: Optional[list[dict]] = None
+    tool_calls: List[ToolCallRecord] = []
+    sources: List[str] = []
+    data_table: Optional[List[dict]] = None
     chart_config: Optional[dict] = None
     sql: Optional[str] = None

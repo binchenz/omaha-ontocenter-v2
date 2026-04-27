@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Optional, List, Dict, Union
 
 from app.services.agent.providers.base import ToolSpec
 
@@ -16,9 +16,9 @@ from app.services.agent.providers.base import ToolSpec
 class ToolContext:
     db: Any
     omaha_service: Any
-    tenant_id: int | None = None
-    project_id: int | None = None
-    session_id: int | None = None
+    tenant_id: Optional[int] = None
+    project_id: Optional[int] = None
+    session_id: Optional[int] = None
     ontology_context: dict = field(default_factory=dict)
     uploaded_tables: dict = field(default_factory=dict)
     session_store: Any = None  # app.services.agent.runtime.session_store module
@@ -31,8 +31,8 @@ class ToolContext:
 @dataclass
 class ToolResult:
     success: bool
-    data: dict | None = None
-    error: str | None = None
+    data: Optional[dict] = None
+    error: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {"success": self.success, "data": self.data, "error": self.error}

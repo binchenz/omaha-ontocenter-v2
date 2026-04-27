@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 
 from app.services.agent.providers.base import ProviderAdapter, ToolSpec
 from app.services.agent.tools.registry import ToolRegistry, ToolContext
@@ -33,10 +33,10 @@ class AgentResponse:
     message: str
     tool_calls: list[dict] = field(default_factory=list)
     data_table: list[dict] | None = None
-    chart_config: dict | None = None
-    sql: str | None = None
+    chart_config: Optional[dict] = None
+    sql: Optional[str] = None
     structured: list[dict] | None = None
-    setup_stage: str | None = None
+    setup_stage: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -66,8 +66,8 @@ class ExecutorAgent:
         has_tools = bool(tool_specs)
 
         data_table: list[dict] | None = None
-        chart_config: dict | None = None
-        sql: str | None = None
+        chart_config: Optional[dict] = None
+        sql: Optional[str] = None
         tool_call_log: list[dict] = []
         force_answer = False
 

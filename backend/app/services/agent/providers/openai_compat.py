@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 
 try:
     from openai import AsyncOpenAI
@@ -12,7 +12,7 @@ from .base import LLMResponse, Message, ProviderAdapter, ToolCall, ToolSpec, Tok
 
 
 class OpenAICompatAdapter(ProviderAdapter):
-    def __init__(self, model: str, api_key: str, base_url: str | None = None):
+    def __init__(self, model: str, api_key: str, base_url: Optional[str] = None):
         super().__init__(model, api_key, base_url)
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 

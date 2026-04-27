@@ -178,13 +178,45 @@ The `app/services/` directory contains the core business logic, grouped by domai
 - **SemanticTypeFormatter** (`semantic/formatter.py`): Formats query results based on semantic types
 - **AgentToolkit** (`agent/toolkit.py`): LLM function-calling toolkit
 - **ChatService** (`agent/chat_service.py`): Chat session orchestration with LLM integration
+- **LinkResolver** (`ontology/link_resolver.py`): Resolves link relationships between objects
+- **LinkExpander** (`agent/link_expander.py`): Generates navigation tools for link fields
+- **PathNavigator** (`agent/path_navigator.py`): Executes multi-hop navigation across links
 
 ### YAML Configuration Structure
 
 Ontology configs (in `configs/`) define business objects with:
 - **datasources**: Connection info for Tushare, PostgreSQL, MySQL
 - **objects**: Business object definitions with fields, semantic types, computed properties, and default filters
+- **links**: Define relationships between objects (forward and reverse navigation)
 - **Environment variable substitution**: Only uppercase patterns like `${VAR_NAME}` are substituted (lowercase `${var}` will NOT work)
+
+#### Link Type System
+
+The system supports link fields for object relationships:
+
+```yaml
+objects:
+  stock:
+    fields:
+      - name: industry
+        type: link
+        target: industry
+        link_field: industry_code
+  
+  industry:
+    fields:
+      - name: stocks
+        type: link
+        target: stock
+        reverse_of: industry
+```
+
+This generates navigation tools:
+- `get_stock_industry(ts_code)` - Forward navigation
+- `get_industry_stocks(industry_code)` - Reverse navigation
+- `navigate_path(start_object, start_id, path)` - Multi-hop navigation
+
+See `docs/link-type-guide.md` for detailed usage.
 
 ## Database
 

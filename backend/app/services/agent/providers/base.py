@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 
 
 @dataclass
@@ -20,7 +20,7 @@ class TokenUsage:
 
 @dataclass
 class LLMResponse:
-    content: str | None
+    content: Optional[str]
     tool_calls: list[ToolCall]
     usage: TokenUsage
 
@@ -28,9 +28,9 @@ class LLMResponse:
 @dataclass
 class Message:
     role: str  # "system" | "user" | "assistant" | "tool"
-    content: str | None = None
+    content: Optional[str] = None
     tool_calls: list[ToolCall] | None = None
-    tool_call_id: str | None = None
+    tool_call_id: Optional[str] = None
 
 
 @dataclass
@@ -41,7 +41,7 @@ class ToolSpec:
 
 
 class ProviderAdapter(ABC):
-    def __init__(self, model: str, api_key: str, base_url: str | None = None):
+    def __init__(self, model: str, api_key: str, base_url: Optional[str] = None):
         self.model = model
         self.api_key = api_key
         self.base_url = base_url

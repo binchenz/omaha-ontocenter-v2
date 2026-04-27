@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 
 try:
     import anthropic as anthropic_sdk
@@ -11,7 +11,7 @@ from .base import LLMResponse, Message, ProviderAdapter, ToolCall, ToolSpec, Tok
 
 
 class AnthropicAdapter(ProviderAdapter):
-    def __init__(self, model: str, api_key: str, base_url: str | None = None):
+    def __init__(self, model: str, api_key: str, base_url: Optional[str] = None):
         super().__init__(model, api_key, base_url)
         kwargs: dict[str, Any] = {"api_key": api_key}
         if base_url:
@@ -41,7 +41,7 @@ class AnthropicAdapter(ProviderAdapter):
         return self._parse_response(response)
 
     def _convert_messages(self, messages: list[Message]) -> tuple[str | None, list[dict]]:
-        system: str | None = None
+        system: Optional[str] = None
         result: list[dict] = []
 
         for m in messages:

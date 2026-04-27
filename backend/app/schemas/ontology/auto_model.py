@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, List, Dict, Optional
 
 
 SEMANTIC_TYPES = [
@@ -22,18 +22,18 @@ class ColumnInfo(BaseModel):
 class TableSummaryResponse(BaseModel):
     name: str
     row_count: int
-    columns: list[ColumnInfo]
-    sample_values: dict[str, list[str]]
+    columns: List[ColumnInfo]
+    sample_values: Dict[str, List[str]]
 
 class ScanRequest(BaseModel):
     datasource_id: str
 
 class ScanResponse(BaseModel):
-    tables: list[TableSummaryResponse]
+    tables: List[TableSummaryResponse]
 
 class InferRequest(BaseModel):
     datasource_id: str
-    tables: list[str]
+    tables: List[str]
 
 class TableClassification(BaseModel):
     name: str
@@ -44,10 +44,10 @@ class TableClassification(BaseModel):
 class InferredProperty(BaseModel):
     name: str
     data_type: str
-    semantic_type: str | None = None
+    semantic_type: Optional[str] = None
     description: str = ""
     is_computed: bool = False
-    expression: str | None = None
+    expression: Optional[str] = None
 
 class InferredObject(BaseModel):
     name: str
@@ -57,9 +57,9 @@ class InferredObject(BaseModel):
     domain: str = ""
     datasource_id: str = ""
     datasource_type: str = "sql"
-    properties: list[InferredProperty] = []
-    suggested_health_rules: list[dict] = []
-    suggested_computed_properties: list[dict] = []
+    properties: List[InferredProperty] = []
+    suggested_health_rules: List[dict] = []
+    suggested_computed_properties: List[dict] = []
 
 class InferredRelationship(BaseModel):
     name: str
@@ -70,13 +70,13 @@ class InferredRelationship(BaseModel):
     to_field: str = "id"
 
 class InferResponse(BaseModel):
-    objects: list[InferredObject]
-    relationships: list[InferredRelationship] = []
-    warnings: list[str] = []
+    objects: List[InferredObject]
+    relationships: List[InferredRelationship] = []
+    warnings: List[str] = []
 
 class ConfirmRequest(BaseModel):
-    objects: list[InferredObject]
-    relationships: list[InferredRelationship] = []
+    objects: List[InferredObject]
+    relationships: List[InferredRelationship] = []
 
 class ConfirmResponse(BaseModel):
     objects_created: int = 0

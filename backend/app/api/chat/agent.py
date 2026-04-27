@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -18,13 +18,13 @@ router = APIRouter()
 class AgentQueryRequest(BaseModel):
     """Request schema for agent query."""
     message: str
-    config_yaml: str | None = None
+    config_yaml: Optional[str] = None
 
 
 class AgentQueryResponse(BaseModel):
     """Response schema for agent query."""
     response: str
-    tool_calls: list[dict] = []
+    tool_calls: List[dict] = []
 
 
 @router.post("/query", response_model=AgentQueryResponse)

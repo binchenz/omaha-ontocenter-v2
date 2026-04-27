@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal, Union, List, Dict
 from pydantic import BaseModel, Field
 
 
@@ -15,14 +15,14 @@ class TextResponse(BaseModel):
 class OptionsResponse(BaseModel):
     type: Literal["options"] = "options"
     content: str
-    options: list[Option]
+    options: List[Option]
 
 
 class PanelResponse(BaseModel):
     type: Literal["panel"] = "panel"
     content: str
     panel_type: Literal["quality_report", "ontology_preview"]
-    data: dict[str, Any]
+    data: Dict[str, Any]
 
 
 class FileUploadRequest(BaseModel):
@@ -39,4 +39,4 @@ StructuredItem = Annotated[
 
 
 class StructuredContent(BaseModel):
-    items: list[StructuredItem]
+    items: List[StructuredItem]

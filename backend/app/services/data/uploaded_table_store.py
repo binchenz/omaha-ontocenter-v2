@@ -1,3 +1,5 @@
+from typing import Optional, List, Dict, Union
+
 """
 Persistent storage for DataFrames uploaded during a chat session.
 

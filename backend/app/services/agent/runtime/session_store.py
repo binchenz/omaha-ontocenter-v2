@@ -1,7 +1,7 @@
 """Process-local, session-scoped ObjectSet store (last-1 per session, LRU-capped)."""
 from __future__ import annotations
 from collections import OrderedDict
-from typing import Any
+from typing import Any, Optional, List, Dict, Union
 
 _MAX_SESSIONS = 512
 _store: OrderedDict[int, dict[str, Any]] = OrderedDict()
