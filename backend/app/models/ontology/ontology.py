@@ -17,6 +17,7 @@ class OntologyObject(Base):
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
+    slug = Column(String, nullable=False)
     source_entity = Column(String, nullable=False)
     datasource_id = Column(String, nullable=False)
     datasource_type = Column(String, nullable=False)
@@ -34,6 +35,7 @@ class OntologyObject(Base):
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "name", name="uq_tenant_object_name"),
+        UniqueConstraint("tenant_id", "slug", name="uq_tenant_object_slug"),
     )
 
 
@@ -43,6 +45,7 @@ class ObjectProperty(Base):
     id = Column(Integer, primary_key=True, index=True)
     object_id = Column(Integer, ForeignKey("ontology_objects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
+    slug = Column(String, nullable=False)
     data_type = Column(String, nullable=False)
     semantic_type = Column(String(50))
     description = Column(Text)
@@ -54,6 +57,7 @@ class ObjectProperty(Base):
 
     __table_args__ = (
         UniqueConstraint("object_id", "name", name="uq_object_property_name"),
+        UniqueConstraint("object_id", "slug", name="uq_object_property_slug"),
     )
 
 
