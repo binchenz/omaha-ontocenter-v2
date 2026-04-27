@@ -1,7 +1,7 @@
 """
 ToolRegistryView — unified view over builtin and derived tools with wildcard support.
 """
-from typing import Any
+from typing import Any, Optional
 from app.services.agent.providers.base import ToolSpec
 from app.services.agent.tools.registry import ToolRegistry, ToolContext, ToolResult
 from app.services.agent.link.resolver import LinkResolver
@@ -45,7 +45,7 @@ class ToolRegistryView:
         self.link_resolver = LinkResolver()
         self.link_expander = LinkExpander()
 
-    def get_specs(self, whitelist: list[str] | None = None) -> list[ToolSpec]:
+    def get_specs(self, whitelist: Optional[list[str]] = None) -> list[ToolSpec]:
         """
         Get tool specs, expanding wildcards.
 
@@ -320,7 +320,7 @@ class ToolRegistryView:
     @staticmethod
     def _save_objectset(
         ctx: ToolContext, object_type: str, obj_slug: str,
-        filters: list, selected: list | None, limit: int | None, rows: list,
+        filters: list, selected: Optional[list], limit: Optional[int], rows: list,
     ) -> None:
         if ctx.session_store is not None and ctx.session_id is not None:
             ctx.session_store.set_last_objectset(

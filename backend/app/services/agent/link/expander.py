@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from .resolver import LinkResolver, LinkDefinition
 
 
@@ -32,7 +32,7 @@ class LinkExpander:
                 row[link_def.link_field] = target_obj
 
     @staticmethod
-    def _fetch_target_object(link_def: LinkDefinition, fk_value: Any, ctx: Any) -> dict[str, Any] | None:
+    def _fetch_target_object(link_def: LinkDefinition, fk_value: Any, ctx: Any) -> Optional[dict[str, Any]]:
         result = ctx.omaha_service.query_objects(
             config_yaml=ctx.config_yaml,
             object_type=link_def.target_object,

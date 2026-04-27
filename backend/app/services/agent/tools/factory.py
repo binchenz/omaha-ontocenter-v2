@@ -67,6 +67,24 @@ class ObjectTypeToolFactory:
                 )
             )
 
+        # Build reverse navigation tools
+        for obj in objects:
+            obj_name = obj.get("name", "")
+            obj_slug = obj.get("slug", "")
+            if not obj_slug:
+                continue
+
+            properties = obj.get("properties", [])
+            for prop in properties:
+                if prop.get("type") == "link":
+                    target_name = prop.get("link_target")
+                    if target_name:
+                        tools.append(
+                            ObjectTypeToolFactory._build_reverse_nav_tool(
+                                obj, prop, target_name, objects
+                            )
+                        )
+
         return tools
 
     NUMERIC_TYPES = ("integer", "float", "number")
@@ -197,4 +215,42 @@ class ObjectTypeToolFactory:
             "required": ["group_by", "metric"],
             "additionalProperties": False,
         }
+
+    @staticmethod
+    def _build_reverse_nav_tool(
+        source_obj: dict[str, Any],
+        link_prop: dict[str, Any],
+        target_name: str,
+        all_objects: list[dict[str, Any]],
+    ) -> ToolSpec:
+        """Build reverse navigation tool for a link property."""
+        source_slug = source_obj["slug"]
+        source_name = source_obj["name"]
+        target_obj = next((o for o in all_objects if o["name"] == target_name), None)
+        if not target_obj:
+            raise ValueError(f"Target object {target_name} not found")
+
+        target_slug = target_obj["slug"]
+        tool_name = f"get_{target_slug}_{source_slug}s"
+
+        return ToolSpec(
+            name=tool_name,
+            description=f"Get all {source_name} objects that reference a specific {target_name}",
+            parameters={
+                "type": "object",
+                "properties": {
+                    f"{target_slug}_id": {
+                        "type": "string",
+                        "description": f"ID of the {target_name} to find references to",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results",
+                    },
+                },
+                "required": [f"{target_slug}_id"],
+                "additionalProperties": False,
+            },
+        )
+
 

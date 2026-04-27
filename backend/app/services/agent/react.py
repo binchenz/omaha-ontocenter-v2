@@ -1,5 +1,5 @@
 import json
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from app.config import settings
 from app.schemas.chat.agent import AgentChatResponse, ToolCallRecord
@@ -35,7 +35,7 @@ ONBOARDING_PROMPTS: dict[SetupStage, str] = {
 }
 
 
-def format_onboarding_context(setup_stage: str | None) -> str:
+def format_onboarding_context(setup_stage: Optional[str]) -> str:
     """Return onboarding guidance for the given stage. Empty for ready/unknown."""
     if not setup_stage:
         return ""
@@ -280,7 +280,7 @@ class AgentService:
         )
 
     def _call_llm(
-        self, messages: list[dict], tools: list[dict] | None = None, tool_choice: str = "auto"
+        self, messages: list[dict], tools: Optional[list[dict]] = None, tool_choice: str = "auto"
     ):
         if openai is None:
             raise ImportError("openai package not installed")

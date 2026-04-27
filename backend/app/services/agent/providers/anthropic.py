@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import anthropic as anthropic_sdk
+try:
+    import anthropic as anthropic_sdk
+except ImportError:
+    anthropic_sdk = None
 
 from .base import LLMResponse, Message, ProviderAdapter, ToolCall, ToolSpec, TokenUsage
 

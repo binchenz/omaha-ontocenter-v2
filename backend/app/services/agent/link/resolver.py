@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 from app.models.ontology.ontology import OntologyObject, ObjectProperty
 
 
@@ -17,7 +18,7 @@ class LinkDefinition:
 
 class LinkResolver:
     @staticmethod
-    def resolve_link(object_name: str, link_field_slug: str, ontology: dict) -> LinkDefinition | None:
+    def resolve_link(object_name: str, link_field_slug: str, ontology: dict) -> Optional[LinkDefinition]:
         obj_data = next((o for o in ontology.get("objects", []) if o["name"] == object_name), None)
         if not obj_data:
             return None

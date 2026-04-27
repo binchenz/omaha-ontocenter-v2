@@ -252,3 +252,75 @@ def test_factory_includes_property_name_in_description():
     assert "产品名称" in props["name"]["description"]
     assert "产品名称" in props["name_contains"]["description"]
 
+
+def test_factory_generates_reverse_nav_tools():
+    """Test that factory generates reverse navigation tools for link properties."""
+    ontology = {
+        "objects": [
+            {
+                "name": "SKU",
+                "slug": "sku",
+                "properties": [
+                    {"name": "id", "slug": "id", "type": "string"},
+                    {
+                        "name": "category",
+                        "slug": "category",
+                        "type": "link",
+                        "link_target": "Category",
+                        "link_foreign_key": "category_id",
+                        "link_target_key": "id",
+                    },
+                ],
+            },
+            {
+                "name": "Category",
+                "slug": "category",
+                "properties": [
+                    {"name": "id", "slug": "id", "type": "string"},
+                    {"name": "name", "slug": "name", "type": "string"},
+                ],
+            },
+            {
+                "name": "Review",
+                "slug": "review",
+                "properties": [
+                    {"name": "id", "slug": "id", "type": "string"},
+                    {
+                        "name": "sku",
+                        "slug": "sku",
+                        "type": "link",
+                        "link_target": "SKU",
+                        "link_foreign_key": "sku_id",
+                        "link_target_key": "id",
+                    },
+                ],
+            },
+        ]
+    }
+
+    tools = ObjectTypeToolFactory.build(ontology)
+    tool_names = {t.name for t in tools}
+
+    # Should generate reverse nav tools
+    assert "get_category_skus" in tool_names
+    assert "get_sku_reviews" in tool_names
+
+    # Check get_category_skus tool
+    category_skus_tool = next(t for t in tools if t.name == "get_category_skus")
+    assert "Category" in category_skus_tool.description
+    assert "SKU" in category_skus_tool.description
+    props = category_skus_tool.parameters["properties"]
+    assert "category_id" in props
+    assert props["category_id"]["type"] == "string"
+    assert "limit" in props
+    assert props["limit"]["type"] == "integer"
+
+    # Check get_sku_reviews tool
+    sku_reviews_tool = next(t for t in tools if t.name == "get_sku_reviews")
+    assert "SKU" in sku_reviews_tool.description
+    assert "Review" in sku_reviews_tool.description
+    props = sku_reviews_tool.parameters["properties"]
+    assert "sku_id" in props
+    assert props["sku_id"]["type"] == "string"
+    assert "limit" in props
+
