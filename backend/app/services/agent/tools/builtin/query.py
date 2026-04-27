@@ -14,15 +14,13 @@ from app.services.agent.tools.registry import ToolContext, ToolResult, register_
                 "items": {"type": "string"},
                 "description": "Columns to return. Omit for all columns.",
             },
-            "filters": {
-                "type": "array",
-                "items": {"type": "object", "additionalProperties": True},
-                "description": "Filter conditions: [{field, operator, value}]",
+            "filters_json": {
+                "type": "string",
+                "description": "Optional JSON array of filters, e.g. '[{\"field\":\"city\",\"operator\":\"=\",\"value\":\"北京\"}]'",
             },
-            "joins": {
-                "type": "array",
-                "items": {"type": "object", "additionalProperties": True},
-                "description": "Join definitions: [{object, on, type}]",
+            "joins_json": {
+                "type": "string",
+                "description": "Optional JSON array of joins, e.g. '[{\"object\":\"Order\",\"on\":\"product_id\"}]'",
             },
             "limit": {"type": "integer", "description": "Max rows to return (default 100)"},
         },
@@ -30,11 +28,22 @@ from app.services.agent.tools.registry import ToolContext, ToolResult, register_
     },
 )
 async def query_data(params: dict, ctx: ToolContext) -> ToolResult:
+    import json
+    def _parse(key):
+        raw = params.get(key)
+        if not raw:
+            return None
+        if isinstance(raw, list):
+            return raw
+        try:
+            return json.loads(raw)
+        except (TypeError, ValueError):
+            return None
     result = ctx.omaha_service.query_objects(
         object_type=params["object_type"],
         selected_columns=params.get("selected_columns"),
-        filters=params.get("filters"),
-        joins=params.get("joins"),
+        filters=_parse("filters_json") or params.get("filters"),
+        joins=_parse("joins_json") or params.get("joins"),
         limit=params.get("limit", 100),
     )
     return ToolResult(success=True, data=result)
