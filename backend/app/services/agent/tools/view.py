@@ -118,6 +118,8 @@ class ToolRegistryView:
         """
         if name == "refine_objectset":
             return await self._execute_refine(params, ctx)
+        elif name == "navigate_path":
+            return await self._execute_navigate_path(params, ctx)
         elif self.builtin.has(name):
             return await self.builtin.execute(name, params, ctx)
         elif name.startswith("get_") and "_" in name[4:]:
@@ -386,6 +388,16 @@ class ToolRegistryView:
 
             return ToolResult(success=True, data=result)
 
+        except Exception as exc:
+            return ToolResult(success=False, error=str(exc))
+
+    async def _execute_navigate_path(self, params: dict, ctx: ToolContext) -> ToolResult:
+        """Execute navigate_path tool for multi-hop navigation."""
+        from app.services.agent.link.navigator import PathNavigator
+        try:
+            ontology = ctx.ontology_context.get("ontology", {})
+            result = PathNavigator.navigate(params, ontology, ctx)
+            return ToolResult(success=result.get("success", False), data=result.get("data"))
         except Exception as exc:
             return ToolResult(success=False, error=str(exc))
 

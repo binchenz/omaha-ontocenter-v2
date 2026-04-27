@@ -13,6 +13,7 @@ import app.services.agent.tools.builtin.modeling  # noqa: F401
 import app.services.agent.tools.builtin.ingestion  # noqa: F401
 import app.services.agent.tools.builtin.asset  # noqa: F401
 import app.services.agent.tools.builtin.snapshot  # noqa: F401
+import app.services.agent.tools.builtin.navigate  # noqa: F401
 
 from app.services.agent.providers.base import ProviderAdapter
 from app.services.agent.providers.openai_compat import OpenAICompatAdapter

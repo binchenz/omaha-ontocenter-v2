@@ -761,3 +761,62 @@ async def test_execute_reverse_nav(view):
     assert filters[0]["field"] == "Category ID"
     assert filters[0]["operator"] == "="
     assert filters[0]["value"] == "10"
+
+
+@pytest.mark.asyncio
+async def test_navigate_path_tool(view):
+    """Test navigate_path tool execution."""
+    omaha_service = Mock()
+    omaha_service.query_objects = Mock(side_effect=[
+        {"success": True, "data": [{"id": 10, "name": "手机"}]},
+        {"success": True, "data": [{"id": 1, "name": "iPhone", "category_id": 10, "price": 5000}]},
+    ])
+
+    ontology = {
+        "objects": [
+            {
+                "name": "Category",
+                "slug": "category",
+                "properties": [
+                    {"name": "ID", "slug": "id", "type": "integer"},
+                    {"name": "Name", "slug": "name", "type": "string"},
+                ],
+            },
+            {
+                "name": "Product",
+                "slug": "product",
+                "properties": [
+                    {"name": "ID", "slug": "id", "type": "integer"},
+                    {"name": "Name", "slug": "name", "type": "string"},
+                    {"name": "Category ID", "slug": "category_id", "type": "integer"},
+                    {"name": "Price", "slug": "price", "type": "number"},
+                    {
+                        "name": "Category",
+                        "slug": "category",
+                        "type": "link",
+                        "link_target": "Category",
+                        "link_foreign_key": "category_id",
+                        "link_target_key": "id",
+                    },
+                ],
+            },
+        ]
+    }
+
+    ctx = ToolContext(
+        db=None,
+        omaha_service=omaha_service,
+        ontology_context={"ontology": ontology},
+    )
+    ctx.config_yaml = "test.yaml"
+
+    result = await view.execute("navigate_path", {
+        "start_object": "Category",
+        "start_filters": {"name": "手机"},
+        "path": ["category"],
+        "path_filters": [{"price_min": 1000}],
+    }, ctx)
+
+    assert result.success is True
+    assert len(result.data) == 1
+    assert result.data[0]["name"] == "iPhone"
