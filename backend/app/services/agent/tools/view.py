@@ -48,6 +48,7 @@ class ToolRegistryView:
         Wildcard rules:
         - 'search_*' matches all derived tools starting with 'search_'
         - 'count_*' matches all derived tools starting with 'count_'
+        - 'aggregate_*' matches all derived tools starting with 'aggregate_'
         - Exact names match builtin or derived tools
 
         Args:
@@ -124,7 +125,7 @@ class ToolRegistryView:
         self, name: str, params: dict, ctx: ToolContext
     ) -> ToolResult:
         """
-        Execute a derived per-object tool (search_* or count_*).
+        Execute a derived per-object tool (search_*, count_*, or aggregate_*).
 
         Parses object slug from tool name, looks up object_name from
         ctx.ontology_context, builds filter list from params, and calls
@@ -137,10 +138,13 @@ class ToolRegistryView:
             # Parse object slug from tool name
             if name.startswith("search_"):
                 obj_slug = name[len("search_") :]
-                is_count = False
+                mode = "search"
             elif name.startswith("count_"):
                 obj_slug = name[len("count_") :]
-                is_count = True
+                mode = "count"
+            elif name.startswith("aggregate_"):
+                obj_slug = name[len("aggregate_") :]
+                mode = "aggregate"
             else:
                 return ToolResult(
                     success=False, error=f"Invalid derived tool name: {name}"
@@ -165,6 +169,16 @@ class ToolRegistryView:
 
             # Build filter list from params
             filters = self._build_filters(params, obj_def)
+
+            if mode == "aggregate":
+                return await self._execute_aggregate(
+                    object_name=object_name,
+                    obj_slug=obj_slug,
+                    obj_def=obj_def,
+                    params=params,
+                    filters=filters,
+                    ctx=ctx,
+                )
 
             # Build selected_columns from select param
             selected_columns = params.get("select")
@@ -202,7 +216,7 @@ class ToolRegistryView:
                 )
 
             # For count tools, return count + first 10 rows
-            if is_count:
+            if mode == "count":
                 data = result.get("data", [])
                 count = len(data)
                 return ToolResult(
@@ -214,6 +228,91 @@ class ToolRegistryView:
 
         except Exception as exc:
             return ToolResult(success=False, error=str(exc))
+
+    async def _execute_aggregate(
+        self,
+        object_name: str,
+        obj_slug: str,
+        obj_def: dict[str, Any],
+        params: dict[str, Any],
+        filters: list[dict[str, Any]],
+        ctx: ToolContext,
+    ) -> ToolResult:
+        if ctx.omaha_service is None:
+            return ToolResult(success=False, error="OmahaService not available")
+
+        group_by_slug = params.get("group_by")
+        metric = params.get("metric")
+        limit = params.get("limit")
+        slug_to_name = {prop.get("slug"): prop.get("name") for prop in obj_def.get("properties", [])}
+        group_field = slug_to_name.get(group_by_slug)
+        if not group_field:
+            return ToolResult(success=False, error=f"Unknown group_by field: {group_by_slug}")
+
+        result = ctx.omaha_service.query_objects(
+            object_type=object_name,
+            selected_columns=None,
+            filters=filters,
+            limit=limit,
+        )
+        if not result.get("success"):
+            return ToolResult(success=False, error=result.get("error", "Query failed"))
+
+        rows = result.get("data", []) or []
+        groups: dict[Any, list[dict[str, Any]]] = {}
+        for row in rows:
+            key = row.get(group_field)
+            groups.setdefault(key, []).append(row)
+
+        metric_field = None
+        metric_op = None
+        if metric != "count":
+            metric_slug, metric_op = metric.rsplit("_", 1)
+            metric_field = slug_to_name.get(metric_slug)
+            if not metric_field:
+                return ToolResult(success=False, error=f"Unknown metric field: {metric_slug}")
+
+        output = []
+        for key, bucket in groups.items():
+            if metric == "count":
+                metric_value = len(bucket)
+            else:
+                values = [row.get(metric_field) for row in bucket if isinstance(row.get(metric_field), (int, float))]
+                if not values:
+                    metric_value = None
+                elif metric_op == "sum":
+                    metric_value = sum(values)
+                elif metric_op == "avg":
+                    metric_value = sum(values) / len(values)
+                elif metric_op == "min":
+                    metric_value = min(values)
+                elif metric_op == "max":
+                    metric_value = max(values)
+                else:
+                    return ToolResult(success=False, error=f"Unknown metric op: {metric_op}")
+            output.append({"group_by_value": key, "metric_value": metric_value})
+
+        output.sort(key=lambda item: (item["metric_value"] is None, item["metric_value"]), reverse=True)
+        if limit:
+            output = output[:limit]
+
+        if ctx.session_store is not None and ctx.session_id is not None:
+            ctx.session_store.set_last_objectset(
+                ctx.session_id,
+                {
+                    "object_type": object_name,
+                    "obj_slug": obj_slug,
+                    "filters": filters,
+                    "selected": None,
+                    "limit": limit,
+                    "last_rids": [r.get("id") for r in rows[:50] if isinstance(r, dict)],
+                },
+            )
+
+        return ToolResult(
+            success=True,
+            data={"groups": output, "metric": metric, "group_by": group_by_slug},
+        )
 
     async def _execute_refine(self, params: dict, ctx: ToolContext) -> ToolResult:
         """Merge new filters with the last ObjectSet and re-query."""

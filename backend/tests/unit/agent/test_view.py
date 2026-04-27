@@ -29,6 +29,7 @@ def derived_tools():
     return [
         ToolSpec(name="search_product", description="Search products", parameters={}),
         ToolSpec(name="count_product", description="Count products", parameters={}),
+        ToolSpec(name="aggregate_product", description="Aggregate products", parameters={}),
         ToolSpec(name="search_order", description="Search orders", parameters={}),
         ToolSpec(name="count_order", description="Count orders", parameters={}),
     ]
@@ -53,6 +54,7 @@ def test_view_get_specs_all_tools(view):
         "create_chart",
         "search_product",
         "count_product",
+        "aggregate_product",
         "search_order",
         "count_order",
         "refine_objectset",
@@ -66,10 +68,16 @@ def test_view_matches_wildcard_specs(view):
     names = {s.name for s in specs}
     assert names == {"search_product", "search_order"}
 
+    # Match all aggregate_* tools
+    specs = view.get_specs(whitelist=["aggregate_*"])
+    names = {s.name for s in specs}
+    assert names == {"aggregate_product"}
+
     # Match all count_* tools
     specs = view.get_specs(whitelist=["count_*"])
     names = {s.name for s in specs}
     assert names == {"count_product", "count_order"}
+
 
 
 def test_view_wildcard_matches_builtin_and_derived(builtin_registry, derived_tools):
@@ -227,6 +235,64 @@ async def test_view_count_tool_returns_count_and_sample(view):
     assert result.success is True
     assert result.data["count"] == 15
     assert len(result.data["data"]) == 10  # Only first 10
+
+
+@pytest.mark.asyncio
+async def test_view_executes_aggregate_count_per_group(view):
+    omaha_service = Mock()
+    omaha_service.query_objects = Mock(return_value={
+        "success": True,
+        "data": [
+            {"City": "深圳", "Price": 10},
+            {"City": "深圳", "Price": 20},
+            {"City": "北京", "Price": 30},
+        ],
+    })
+    ontology = {
+        "objects": [{
+            "name": "Product",
+            "slug": "product",
+            "properties": [
+                {"name": "City", "slug": "city", "type": "string"},
+                {"name": "Price", "slug": "price", "type": "number"},
+            ],
+        }]
+    }
+    ctx = ToolContext(db=None, omaha_service=omaha_service, ontology_context={"ontology": ontology})
+    result = await view.execute("aggregate_product", {"group_by": "city", "metric": "count"}, ctx)
+    assert result.success is True
+    assert result.data["group_by"] == "city"
+    groups = {row["group_by_value"]: row["metric_value"] for row in result.data["groups"]}
+    assert groups == {"深圳": 2, "北京": 1}
+
+
+@pytest.mark.asyncio
+async def test_view_executes_aggregate_avg_for_numeric(view):
+    omaha_service = Mock()
+    omaha_service.query_objects = Mock(return_value={
+        "success": True,
+        "data": [
+            {"City": "深圳", "Price": 10},
+            {"City": "深圳", "Price": 20},
+            {"City": "北京", "Price": 30},
+        ],
+    })
+    ontology = {
+        "objects": [{
+            "name": "Product",
+            "slug": "product",
+            "properties": [
+                {"name": "City", "slug": "city", "type": "string"},
+                {"name": "Price", "slug": "price", "type": "number"},
+            ],
+        }]
+    }
+    ctx = ToolContext(db=None, omaha_service=omaha_service, ontology_context={"ontology": ontology})
+    result = await view.execute("aggregate_product", {"group_by": "city", "metric": "price_avg"}, ctx)
+    assert result.success is True
+    groups = {row["group_by_value"]: row["metric_value"] for row in result.data["groups"]}
+    assert groups["深圳"] == 15
+    assert groups["北京"] == 30
 
 
 @pytest.mark.asyncio

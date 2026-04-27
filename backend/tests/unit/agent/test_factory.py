@@ -3,8 +3,8 @@ import pytest
 from app.services.agent.tools.factory import ObjectTypeToolFactory
 
 
-def test_factory_builds_search_and_count_tools():
-    """Test that factory generates search_<slug> and count_<slug> for each object."""
+def test_factory_builds_search_count_and_aggregate_tools():
+    """Test that factory generates search_<slug>, count_<slug>, and aggregate_<slug>."""
     ontology = {
         "objects": [
             {
@@ -27,11 +27,11 @@ def test_factory_builds_search_and_count_tools():
 
     tools = ObjectTypeToolFactory.build(ontology)
 
-    # Should have 2 objects × 2 tools (search + count) = 4 tools
-    assert len(tools) == 4
-
     tool_names = {t.name for t in tools}
-    assert tool_names == {"search_product", "count_product", "search_order", "count_order"}
+    assert tool_names == {
+        "search_product", "count_product", "aggregate_product",
+        "search_order", "count_order", "aggregate_order",
+    }
 
 
 def test_search_tool_has_flat_string_params():
@@ -149,7 +149,7 @@ def test_factory_skips_objects_without_slug():
 
     # Should only have tools for 'product'
     tool_names = {t.name for t in tools}
-    assert tool_names == {"search_product", "count_product"}
+    assert tool_names == {"search_product", "count_product", "aggregate_product"}
 
 
 def test_factory_skips_properties_without_slug():
@@ -179,6 +179,54 @@ def test_factory_skips_properties_without_slug():
     # Should NOT have params for 'NoSlug'
     assert "NoSlug" not in props
     assert "NoSlug_contains" not in props
+
+
+def test_factory_emits_aggregate_tool_schema():
+    """Aggregate tool should include group_by enum and metric enum."""
+    ontology = {
+        "objects": [
+            {
+                "name": "产品",
+                "slug": "product",
+                "properties": [
+                    {"name": "城市", "slug": "city", "type": "string"},
+                    {"name": "价格", "slug": "price", "type": "number"},
+                    {"name": "库存", "slug": "stock", "type": "integer"},
+                ],
+            }
+        ]
+    }
+    tools = ObjectTypeToolFactory.build(ontology)
+    agg = next(t for t in tools if t.name == "aggregate_product")
+    props = agg.parameters["properties"]
+    assert props["group_by"]["enum"] == ["city", "price", "stock"]
+    assert "count" in props["metric"]["enum"]
+    assert "price_avg" in props["metric"]["enum"]
+    assert "price_sum" in props["metric"]["enum"]
+    assert "stock_max" in props["metric"]["enum"]
+    assert "city_sum" not in props["metric"]["enum"]
+
+
+def test_aggregate_tool_has_flat_params():
+    ontology = {
+        "objects": [
+            {
+                "name": "产品",
+                "slug": "product",
+                "properties": [
+                    {"name": "城市", "slug": "city", "type": "string"},
+                    {"name": "价格", "slug": "price", "type": "number"},
+                ],
+            }
+        ]
+    }
+    tools = ObjectTypeToolFactory.build(ontology)
+    agg = next(t for t in tools if t.name == "aggregate_product")
+    props = agg.parameters["properties"]
+    assert props["group_by"]["type"] == "string"
+    assert props["metric"]["type"] == "string"
+    assert props["city"]["type"] == "string"
+    assert props["price_min"]["type"] == "number"
 
 
 def test_factory_includes_property_name_in_description():
