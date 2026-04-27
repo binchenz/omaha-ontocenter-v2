@@ -94,13 +94,14 @@ def test_list_chat_sessions():
 def test_send_message():
     """Test sending a message."""
     with patch('app.api.chat.chat.get_project_for_owner', return_value=mock_project):
-        with patch('app.api.chat.chat.ChatService') as mock_service:
-            mock_service.return_value.send_message.return_value = {
+        with patch('app.api.chat.chat.ChatServiceV2') as mock_service:
+            from unittest.mock import AsyncMock
+            mock_service.return_value.send_message = AsyncMock(return_value={
                 "message": "测试响应",
                 "data_table": None,
                 "chart_config": None,
                 "sql": None
-            }
+            })
             response = client.post(
                 "/api/v1/chat/1/sessions/1/message",
                 json={"message": "查询商品"},

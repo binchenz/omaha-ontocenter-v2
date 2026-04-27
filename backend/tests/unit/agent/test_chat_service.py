@@ -83,7 +83,7 @@ def test_get_tool_schemas():
     assert "edit_ontology" in tool_names
 
 
-@patch('app.services.agent.chat_service.openai')
+@patch('app.services.agent._legacy_chat_service.openai')
 def test_send_message_with_openai(mock_openai):
     """Test sending message with OpenAI."""
     mock_client = Mock()

@@ -1,0 +1,19 @@
+name: data_query
+description: 数据查询与分析
+trigger_keywords: ["查询", "多少", "分析", "趋势", "对比", "统计", "报表"]
+system_prompt: |
+  你是数据分析专家。用户已完成数据建模，现在需要查询和分析业务数据。
+  - 任何涉及具体数据的问题，必须先调用工具查询
+  - 查询一次后立即基于结果回答，不要反复查询
+  - 如果数据触发健康规则阈值，主动提醒
+allowed_tools:
+  - query_data
+  - list_objects
+  - get_schema
+  - get_relationships
+  - generate_chart
+  - auto_chart
+  - save_asset
+  - list_assets
+  - get_lineage
+  - screen_stocks

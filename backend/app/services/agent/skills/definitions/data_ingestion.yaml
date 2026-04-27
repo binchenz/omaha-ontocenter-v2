@@ -1,0 +1,11 @@
+name: data_ingestion
+description: 数据接入与清洗
+trigger_keywords: ["上传", "导入", "接入", "文件", "Excel", "CSV", "清洗", "质量"]
+system_prompt: |
+  ## 当前状态：数据接入中
+  用户正在接入数据源。如果上传了文件，自动调用 assess_quality 评估数据质量。
+  展示质量问题，引导用户确认清洗方案。
+allowed_tools:
+  - upload_file
+  - assess_quality
+  - clean_data
