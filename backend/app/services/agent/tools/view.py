@@ -4,6 +4,8 @@ ToolRegistryView — unified view over builtin and derived tools with wildcard s
 from typing import Any
 from app.services.agent.providers.base import ToolSpec
 from app.services.agent.tools.registry import ToolRegistry, ToolContext, ToolResult
+from app.services.agent.link.resolver import LinkResolver
+from app.services.agent.link.expander import LinkExpander
 
 # Static spec for the session-scoped refine tool
 REFINE_OBJECTSET_SPEC = ToolSpec(
@@ -40,6 +42,8 @@ class ToolRegistryView:
         self.builtin = builtin
         self.derived = derived
         self._derived_by_name = {spec.name: spec for spec in derived}
+        self.link_resolver = LinkResolver()
+        self.link_expander = LinkExpander()
 
     def get_specs(self, whitelist: list[str] | None = None) -> list[ToolSpec]:
         """
@@ -180,10 +184,15 @@ class ToolRegistryView:
             if not result.get("success"):
                 return ToolResult(success=False, error=result.get("error", "Query failed"))
 
-            self._save_objectset(ctx, object_name, obj_slug, filters, selected_columns, limit, result.get("data", []))
+            data = result.get("data", [])
+            if data:
+                ontology = ctx.ontology_context.get("ontology", {})
+                self.link_expander.expand_links(data, object_name, ontology, ctx)
+                result["data"] = data
+
+            self._save_objectset(ctx, object_name, obj_slug, filters, selected_columns, limit, data)
 
             if mode == "count":
-                data = result.get("data", [])
                 return ToolResult(
                     success=True,
                     data={"count": len(data), "data": data[:10]},

@@ -632,3 +632,61 @@ def test_view_get_specs_whitelist_includes_refine_objectset(view):
     specs = view.get_specs(whitelist=["refine_objectset", "query_data"])
     names = {s.name for s in specs}
     assert names == {"refine_objectset", "query_data"}
+
+
+@pytest.mark.asyncio
+async def test_search_tool_expands_links(view):
+    """Test that search_* tools automatically expand Link fields."""
+    omaha_service = Mock()
+    omaha_service.query_objects = Mock(side_effect=[
+        {"success": True, "data": [{"id": 1, "name": "Product A", "category_id": 10}]},
+        {"success": True, "data": [{"id": 10, "name": "Electronics"}]},
+    ])
+
+    ontology = {
+        "objects": [
+            {
+                "name": "Product",
+                "slug": "product",
+                "datasource_type": "sql",
+                "datasource_id": "main",
+                "properties": [
+                    {"name": "ID", "slug": "id", "type": "integer"},
+                    {"name": "Name", "slug": "name", "type": "string"},
+                    {"name": "Category ID", "slug": "category_id", "type": "integer"},
+                    {
+                        "name": "Category",
+                        "slug": "category",
+                        "type": "link",
+                        "link_target": "Category",
+                        "link_foreign_key": "category_id",
+                        "link_target_key": "id",
+                    },
+                ],
+            },
+            {
+                "name": "Category",
+                "slug": "category",
+                "datasource_type": "sql",
+                "datasource_id": "main",
+                "properties": [
+                    {"name": "ID", "slug": "id", "type": "integer"},
+                    {"name": "Name", "slug": "name", "type": "string"},
+                ],
+            },
+        ]
+    }
+
+    ctx = ToolContext(
+        db=None,
+        omaha_service=omaha_service,
+        ontology_context={"ontology": ontology},
+    )
+    ctx.config_yaml = "test.yaml"
+
+    result = await view.execute("search_product", {}, ctx)
+
+    assert result.success is True
+    data = result.data["data"]
+    assert len(data) == 1
+    assert data[0]["category"] == {"id": 10, "name": "Electronics"}
