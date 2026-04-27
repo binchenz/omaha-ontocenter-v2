@@ -1,0 +1,100 @@
+[
+  {
+    "name": "basic-greeting",
+    "prompt": "你好，介绍一下你能做什么",
+    "elapsed": 17.03,
+    "passed": true,
+    "tool_calls": 0,
+    "keyword_hits": [],
+    "expected_keywords": [],
+    "reply_preview": "你好！我是你的企业数据分析助手，专为中小企业打造，帮你轻松看懂数据、发现问题、做出决策。以下是我能帮你做的事情：\n\n---\n\n### 📊 **我能查哪些数据？**\n\n| 数据类别 | 能回答的业务问题 |\n|---------|----------------|\n| **A股上市公司** | \"新能源板块有哪些公司？\""
+  },
+  {
+    "name": "list-objects",
+    "prompt": "我现在有哪些业务对象可以查询？",
+    "elapsed": 20.9,
+    "passed": false,
+    "tool_calls": 0,
+    "keyword_hits": [],
+    "expected_keywords": [
+      "Product"
+    ],
+    "reply_preview": "当前系统里已经接入了以下业务数据，随时可以查询：\n\n---\n\n### 🏢 **公司基础信息**\n\n| 业务对象 | 能告诉你什么 |\n|---------|------------|\n| **Stock（上市公司）** | 公司名称、所属行业、注册地、上市日期、上市状态 |\n| **Industry（行业分类）** |"
+  },
+  {
+    "name": "get-schema",
+    "prompt": "Product 对象有哪些字段？",
+    "elapsed": 23.5,
+    "passed": false,
+    "tool_calls": 0,
+    "keyword_hits": [],
+    "expected_keywords": [
+      "sku",
+      "price"
+    ],
+    "reply_preview": "目前系统中**没有 Product 这个业务对象**。你可以在「语义建模」阶段把 Product 加进来，但现在可用的业务对象一共是以下这些：\n\n---\n\n### 📋 **当前可查询的业务对象一览**\n\n| # | 业务对象 | 核心内容 | 典型用途 |\n|---|---------|---------|------"
+  },
+  {
+    "name": "simple-query",
+    "prompt": "列出前 5 个商品的名称和价格",
+    "elapsed": 6.17,
+    "passed": false,
+    "error": "BadRequestError: Error code: 400 - {'error': {'message': 'The `reasoning_content` in the thinking mode must be passed back to the API.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_request_error'}}"
+  },
+  {
+    "name": "filtered-query",
+    "prompt": "查一下深圳的商品有哪些",
+    "elapsed": 8.2,
+    "passed": false,
+    "error": "BadRequestError: Error code: 400 - {'error': {'message': 'The `reasoning_content` in the thinking mode must be passed back to the API.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_request_error'}}"
+  },
+  {
+    "name": "sorted-query",
+    "prompt": "价格最高的 5 个商品是哪些？",
+    "elapsed": 5.89,
+    "passed": false,
+    "error": "BadRequestError: Error code: 400 - {'error': {'message': 'The `reasoning_content` in the thinking mode must be passed back to the API.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_request_error'}}"
+  },
+  {
+    "name": "aggregation",
+    "prompt": "每个城市有多少个商品？",
+    "elapsed": 16.77,
+    "passed": false,
+    "tool_calls": 0,
+    "keyword_hits": [
+      "城市"
+    ],
+    "expected_keywords": [
+      "城市"
+    ],
+    "reply_preview": "关于您的两个问题，我需要坦诚告诉您：\n\n---\n\n### ❌ Product 对象目前不存在\n\n在上一轮我已经确认过，系统中**没有 Product 这个业务对象**。所以：\n\n- **\"Product 对象有哪些字段？\"** → 无法回答，该对象尚未接入系统。如果你有商品相关的数据表（比如商品名称、价格、分类、所属城"
+  },
+  {
+    "name": "computation",
+    "prompt": "计算每个商品的毛利（价格 - 成本），列出前 5 个",
+    "elapsed": 14.75,
+    "passed": false,
+    "tool_calls": 0,
+    "keyword_hits": [
+      "毛利"
+    ],
+    "expected_keywords": [
+      "毛利"
+    ],
+    "reply_preview": "您的两个问题我都无法直接回答，原因是一样的：\n\n---\n\n### ❌ **Product 对象仍未接入系统**\n\n| 您的问题 | 需要的数据 | 当前状态 |\n|---------|-----------|---------|\n| 每个城市有多少个商品？ | Product 表 + City 维度 | ❌ 都不存在 "
+  },
+  {
+    "name": "unknown-object",
+    "prompt": "查询不存在的对象 XYZ 的数据",
+    "elapsed": 4.95,
+    "passed": false,
+    "error": "BadRequestError: Error code: 400 - {'error': {'message': 'The `reasoning_content` in the thinking mode must be passed back to the API.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_request_error'}}"
+  },
+  {
+    "name": "ambiguous",
+    "prompt": "帮我看看销售情况",
+    "elapsed": 11.87,
+    "passed": false,
+    "error": "BadRequestError: Error code: 400 - {'error': {'message': 'The `reasoning_content` in the thinking mode must be passed back to the API.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_request_error'}}"
+  }
+]
