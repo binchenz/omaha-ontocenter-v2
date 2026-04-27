@@ -27,6 +27,7 @@ class OntologyImporter:
         objects_updated = 0
         object_map = {}
 
+        # Phase 1: Create objects and non-link properties
         for obj_def in ontology.get("objects", []):
             ds_id = obj_def.get("datasource", "")
             ds_type = datasources.get(ds_id, {}).get("type", "unknown")
@@ -55,13 +56,15 @@ class OntologyImporter:
                 object_map[source_entity] = obj
 
             for prop in obj_def.get("properties", []):
-                self.store.add_property(
-                    object_id=obj.id,
-                    name=prop["name"],
-                    data_type=prop.get("type", prop.get("data_type", "string")),
-                    semantic_type=prop.get("semantic_type"),
-                    description=prop.get("description"),
-                )
+                prop_type = prop.get("type", prop.get("data_type", "string"))
+                if prop_type != "link":
+                    self.store.add_property(
+                        object_id=obj.id,
+                        name=prop["name"],
+                        data_type=prop_type,
+                        semantic_type=prop.get("semantic_type"),
+                        description=prop.get("description"),
+                    )
 
             for cp in obj_def.get("computed_properties", []):
                 self.store.add_property(
@@ -95,6 +98,23 @@ class OntologyImporter:
 
             for dk in obj_def.get("domain_knowledge", []):
                 self.store.add_domain_knowledge(object_id=obj.id, content=dk)
+
+        # Phase 2: Add link properties
+        for obj_def in ontology.get("objects", []):
+            obj = object_map[obj_def["name"]]
+            for prop in obj_def.get("properties", []):
+                prop_type = prop.get("type", prop.get("data_type", "string"))
+                if prop_type == "link":
+                    self.store.add_property(
+                        object_id=obj.id,
+                        name=prop["name"],
+                        data_type="link",
+                        semantic_type=prop.get("semantic_type"),
+                        description=prop.get("description"),
+                        link_target=prop.get("target"),
+                        link_foreign_key=prop.get("foreign_key"),
+                        link_target_key=prop.get("target_key", "id"),
+                    )
 
         relationships_created = 0
         for rel_def in ontology.get("relationships", []):

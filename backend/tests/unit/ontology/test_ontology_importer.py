@@ -230,3 +230,60 @@ ontology:
 """
     result = importer.import_yaml(tenant_id=tenant.id, yaml_content=yaml_content)
     assert result["objects_created"] == 1
+
+
+def test_import_ontology_with_links(db_session, tenant):
+    """Test two-phase import: objects first, then Link properties."""
+    importer = OntologyImporter(db_session)
+    config = {
+        "datasources": [{"id": "db1", "type": "sql"}],
+        "ontology": {
+            "objects": [
+                {
+                    "name": "Category",
+                    "datasource": "db1",
+                    "source_entity": "t_category",
+                    "properties": [
+                        {"name": "category_id", "type": "integer"},
+                        {"name": "name", "type": "string"},
+                        {"name": "parent", "type": "link", "target": "Category",
+                         "foreign_key": "parent_id"},
+                    ],
+                },
+                {
+                    "name": "Product",
+                    "datasource": "db1",
+                    "source_entity": "t_product",
+                    "properties": [
+                        {"name": "id", "type": "integer"},
+                        {"name": "name", "type": "string"},
+                        {"name": "category", "type": "link", "target": "Category",
+                         "foreign_key": "category_id", "target_key": "category_id"},
+                    ],
+                },
+            ],
+            "relationships": [],
+        },
+    }
+    result = importer.import_dict(tenant_id=tenant.id, config=config)
+    assert result["objects_created"] == 2
+
+    store = OntologyStore(db_session)
+    category = store.get_object(tenant.id, "Category")
+    product = store.get_object(tenant.id, "Product")
+
+    category_props = {p.name: p for p in category.properties}
+    assert "parent" in category_props
+    parent_prop = category_props["parent"]
+    assert parent_prop.data_type == "link"
+    assert parent_prop.link_target_id == category.id
+    assert parent_prop.link_foreign_key == "parent_id"
+    assert parent_prop.link_target_key == "id"
+
+    product_props = {p.name: p for p in product.properties}
+    assert "category" in product_props
+    category_prop = product_props["category"]
+    assert category_prop.data_type == "link"
+    assert category_prop.link_target_id == category.id
+    assert category_prop.link_foreign_key == "category_id"
+    assert category_prop.link_target_key == "category_id"
