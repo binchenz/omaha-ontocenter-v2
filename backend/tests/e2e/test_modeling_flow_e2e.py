@@ -11,6 +11,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from tests.e2e._env import ensure_test_db, is_provider_error
+
+ensure_test_db()
+
 from app.database import SessionLocal
 from app.models.chat import ChatSession
 from app.models.project import Project
@@ -65,7 +69,10 @@ async def main() -> int:
                 preview = (r.get("message") or "")[:120].replace("\n", " ")
                 print(f"[{i}/{len(MODELING_TURNS)}] {dt}s tools={tc}  {preview}")
             except Exception as e:
-                print(f"[{i}] FAIL {type(e).__name__}: {e}")
+                if is_provider_error(e):
+                    print(f"[{i}] PROVIDER ERROR: {type(e).__name__}: {e}")
+                else:
+                    print(f"[{i}] FAIL {type(e).__name__}: {e}")
         return 0
     finally:
         db.close()

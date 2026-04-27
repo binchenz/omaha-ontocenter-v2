@@ -8,6 +8,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from tests.e2e._env import ensure_test_db, is_provider_error
+
+ensure_test_db()
+
 from app.database import SessionLocal
 from app.models.chat import ChatSession
 from app.models.project import Project
@@ -27,23 +31,44 @@ async def main() -> int:
     db = SessionLocal()
     try:
         project = db.query(Project).filter(Project.id == PROJECT_ID).first()
+        if not project:
+            print(f"project {PROJECT_ID} not found"); return 2
         svc = ChatServiceV2(project=project, db=db)
         all_pass = True
+        provider_err_count = 0
+        product_fail_count = 0
         for conv in CONVERSATIONS:
             sess = ChatSession(project_id=PROJECT_ID, user_id=project.owner_id, title=conv["name"])
             db.add(sess); db.commit(); db.refresh(sess)
             print(f"\n=== {conv['name']} ===")
             for turn_idx, (prompt, expect_kw) in enumerate(conv["turns"], 1):
                 t0 = time.time()
-                r = await svc.send_message(sess.id, prompt)
-                dt = round(time.time() - t0, 2)
-                msg = (r.get("message") or "")
-                hits = [k for k in expect_kw if k.lower() in msg.lower()]
-                ok = (not expect_kw) or hits
-                mark = "PASS" if ok else "FAIL"
-                if not ok:
+                try:
+                    r = await svc.send_message(sess.id, prompt)
+                    dt = round(time.time() - t0, 2)
+                    msg = (r.get("message") or "")
+                    hits = [k for k in expect_kw if k.lower() in msg.lower()]
+                    ok = (not expect_kw) or hits
+                    mark = "PASS" if ok else "FAIL"
+                    if not ok:
+                        all_pass = False
+                        product_fail_count += 1
+                    print(f"  [{turn_idx}] {mark}  {dt}s  '{prompt}' → {msg[:120]!r}")
+                except Exception as e:
+                    if is_provider_error(e):
+                        print(f"  [{turn_idx}] PROVIDER ERROR: {type(e).__name__}: {e}")
+                        provider_err_count += 1
+                    else:
+                        print(f"  [{turn_idx}] FAIL {type(e).__name__}: {e}")
+                        product_fail_count += 1
                     all_pass = False
-                print(f"  [{turn_idx}] {mark}  {dt}s  '{prompt}' → {msg[:120]!r}")
+        if provider_err_count:
+            print(
+                f"\nNOTE: {provider_err_count} failures are PROVIDER ERRORS (502/transient from Anthropic). "
+                "This is an infra/provider blockage, not a product regression."
+            )
+        if product_fail_count:
+            print(f"WARN: {product_fail_count} are product failures.")
         return 0 if all_pass else 1
     finally:
         db.close()

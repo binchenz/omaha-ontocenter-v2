@@ -14,6 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from tests.e2e._env import ensure_test_db, is_provider_error, ProviderError
+
+ensure_test_db()
+
 from app.database import SessionLocal
 from app.models.chat import ChatSession
 from app.models.project import Project
@@ -89,6 +93,10 @@ async def run_scenario(svc: ChatServiceV2, sess_id: int, sc: Scenario) -> dict:
             "reply_preview": msg[:160],
         }
     except Exception as e:
+        if is_provider_error(e):
+            return {"name": sc.name, "prompt": sc.prompt,
+                    "elapsed": round(time.time() - t0, 2),
+                    "passed": False, "provider_error": f"{type(e).__name__}: {e}"}
         return {"name": sc.name, "prompt": sc.prompt,
                 "elapsed": round(time.time() - t0, 2),
                 "passed": False, "error": f"{type(e).__name__}: {e}"}
@@ -110,10 +118,22 @@ async def main() -> int:
             mark = "PASS" if r["passed"] else "FAIL"
             print(f"    {mark}  {r.get('elapsed')}s  tools={r.get('tool_calls', '?')}")
             if not r["passed"]:
-                print(f"    reply: {r.get('reply_preview') or r.get('error')}")
+                if "provider_error" in r:
+                    print(f"    PROVIDER ERROR: {r['provider_error']}")
+                else:
+                    print(f"    reply: {r.get('reply_preview') or r.get('error')}")
             results.append(r)
         passed = sum(1 for r in results if r["passed"])
+        provider_errors = sum(1 for r in results if "provider_error" in r)
+        product_failures = len(results) - passed - provider_errors
         print(f"\n=== {passed}/{len(results)} passed ===")
+        if provider_errors:
+            print(
+                f"  NOTE: {provider_errors} failures are PROVIDER ERRORS (502/transient from Anthropic). "
+                "This is an infra/provider blockage, not a product regression."
+            )
+        if product_failures:
+            print(f"  WARN: {product_failures} failures are product failures.")
         out = Path(__file__).parent / f"e2e_report_{int(time.time())}.json"
         out.write_text(json.dumps(results, ensure_ascii=False, indent=2))
         print(f"report: {out}")
