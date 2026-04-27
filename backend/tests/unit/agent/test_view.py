@@ -1,9 +1,10 @@
 """Tests for ToolRegistryView."""
 import pytest
 from unittest.mock import Mock, AsyncMock
-from app.services.agent.tools.view import ToolRegistryView
+from app.services.agent.tools.view import ToolRegistryView, REFINE_OBJECTSET_SPEC
 from app.services.agent.tools.registry import ToolRegistry, ToolContext, ToolResult
 from app.services.agent.providers.base import ToolSpec
+from app.services.agent.runtime import session_store
 
 
 @pytest.fixture
@@ -54,6 +55,7 @@ def test_view_get_specs_all_tools(view):
         "count_product",
         "search_order",
         "count_order",
+        "refine_objectset",
     }
 
 
@@ -381,3 +383,186 @@ async def test_view_build_filters_skips_unknown_slugs(view):
     # Only name filter should be present
     assert len(filters) == 1
     assert filters[0]["field"] == "Name"
+
+
+# ---------------------------------------------------------------------------
+# refine_objectset — session-scoped follow-up
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_view_records_last_objectset_after_search(view):
+    """Test that search_* updates session_store with ObjectSet metadata."""
+    omaha_service = Mock()
+    omaha_service.query_objects = Mock(
+        return_value={"success": True, "data": [{"id": 1}, {"id": 2}]}
+    )
+
+    ontology = {
+        "objects": [
+            {
+                "name": "Product",
+                "slug": "product",
+                "properties": [{"name": "Name", "slug": "name", "type": "string"}],
+            }
+        ]
+    }
+
+    session_id = 100
+    ctx = ToolContext(
+        db=None,
+        omaha_service=omaha_service,
+        ontology_context={"ontology": ontology},
+        session_id=session_id,
+        session_store=session_store,
+    )
+
+    await view.execute("search_product", {"name": "iPhone", "limit": 5}, ctx)
+
+    # Check session_store was updated
+    last = session_store.get_last_objectset(session_id)
+    assert last is not None
+    assert last["object_type"] == "Product"
+    assert last["obj_slug"] == "product"
+    assert last["limit"] == 5
+    assert last["last_rids"] == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_view_refine_objectset_merges_filters(view):
+    """Test refine_objectset merges new filters with previous ones."""
+    omaha_service = Mock()
+    omaha_service.query_objects = Mock(
+        return_value={"success": True, "data": [{"id": 3}]}
+    )
+
+    ontology = {
+        "objects": [
+            {
+                "name": "Product",
+                "slug": "product",
+                "properties": [
+                    {"name": "Name", "slug": "name", "type": "string"},
+                    {"name": "Price", "slug": "price", "type": "number"},
+                ],
+            }
+        ]
+    }
+
+    session_id = 101
+    # Pre-populate session_store with a previous search
+    session_store.set_last_objectset(
+        session_id,
+        {
+            "object_type": "Product",
+            "obj_slug": "product",
+            "filters": [{"field": "Name", "operator": "LIKE", "value": "%iPhone%"}],
+            "selected": ["name"],
+            "limit": 10,
+            "last_rids": [1, 2],
+        },
+    )
+
+    ctx = ToolContext(
+        db=None,
+        omaha_service=omaha_service,
+        ontology_context={"ontology": ontology},
+        session_id=session_id,
+        session_store=session_store,
+    )
+
+    # Refine with additional filter
+    result = await view.execute(
+        "refine_objectset",
+        {"filters_to_add": {"price_min": 500}, "limit": 5},
+        ctx,
+    )
+
+    assert result.success is True
+
+    # Verify omaha_service.query_objects was called with merged filters
+    call_kwargs = omaha_service.query_objects.call_args.kwargs
+    filters = call_kwargs["filters"]
+    assert len(filters) == 2
+    assert any(f["field"] == "Name" and f["operator"] == "LIKE" for f in filters)
+    assert any(f["field"] == "Price" and f["operator"] == ">=" for f in filters)
+    assert call_kwargs["limit"] == 5
+
+
+@pytest.mark.asyncio
+async def test_view_refine_without_prior_returns_error(view):
+    """Test refine_objectset returns error when no prior ObjectSet exists."""
+    session_id = 102
+    ctx = ToolContext(
+        db=None,
+        omaha_service=Mock(),
+        ontology_context={"ontology": {"objects": []}},
+        session_id=session_id,
+        session_store=session_store,
+    )
+
+    result = await view.execute("refine_objectset", {"filters_to_add": {}}, ctx)
+
+    assert result.success is False
+    assert "没有上一次查询记录" in result.error
+
+
+@pytest.mark.asyncio
+async def test_view_refine_updates_session_store(view):
+    """Test refine_objectset updates session_store with refined result."""
+    omaha_service = Mock()
+    omaha_service.query_objects = Mock(
+        return_value={"success": True, "data": [{"id": 10}, {"id": 11}]}
+    )
+
+    ontology = {
+        "objects": [
+            {
+                "name": "Product",
+                "slug": "product",
+                "properties": [{"name": "Price", "slug": "price", "type": "number"}],
+            }
+        ]
+    }
+
+    session_id = 103
+    session_store.set_last_objectset(
+        session_id,
+        {
+            "object_type": "Product",
+            "obj_slug": "product",
+            "filters": [],
+            "selected": None,
+            "limit": None,
+            "last_rids": [],
+        },
+    )
+
+    ctx = ToolContext(
+        db=None,
+        omaha_service=omaha_service,
+        ontology_context={"ontology": ontology},
+        session_id=session_id,
+        session_store=session_store,
+    )
+
+    await view.execute("refine_objectset", {"filters_to_add": {"price_min": 100}}, ctx)
+
+    # Check session_store was updated with refined result
+    last = session_store.get_last_objectset(session_id)
+    assert last["last_rids"] == [10, 11]
+    assert len(last["filters"]) == 1
+    assert last["filters"][0]["field"] == "Price"
+
+
+def test_view_get_specs_includes_refine_objectset(view):
+    """Test that get_specs includes refine_objectset in all tools."""
+    specs = view.get_specs()
+    names = {s.name for s in specs}
+    assert "refine_objectset" in names
+
+
+def test_view_get_specs_whitelist_includes_refine_objectset(view):
+    """Test that whitelist can include refine_objectset."""
+    specs = view.get_specs(whitelist=["refine_objectset", "query_data"])
+    names = {s.name for s in specs}
+    assert names == {"refine_objectset", "query_data"}

@@ -6,9 +6,11 @@ system_prompt: |
   - 任何涉及具体数据的问题，必须先调用工具查询
   - 查询一次后立即基于结果回答，不要反复查询
   - 如果数据触发健康规则阈值，主动提醒
+  - 当用户说"它们"、"那些"、"刚才的查询再加个条件"时，使用 refine_objectset 工具在上一次结果基础上追加过滤，而不是从零构造新的 search_* 调用
 allowed_tools:
   - search_*
   - count_*
+  - refine_objectset
   - query_data
   - list_objects
   - get_schema

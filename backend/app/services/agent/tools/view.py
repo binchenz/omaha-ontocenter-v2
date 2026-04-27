@@ -5,6 +5,28 @@ from typing import Any
 from app.services.agent.providers.base import ToolSpec
 from app.services.agent.tools.registry import ToolRegistry, ToolContext, ToolResult
 
+# Static spec for the session-scoped refine tool
+REFINE_OBJECTSET_SPEC = ToolSpec(
+    name="refine_objectset",
+    description=(
+        "在上一次查询结果的基础上追加过滤条件重新查询。"
+        "当用户说'它们'、'那些'、'刚才的结果再加个条件'时调用此工具，"
+        "而不是从零构造新的 search_* 调用。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "filters_to_add": {
+                "type": "object",
+                "description": "与上次查询相同的后缀规则过滤参数（slug/_min/_max/_contains）",
+                "additionalProperties": True,
+            },
+            "limit": {"type": "integer", "description": "最大返回行数"},
+        },
+        "additionalProperties": False,
+    },
+)
+
 
 class ToolRegistryView:
     """
@@ -35,8 +57,8 @@ class ToolRegistryView:
             List of ToolSpec instances matching the whitelist.
         """
         if whitelist is None:
-            # Return all builtin + all derived
-            return self.builtin.get_specs() + self.derived
+            # Return all builtin + all derived + refine_objectset
+            return self.builtin.get_specs() + self.derived + [REFINE_OBJECTSET_SPEC]
 
         expanded: list[str] = []
         for pattern in whitelist:
@@ -66,7 +88,9 @@ class ToolRegistryView:
         # Collect specs in whitelist order
         result: list[ToolSpec] = []
         for name in unique:
-            if self.builtin.has(name):
+            if name == "refine_objectset":
+                result.append(REFINE_OBJECTSET_SPEC)
+            elif self.builtin.has(name):
                 result.extend(self.builtin.get_specs(whitelist=[name]))
             elif name in self._derived_by_name:
                 result.append(self._derived_by_name[name])
@@ -87,7 +111,9 @@ class ToolRegistryView:
         Returns:
             ToolResult with success/data/error
         """
-        if self.builtin.has(name):
+        if name == "refine_objectset":
+            return await self._execute_refine(params, ctx)
+        elif self.builtin.has(name):
             return await self.builtin.execute(name, params, ctx)
         elif name in self._derived_by_name:
             return await self._execute_derived(name, params, ctx)
@@ -160,6 +186,21 @@ class ToolRegistryView:
             if not result.get("success"):
                 return ToolResult(success=False, error=result.get("error", "Query failed"))
 
+            # Record ObjectSet in session_store for follow-up refine calls
+            if ctx.session_store is not None and ctx.session_id is not None:
+                rows = result.get("data", [])
+                ctx.session_store.set_last_objectset(
+                    ctx.session_id,
+                    {
+                        "object_type": object_name,
+                        "obj_slug": obj_slug,
+                        "filters": filters,
+                        "selected": selected_columns,
+                        "limit": limit,
+                        "last_rids": [r.get("id") for r in rows[:50] if isinstance(r, dict)],
+                    },
+                )
+
             # For count tools, return count + first 10 rows
             if is_count:
                 data = result.get("data", [])
@@ -173,6 +214,59 @@ class ToolRegistryView:
 
         except Exception as exc:
             return ToolResult(success=False, error=str(exc))
+
+    async def _execute_refine(self, params: dict, ctx: ToolContext) -> ToolResult:
+        """Merge new filters with the last ObjectSet and re-query."""
+        if ctx.session_store is None or ctx.session_id is None:
+            return ToolResult(success=False, error="No session context for refine_objectset")
+
+        last = ctx.session_store.get_last_objectset(ctx.session_id)
+        if not last:
+            return ToolResult(
+                success=False,
+                error="没有上一次查询记录，请先使用 search_* 工具查询后再细化。",
+            )
+
+        # Resolve obj_def from ontology for filter building
+        obj_slug = last["obj_slug"]
+        ontology = ctx.ontology_context.get("ontology", {})
+        obj_def = next(
+            (o for o in ontology.get("objects", []) if o.get("slug") == obj_slug), None
+        )
+        if not obj_def:
+            return ToolResult(success=False, error=f"Object '{obj_slug}' no longer in ontology")
+
+        new_filters = self._build_filters(params.get("filters_to_add") or {}, obj_def)
+        merged_filters = list(last.get("filters") or []) + new_filters
+        limit = params.get("limit") or last.get("limit")
+
+        try:
+            result = ctx.omaha_service.query_objects(
+                object_type=last["object_type"],
+                selected_columns=last.get("selected"),
+                filters=merged_filters,
+                limit=limit,
+            )
+        except Exception as exc:
+            return ToolResult(success=False, error=str(exc))
+
+        if not result.get("success"):
+            return ToolResult(success=False, error=result.get("error", "Query failed"))
+
+        # Update session store with refined result
+        rows = result.get("data", [])
+        ctx.session_store.set_last_objectset(
+            ctx.session_id,
+            {
+                "object_type": last["object_type"],
+                "obj_slug": obj_slug,
+                "filters": merged_filters,
+                "selected": last.get("selected"),
+                "limit": limit,
+                "last_rids": [r.get("id") for r in rows[:50] if isinstance(r, dict)],
+            },
+        )
+        return ToolResult(success=True, data=result)
 
     def _build_filters(
         self, params: dict, obj_def: dict[str, Any]

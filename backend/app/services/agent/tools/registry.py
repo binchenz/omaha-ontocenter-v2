@@ -21,6 +21,7 @@ class ToolContext:
     session_id: int | None = None
     ontology_context: dict = field(default_factory=dict)
     uploaded_tables: dict = field(default_factory=dict)
+    session_store: Any = None  # app.services.agent.runtime.session_store module
 
 
 # ---------------------------------------------------------------------------

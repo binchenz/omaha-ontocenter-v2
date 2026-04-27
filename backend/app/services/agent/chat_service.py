@@ -24,6 +24,7 @@ from app.services.agent.skills.loader import SkillLoader
 from app.services.agent.skills.resolver import SkillResolver
 from app.services.agent.runtime.conversation import ConversationRuntime
 from app.services.agent.runtime.session import SessionManager
+from app.services.agent.runtime import session_store
 from app.services.agent.orchestrator.executor import ExecutorAgent
 from app.services.ontology.store import OntologyStore
 
@@ -108,6 +109,7 @@ class ChatServiceV2:
             project_id=self.project.id,
             session_id=session_id,
             ontology_context=ontology_context,
+            session_store=session_store,
         )
 
         # 11. Run ExecutorAgent with tool_view
