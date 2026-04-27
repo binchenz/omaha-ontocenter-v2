@@ -35,6 +35,7 @@ def test_create_ontology_object(db_session, tenant):
     obj = OntologyObject(
         tenant_id=tenant.id,
         name="Order",
+        slug="order",
         source_entity="t_order",
         datasource_id="mysql_erp",
         datasource_type="sql",
@@ -53,6 +54,7 @@ def test_create_object_property(db_session, tenant):
     obj = OntologyObject(
         tenant_id=tenant.id,
         name="Order",
+        slug="order",
         source_entity="t_order",
         datasource_id="mysql_erp",
         datasource_type="sql",
@@ -63,6 +65,7 @@ def test_create_object_property(db_session, tenant):
     prop = ObjectProperty(
         object_id=obj.id,
         name="total_amount",
+        slug="total_amount",
         data_type="float",
         semantic_type="currency_cny",
         description="Order total amount",
@@ -77,6 +80,7 @@ def test_create_health_rule(db_session, tenant):
     obj = OntologyObject(
         tenant_id=tenant.id,
         name="Order",
+        slug="order",
         source_entity="t_order",
         datasource_id="mysql_erp",
         datasource_type="sql",
@@ -99,11 +103,11 @@ def test_create_health_rule(db_session, tenant):
 
 def test_create_relationship(db_session, tenant):
     order = OntologyObject(
-        tenant_id=tenant.id, name="Order",
+        tenant_id=tenant.id, name="Order", slug="order",
         source_entity="t_order", datasource_id="mysql_erp", datasource_type="sql",
     )
     customer = OntologyObject(
-        tenant_id=tenant.id, name="Customer",
+        tenant_id=tenant.id, name="Customer", slug="customer",
         source_entity="t_customer", datasource_id="mysql_erp", datasource_type="sql",
     )
     db_session.add_all([order, customer])
