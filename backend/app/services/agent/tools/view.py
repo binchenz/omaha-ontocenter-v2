@@ -124,33 +124,21 @@ class ToolRegistryView:
     async def _execute_derived(
         self, name: str, params: dict, ctx: ToolContext
     ) -> ToolResult:
-        """
-        Execute a derived per-object tool (search_*, count_*, or aggregate_*).
-
-        Parses object slug from tool name, looks up object_name from
-        ctx.ontology_context, builds filter list from params, and calls
-        ctx.omaha_service.query_objects.
-
-        For count_* tools: returns {count, data[:10]}
-        For search_* tools: returns full query result
-        """
         try:
-            # Parse object slug from tool name
             if name.startswith("search_"):
-                obj_slug = name[len("search_") :]
+                obj_slug = name[len("search_"):]
                 mode = "search"
             elif name.startswith("count_"):
-                obj_slug = name[len("count_") :]
+                obj_slug = name[len("count_"):]
                 mode = "count"
             elif name.startswith("aggregate_"):
-                obj_slug = name[len("aggregate_") :]
+                obj_slug = name[len("aggregate_"):]
                 mode = "aggregate"
             else:
                 return ToolResult(
                     success=False, error=f"Invalid derived tool name: {name}"
                 )
 
-            # Look up object_name from ontology_context
             ontology = ctx.ontology_context.get("ontology", {})
             objects = ontology.get("objects", [])
             obj_def = next(
@@ -167,7 +155,6 @@ class ToolRegistryView:
                     success=False, error=f"Object '{obj_slug}' has no name"
                 )
 
-            # Build filter list from params
             filters = self._build_filters(params, obj_def)
 
             if mode == "aggregate":
@@ -180,16 +167,9 @@ class ToolRegistryView:
                     ctx=ctx,
                 )
 
-            # Build selected_columns from select param
             selected_columns = params.get("select")
-
-            # Build sort_by (not yet implemented in OmahaService, but prepare)
-            # For now, we'll ignore sort_by
-
-            # Build limit
             limit = params.get("limit")
 
-            # Call omaha_service.query_objects
             result = ctx.omaha_service.query_objects(
                 object_type=object_name,
                 selected_columns=selected_columns,
@@ -200,28 +180,13 @@ class ToolRegistryView:
             if not result.get("success"):
                 return ToolResult(success=False, error=result.get("error", "Query failed"))
 
-            # Record ObjectSet in session_store for follow-up refine calls
-            if ctx.session_store is not None and ctx.session_id is not None:
-                rows = result.get("data", [])
-                ctx.session_store.set_last_objectset(
-                    ctx.session_id,
-                    {
-                        "object_type": object_name,
-                        "obj_slug": obj_slug,
-                        "filters": filters,
-                        "selected": selected_columns,
-                        "limit": limit,
-                        "last_rids": [r.get("id") for r in rows[:50] if isinstance(r, dict)],
-                    },
-                )
+            self._save_objectset(ctx, object_name, obj_slug, filters, selected_columns, limit, result.get("data", []))
 
-            # For count tools, return count + first 10 rows
             if mode == "count":
                 data = result.get("data", [])
-                count = len(data)
                 return ToolResult(
                     success=True,
-                    data={"count": count, "data": data[:10]},
+                    data={"count": len(data), "data": data[:10]},
                 )
             else:
                 return ToolResult(success=True, data=result)
@@ -244,7 +209,7 @@ class ToolRegistryView:
         group_by_slug = params.get("group_by")
         metric = params.get("metric")
         limit = params.get("limit")
-        slug_to_name = {prop.get("slug"): prop.get("name") for prop in obj_def.get("properties", [])}
+        slug_to_name = self._slug_to_name(obj_def)
         group_field = slug_to_name.get(group_by_slug)
         if not group_field:
             return ToolResult(success=False, error=f"Unknown group_by field: {group_by_slug}")
@@ -296,18 +261,7 @@ class ToolRegistryView:
         if limit:
             output = output[:limit]
 
-        if ctx.session_store is not None and ctx.session_id is not None:
-            ctx.session_store.set_last_objectset(
-                ctx.session_id,
-                {
-                    "object_type": object_name,
-                    "obj_slug": obj_slug,
-                    "filters": filters,
-                    "selected": None,
-                    "limit": limit,
-                    "last_rids": [r.get("id") for r in rows[:50] if isinstance(r, dict)],
-                },
-            )
+        self._save_objectset(ctx, object_name, obj_slug, filters, None, limit, rows)
 
         return ToolResult(
             success=True,
@@ -326,7 +280,6 @@ class ToolRegistryView:
                 error="没有上一次查询记录，请先使用 search_* 工具查询后再细化。",
             )
 
-        # Resolve obj_def from ontology for filter building
         obj_slug = last["obj_slug"]
         ontology = ctx.ontology_context.get("ontology", {})
         obj_def = next(
@@ -352,53 +305,45 @@ class ToolRegistryView:
         if not result.get("success"):
             return ToolResult(success=False, error=result.get("error", "Query failed"))
 
-        # Update session store with refined result
-        rows = result.get("data", [])
-        ctx.session_store.set_last_objectset(
-            ctx.session_id,
-            {
-                "object_type": last["object_type"],
-                "obj_slug": obj_slug,
-                "filters": merged_filters,
-                "selected": last.get("selected"),
-                "limit": limit,
-                "last_rids": [r.get("id") for r in rows[:50] if isinstance(r, dict)],
-            },
-        )
+        self._save_objectset(ctx, last["object_type"], obj_slug, merged_filters, last.get("selected"), limit, result.get("data", []))
         return ToolResult(success=True, data=result)
+
+    @staticmethod
+    def _save_objectset(
+        ctx: ToolContext, object_type: str, obj_slug: str,
+        filters: list, selected: list | None, limit: int | None, rows: list,
+    ) -> None:
+        if ctx.session_store is not None and ctx.session_id is not None:
+            ctx.session_store.set_last_objectset(
+                ctx.session_id,
+                {
+                    "object_type": object_type,
+                    "obj_slug": obj_slug,
+                    "filters": filters,
+                    "selected": selected,
+                    "limit": limit,
+                    "last_rids": [r.get("id") for r in rows[:50] if isinstance(r, dict)],
+                },
+            )
+
+    @staticmethod
+    def _slug_to_name(obj_def: dict[str, Any]) -> dict[str, str]:
+        return {prop.get("slug"): prop.get("name") for prop in obj_def.get("properties", [])}
 
     def _build_filters(
         self, params: dict, obj_def: dict[str, Any]
     ) -> list[dict[str, Any]]:
-        """
-        Build filter list from tool params.
-
-        Suffix rules:
-        - _min → operator '>='
-        - _max → operator '<='
-        - _contains → operator 'LIKE'
-        - no suffix → operator '='
-
-        Args:
-            params: Tool parameters
-            obj_def: Object definition with properties
-
-        Returns:
-            List of filter dicts: [{"field": "...", "operator": "...", "value": ...}]
-        """
+        """Build filter list from tool params using suffix conventions."""
         filters: list[dict[str, Any]] = []
-        properties = obj_def.get("properties", [])
-        slug_to_name = {prop.get("slug"): prop.get("name") for prop in properties}
+        slug_to_name = self._slug_to_name(obj_def)
 
         for param_key, param_value in params.items():
             if param_value is None:
                 continue
 
-            # Skip non-filter params
             if param_key in ("select", "sort_by", "limit"):
                 continue
 
-            # Parse suffix
             if param_key.endswith("_min"):
                 base_slug = param_key[: -len("_min")]
                 operator = ">="
@@ -413,10 +358,8 @@ class ToolRegistryView:
                 base_slug = param_key
                 operator = "="
 
-            # Look up field name from slug
             field_name = slug_to_name.get(base_slug)
             if not field_name:
-                # Skip unknown slugs
                 continue
 
             filters.append(

@@ -1,7 +1,6 @@
 import yaml
 from sqlalchemy.orm import Session
 from app.services.ontology.store import OntologyStore
-from app.services.ontology.slug import slugify_name  # noqa: F401 (kept for potential callers)
 
 
 class OntologyImporter:
