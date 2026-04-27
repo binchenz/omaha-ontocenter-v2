@@ -15,7 +15,7 @@ _engine = ChartEngine()
         "properties": {
             "data": {
                 "type": "array",
-                "items": {"type": "object"},
+                "items": {"type": "object", "additionalProperties": True},
                 "description": "Array of data rows",
             },
             "chart_type": {
@@ -68,7 +68,7 @@ async def generate_chart(params: dict, ctx: ToolContext) -> ToolResult:
         "properties": {
             "data": {
                 "type": "array",
-                "items": {"type": "object"},
+                "items": {"type": "object", "additionalProperties": True},
                 "description": "Array of data rows",
             },
             "title": {"type": "string", "description": "Optional chart title"},

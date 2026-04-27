@@ -25,7 +25,6 @@ class OpenAICompatAdapter(ProviderAdapter):
         }
         if tools:
             kwargs["tools"] = [self._convert_tool(t) for t in tools]
-            kwargs["tool_choice"] = tool_choice
 
         response = await self.client.chat.completions.create(**kwargs)
         return self._parse_response(response)
@@ -59,10 +58,7 @@ class OpenAICompatAdapter(ProviderAdapter):
             "function": {
                 "name": tool.name,
                 "description": tool.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": tool.parameters,
-                },
+                "parameters": tool.parameters,
             },
         }
 
