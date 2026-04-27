@@ -690,3 +690,74 @@ async def test_search_tool_expands_links(view):
     data = result.data["data"]
     assert len(data) == 1
     assert data[0]["category"] == {"id": 10, "name": "Electronics"}
+
+
+@pytest.mark.asyncio
+async def test_execute_reverse_nav(view):
+    """Test executing reverse navigation tool (get_category_products)."""
+    omaha_service = Mock()
+    omaha_service.query_objects = Mock(return_value={
+        "success": True,
+        "data": [
+            {"id": 1, "name": "Product A", "category_id": 10},
+            {"id": 2, "name": "Product B", "category_id": 10},
+        ],
+    })
+
+    ontology = {
+        "objects": [
+            {
+                "name": "Product",
+                "slug": "product",
+                "datasource_type": "sql",
+                "datasource_id": "main",
+                "properties": [
+                    {"name": "ID", "slug": "id", "type": "integer"},
+                    {"name": "Name", "slug": "name", "type": "string"},
+                    {"name": "Category ID", "slug": "category_id", "type": "integer"},
+                    {
+                        "name": "Category",
+                        "slug": "category",
+                        "type": "link",
+                        "link_target": "Category",
+                        "link_foreign_key": "category_id",
+                        "link_target_key": "id",
+                    },
+                ],
+            },
+            {
+                "name": "Category",
+                "slug": "category",
+                "datasource_type": "sql",
+                "datasource_id": "main",
+                "properties": [
+                    {"name": "ID", "slug": "id", "type": "integer"},
+                    {"name": "Name", "slug": "name", "type": "string"},
+                ],
+            },
+        ]
+    }
+
+    ctx = ToolContext(
+        db=None,
+        omaha_service=omaha_service,
+        ontology_context={"ontology": ontology},
+    )
+    ctx.config_yaml = "test.yaml"
+
+    result = await view.execute("get_category_products", {"category_id": "10", "limit": 10}, ctx)
+
+    assert result.success is True
+    assert result.data["success"] is True
+    assert len(result.data["data"]) == 2
+
+    calls = omaha_service.query_objects.call_args_list
+    first_call = calls[0].kwargs
+    assert first_call["object_type"] == "Product"
+    assert first_call["limit"] == 10
+
+    filters = first_call["filters"]
+    assert len(filters) == 1
+    assert filters[0]["field"] == "Category ID"
+    assert filters[0]["operator"] == "="
+    assert filters[0]["value"] == "10"

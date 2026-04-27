@@ -120,6 +120,8 @@ class ToolRegistryView:
             return await self._execute_refine(params, ctx)
         elif self.builtin.has(name):
             return await self.builtin.execute(name, params, ctx)
+        elif name.startswith("get_") and "_" in name[4:]:
+            return await self._execute_reverse_nav(name, params, ctx)
         elif name in self._derived_by_name:
             return await self._execute_derived(name, params, ctx)
         else:
@@ -316,6 +318,76 @@ class ToolRegistryView:
 
         self._save_objectset(ctx, last["object_type"], obj_slug, merged_filters, last.get("selected"), limit, result.get("data", []))
         return ToolResult(success=True, data=result)
+
+    async def _execute_reverse_nav(self, name: str, params: dict, ctx: ToolContext) -> ToolResult:
+        """Execute reverse navigation tool (e.g., get_category_products)."""
+        try:
+            parts = name[4:].split("_", 1)
+            if len(parts) != 2:
+                return ToolResult(success=False, error=f"Invalid reverse nav tool name: {name}")
+
+            target_slug, source_slug_plural = parts
+            if not source_slug_plural.endswith("s"):
+                return ToolResult(success=False, error=f"Invalid reverse nav tool name: {name}")
+
+            source_slug = source_slug_plural[:-1]
+
+            ontology = ctx.ontology_context.get("ontology", {})
+            objects = ontology.get("objects", [])
+
+            source_obj = next((o for o in objects if o.get("slug") == source_slug), None)
+            if not source_obj:
+                return ToolResult(success=False, error=f"Source object '{source_slug}' not found")
+
+            target_obj = next((o for o in objects if o.get("slug") == target_slug), None)
+            if not target_obj:
+                return ToolResult(success=False, error=f"Target object '{target_slug}' not found")
+
+            link_prop = None
+            for prop in source_obj.get("properties", []):
+                if prop.get("type") == "link" and prop.get("link_target") == target_obj.get("name"):
+                    link_prop = prop
+                    break
+
+            if not link_prop:
+                return ToolResult(success=False, error=f"No link from {source_slug} to {target_slug}")
+
+            foreign_key_slug = link_prop.get("link_foreign_key")
+            foreign_key_prop = next((p for p in source_obj.get("properties", []) if p.get("slug") == foreign_key_slug), None)
+            if not foreign_key_prop:
+                return ToolResult(success=False, error=f"Foreign key '{foreign_key_slug}' not found")
+
+            target_id = params.get(f"{target_slug}_id")
+            if not target_id:
+                return ToolResult(success=False, error=f"Missing required parameter: {target_slug}_id")
+
+            filters = [{
+                "field": foreign_key_prop.get("name"),
+                "operator": "=",
+                "value": target_id,
+            }]
+
+            limit = params.get("limit")
+
+            result = ctx.omaha_service.query_objects(
+                object_type=source_obj.get("name"),
+                selected_columns=None,
+                filters=filters,
+                limit=limit,
+            )
+
+            if not result.get("success"):
+                return ToolResult(success=False, error=result.get("error", "Query failed"))
+
+            data = result.get("data", [])
+            if data:
+                self.link_expander.expand_links(data, source_obj.get("name"), ontology, ctx)
+                result["data"] = data
+
+            return ToolResult(success=True, data=result)
+
+        except Exception as exc:
+            return ToolResult(success=False, error=str(exc))
 
     @staticmethod
     def _save_objectset(
