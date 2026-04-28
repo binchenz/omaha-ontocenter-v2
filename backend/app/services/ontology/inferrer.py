@@ -1,5 +1,5 @@
 import json
-import logging
+import structlog
 import re
 from typing import Optional, Union
 from app.config import settings
@@ -14,7 +14,7 @@ from app.schemas.ontology.auto_model import (
     InferredRelationship, SEMANTIC_TYPES,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 CLASSIFY_PROMPT = """分析以下数据库表，将每张表分类为：business（业务表）、system（系统表）、temporary（临时表）、unknown（未知）。
 

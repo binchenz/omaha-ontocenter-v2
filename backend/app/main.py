@@ -2,12 +2,14 @@
 FastAPI application entry point.
 """
 import asyncio
-import logging
+import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.logging_config import setup_logging
+from app.middleware import RequestLoggingMiddleware
 from app.config import settings
 from app.api import api_router
 from app.api.auth import public_auth
@@ -15,6 +17,10 @@ from app.api.legacy.financial import public_query
 from app import models as _models  # noqa: F401 — registers all ORM classes with Base.metadata
 from app.services.platform.scheduler import scheduler
 from app.schemas.error import ErrorResponse
+
+setup_logging()
+
+logger = structlog.get_logger()
 
 
 @asynccontextmanager
@@ -39,13 +45,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logger = logging.getLogger(__name__)
+app.add_middleware(RequestLoggingMiddleware)
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    logger.exception("unhandled_exception", path=request.url.path, method=request.method)
     return JSONResponse(
         status_code=500,
         content=ErrorResponse(error="Internal Server Error").model_dump(),

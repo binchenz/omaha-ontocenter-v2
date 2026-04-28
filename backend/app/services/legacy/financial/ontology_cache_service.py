@@ -1,11 +1,13 @@
 """Ontology-based cache service using OmahaService."""
-import logging
+import structlog
 from typing import List, Dict, Any, Optional
 import yaml
 from sqlalchemy.orm import Session
 from app._paths import LEGACY_FINANCIAL_CONFIG
 from app.services.legacy.financial.omaha import OmahaService
 from app.services.semantic.formatter import SemanticTypeFormatter
+
+logger = structlog.get_logger()
 
 
 class OntologyCacheService:
@@ -63,7 +65,7 @@ class OntologyCacheService:
             try:
                 data = sorted(data, key=lambda x: (x.get(order_by) is None, x.get(order_by, 0)), reverse=reverse)
             except (TypeError, KeyError) as e:
-                logging.getLogger(__name__).warning("Sort failed on field %s: %s", order_by, e)
+                logger.warning("Sort failed on field %s: %s", order_by, e)
 
         # Apply field selection if requested
         if select and data:

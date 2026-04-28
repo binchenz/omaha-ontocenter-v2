@@ -1,5 +1,5 @@
 """Pipeline scheduler — runs active pipelines on their cron schedule using APScheduler."""
-import logging
+import structlog
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -9,7 +9,7 @@ from app.models.pipeline.pipeline import Pipeline
 from app.models.project.project import Project
 from app.services.platform.pipeline_runner import run_pipeline
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 JOB_PREFIX = "pipeline_"
 
