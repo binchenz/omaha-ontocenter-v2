@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import yaml
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -173,4 +173,8 @@ def _patch_yaml_config(project: Project, table_name: str, columns, db_path: str,
     config["ontology"] = ontology
 
     project.omaha_config = yaml.dump(config, allow_unicode=True, default_flow_style=False, sort_keys=False)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to update datasource config")

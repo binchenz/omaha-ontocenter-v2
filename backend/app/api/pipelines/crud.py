@@ -82,7 +82,11 @@ def create_pipeline(
         schedule=req.schedule,
     )
     db.add(pipeline)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to create pipeline")
     db.refresh(pipeline)
     scheduler.add_pipeline(pipeline.id, pipeline.schedule)
     return _pipeline_dict(pipeline)
@@ -100,7 +104,11 @@ def update_pipeline(
     pipeline = _get_pipeline(project_id, pipeline_id, db)
     for field, value in req.model_dump(exclude_unset=True).items():
         setattr(pipeline, field, value)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to update pipeline")
     db.refresh(pipeline)
     scheduler.sync_pipeline(pipeline.id)
     return _pipeline_dict(pipeline)
@@ -117,7 +125,11 @@ def delete_pipeline(
     pipeline = _get_pipeline(project_id, pipeline_id, db)
     scheduler.remove_pipeline(pipeline_id)
     db.delete(pipeline)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete pipeline")
 
 
 @router.post("/{project_id}/pipelines/{pipeline_id}/run")

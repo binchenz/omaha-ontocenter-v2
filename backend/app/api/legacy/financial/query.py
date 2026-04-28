@@ -121,7 +121,11 @@ async def query_objects(
         ip_address=http_request.client.host if http_request.client else None,
         commit=False,
     )
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to save query result")
 
     return result
 

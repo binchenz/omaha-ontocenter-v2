@@ -48,7 +48,10 @@ def list_objects(
         execution_time_ms=0
     )
     db.add(log)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
 
     objects = [
         ObjectInfo(object_type=obj['name'], description=obj.get('description', ''))
@@ -78,7 +81,10 @@ def get_schema(
         execution_time_ms=0
     )
     db.add(log)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
 
     return SchemaResponse(**schema)
 
@@ -116,7 +122,10 @@ def query_data(
         execution_time_ms=execution_time_ms
     )
     db.add(log)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
 
     return QueryResponse(
         data=data,
@@ -155,7 +164,10 @@ def aggregate_data(
         execution_time_ms=execution_time_ms
     )
     db.add(log)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
 
     return AggregateResponse(**result)
 
@@ -223,5 +235,9 @@ def remove_watchlist(
         raise HTTPException(status_code=404, detail="Watchlist item not found")
 
     db.delete(item)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete watchlist item")
     return None

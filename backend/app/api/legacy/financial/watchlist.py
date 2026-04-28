@@ -47,7 +47,11 @@ def add_to_watchlist(
         note=item.note
     )
     db.add(watchlist_item)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to add watchlist item")
     db.refresh(watchlist_item)
     return watchlist_item
 
@@ -74,7 +78,11 @@ def update_watchlist_item(
     if item.note is not None:
         watchlist_item.note = item.note
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to update watchlist item")
     db.refresh(watchlist_item)
     return watchlist_item
 
@@ -98,5 +106,9 @@ def remove_from_watchlist(
         )
 
     db.delete(watchlist_item)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete watchlist item")
     return None
