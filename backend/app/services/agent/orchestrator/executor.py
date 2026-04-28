@@ -129,7 +129,7 @@ class ExecutorAgent:
 
         # Max iterations reached
         return AgentResponse(
-            message="抱歉，处理超时。",
+            message="分析步骤较多，已达到最大轮次。以上是目前的分析结果，如需继续请追问。",
             tool_calls=tool_call_log,
             data_table=data_table,
             chart_config=chart_config,
