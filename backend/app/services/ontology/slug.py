@@ -47,6 +47,15 @@ def slugify_name(name: str) -> str:
     return slug
 
 
+_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+
+def _validate_sql_identifier(name: str) -> str:
+    if not name or not _IDENTIFIER_RE.match(name):
+        raise ValueError(f"Invalid SQL identifier: {name!r}")
+    return name
+
+
 def ensure_unique_slug(db: Session, base_slug: str, table_name: str,
                        column_name: str, exclude_id: int = None,
                        tenant_id: int = None,
@@ -61,7 +70,9 @@ def ensure_unique_slug(db: Session, base_slug: str, table_name: str,
     from sqlalchemy import text
 
     def _count(slug_candidate: str) -> int:
-        q = f"SELECT COUNT(*) FROM {table_name} WHERE {column_name} = :slug"
+        safe_table = _validate_sql_identifier(table_name)
+        safe_column = _validate_sql_identifier(column_name)
+        q = f"SELECT COUNT(*) FROM {safe_table} WHERE {safe_column} = :slug"
         params: dict = {"slug": slug_candidate}
         if exclude_id is not None:
             q += " AND id != :exclude_id"
