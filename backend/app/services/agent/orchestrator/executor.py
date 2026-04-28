@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Optional, List, Dict, Union
+from typing import Any, Optional
 
 from app.services.agent.providers.base import ProviderAdapter, ToolSpec
 from app.services.agent.tools.registry import ToolRegistry, ToolContext
@@ -105,8 +105,7 @@ class ExecutorAgent:
             # Execute each tool call
             for tc in llm_response.tool_calls:
                 result = await self.registry.execute(tc.name, tc.arguments, ctx)
-                result_dict = result.to_dict()
-                result_str = _json_dumps(result_dict)
+                result_str = _json_dumps(result.to_dict())
 
                 # Capture data_table, sql, chart_config from query_data
                 if tc.name == "query_data" and result.success and result.data:
@@ -120,12 +119,10 @@ class ExecutorAgent:
                 if tc.name in ("generate_chart", "auto_chart") and result.success and result.data:
                     chart_config = result.data.get("chart_config") or result.data
 
-                # Build tool call log entry
-                summary = result_str[:500]
                 tool_call_log.append({
                     "name": tc.name,
                     "params": tc.arguments,
-                    "result_summary": summary,
+                    "result_summary": result_str[:500],
                 })
 
                 runtime.append_tool_result(tc.id, result_str)
