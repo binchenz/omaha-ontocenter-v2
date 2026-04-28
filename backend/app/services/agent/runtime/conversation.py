@@ -59,8 +59,14 @@ class ConversationRuntime:
         self,
         content: Optional[str],
         tool_calls: list[ToolCall] | None,
+        reasoning_content: Optional[str] = None,
     ) -> None:
-        self.messages.append(Message(role="assistant", content=content, tool_calls=tool_calls))
+        self.messages.append(Message(
+            role="assistant",
+            content=content,
+            tool_calls=tool_calls,
+            reasoning_content=reasoning_content,
+        ))
 
     def append_tool_result(self, tool_call_id: str, result: str) -> None:
         self.messages.append(Message(role="tool", content=result, tool_call_id=tool_call_id))

@@ -99,6 +99,7 @@ class ExecutorAgent:
             runtime.append_assistant_message(
                 content=llm_response.content,
                 tool_calls=llm_response.tool_calls,
+                reasoning_content=llm_response.reasoning_content,
             )
 
             # Execute each tool call

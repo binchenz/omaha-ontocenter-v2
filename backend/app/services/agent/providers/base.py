@@ -23,6 +23,7 @@ class LLMResponse:
     content: Optional[str]
     tool_calls: list[ToolCall]
     usage: TokenUsage
+    reasoning_content: Optional[str] = None
 
 
 @dataclass
@@ -31,6 +32,7 @@ class Message:
     content: Optional[str] = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: Optional[str] = None
+    reasoning_content: Optional[str] = None
 
 
 @dataclass

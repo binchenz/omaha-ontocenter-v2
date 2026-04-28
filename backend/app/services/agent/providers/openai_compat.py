@@ -38,6 +38,8 @@ class OpenAICompatAdapter(ProviderAdapter):
             msg: dict[str, Any] = {"role": m.role}
             if m.content is not None:
                 msg["content"] = m.content
+            if m.reasoning_content is not None:
+                msg["reasoning_content"] = m.reasoning_content
             if m.tool_calls:
                 msg["tool_calls"] = [
                     {
@@ -84,8 +86,12 @@ class OpenAICompatAdapter(ProviderAdapter):
             input_tokens=response.usage.prompt_tokens,
             output_tokens=response.usage.completion_tokens,
         )
+
+        reasoning_content = getattr(msg, 'reasoning_content', None)
+
         return LLMResponse(
             content=msg.content,
             tool_calls=tool_calls,
             usage=usage,
+            reasoning_content=reasoning_content,
         )
