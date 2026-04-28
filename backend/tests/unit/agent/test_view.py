@@ -658,9 +658,12 @@ async def test_search_tool_expands_links(view):
                         "name": "Category",
                         "slug": "category",
                         "type": "link",
-                        "link_target": "Category",
-                        "link_foreign_key": "category_id",
-                        "link_target_key": "id",
+                        "link": {
+                            "target": "Category",
+                            "target_slug": "category",
+                            "foreign_key": "category_id",
+                            "target_key": "id",
+                        }
                     },
                 ],
             },
@@ -719,9 +722,12 @@ async def test_execute_reverse_nav(view):
                         "name": "Category",
                         "slug": "category",
                         "type": "link",
-                        "link_target": "Category",
-                        "link_foreign_key": "category_id",
-                        "link_target_key": "id",
+                        "link": {
+                            "target": "Category",
+                            "target_slug": "category",
+                            "foreign_key": "category_id",
+                            "target_key": "id",
+                        }
                     },
                 ],
             },
@@ -794,9 +800,12 @@ async def test_navigate_path_tool(view):
                         "name": "Category",
                         "slug": "category",
                         "type": "link",
-                        "link_target": "Category",
-                        "link_foreign_key": "category_id",
-                        "link_target_key": "id",
+                        "link": {
+                            "target": "Category",
+                            "target_slug": "category",
+                            "foreign_key": "category_id",
+                            "target_key": "id",
+                        }
                     },
                 ],
             },
