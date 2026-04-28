@@ -38,7 +38,11 @@ def create_chat_session(
         title=session_data.title
     )
     db.add(chat_session)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to create chat session")
     db.refresh(chat_session)
 
     return chat_session
@@ -109,7 +113,11 @@ def delete_chat_session(
         raise HTTPException(status_code=404, detail="Session not found")
 
     db.delete(session)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete chat session")
 
     return {"message": "Session deleted"}
 

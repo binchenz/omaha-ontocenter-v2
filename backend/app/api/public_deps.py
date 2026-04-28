@@ -28,6 +28,9 @@ def verify_api_key(
         raise HTTPException(status_code=401, detail="Invalid or inactive API key")
 
     api_key.last_used_at = datetime.utcnow()
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
 
     return api_key.user

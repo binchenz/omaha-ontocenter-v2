@@ -50,7 +50,11 @@ def update_semantic_config(
     if not result["valid"]:
         raise HTTPException(status_code=400, detail=result["error"])
     project.omaha_config = body.config
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to update config")
     return {"success": True}
 
 
