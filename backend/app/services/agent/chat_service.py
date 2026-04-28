@@ -14,6 +14,7 @@ import app.services.agent.tools.builtin.ingestion  # noqa: F401
 import app.services.agent.tools.builtin.asset  # noqa: F401
 import app.services.agent.tools.builtin.snapshot  # noqa: F401
 import app.services.agent.tools.builtin.navigate  # noqa: F401
+import app.services.agent.tools.builtin.reasoning  # noqa: F401
 
 from app.services.agent.providers.base import ProviderAdapter
 from app.services.agent.providers.openai_compat import OpenAICompatAdapter
@@ -114,7 +115,7 @@ class ChatServiceV2:
         )
 
         # 11. Run ExecutorAgent with tool_view
-        executor = ExecutorAgent(provider=provider, registry=tool_view)
+        executor = ExecutorAgent(provider=provider, registry=tool_view, max_iterations=12)
         response = await executor.run(runtime, ctx)
 
         # 12. Save messages
