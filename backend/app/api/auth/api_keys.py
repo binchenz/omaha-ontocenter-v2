@@ -56,7 +56,11 @@ def create_api_key(
         created_by=current_user.id,
     )
     db.add(api_key)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to create API key")
     db.refresh(api_key)
     return {**ApiKeyResponse.model_validate(api_key).model_dump(), "key": key}
 

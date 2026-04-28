@@ -43,7 +43,11 @@ def register_user(request: RegisterRequest, db: Session = Depends(get_db)):
     invite.used_by = user.id
     invite.used_at = datetime.utcnow()
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to register user")
     db.refresh(user)
 
     return user
@@ -69,6 +73,10 @@ def generate_api_key(request: ApiKeyRequest, db: Session = Depends(get_db)):
         key_prefix=raw_key[:16]
     )
     db.add(api_key)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to generate API key")
 
     return ApiKeyResponse(api_key=raw_key)
