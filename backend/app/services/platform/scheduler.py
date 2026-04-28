@@ -107,14 +107,15 @@ def _execute_pipeline(pipeline_id: int):
         else:
             logger.error(f"Pipeline {pipeline_id} failed: {result.get('error')}")
     except Exception as e:
-        logger.error(f"Pipeline {pipeline_id} exception: {e}")
+        logger.exception("Pipeline %s failed with unhandled exception", pipeline_id)
         if pipeline:
             try:
                 pipeline.last_run_status = "error"
                 pipeline.last_error = str(e)
                 db.commit()
             except Exception:
-                pass
+                db.rollback()
+                logger.exception("Failed to update pipeline %s error status", pipeline_id)
     finally:
         db.close()
 
