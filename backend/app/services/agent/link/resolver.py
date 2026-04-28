@@ -27,9 +27,14 @@ class LinkResolver:
         if not prop or prop.get("type") != "link":
             return None
 
-        target_name = prop.get("link_target")
+        # Support both formats: nested "link" dict (new) and flat "link_target" (legacy)
+        link_info = prop.get("link") or {}
+        target_name = link_info.get("target") or prop.get("link_target")
         if not target_name:
             return None
+
+        foreign_key = link_info.get("foreign_key") or prop.get("link_foreign_key")
+        target_key = link_info.get("target_key") or prop.get("link_target_key") or "id"
 
         target_obj = next((o for o in ontology.get("objects", []) if o["name"] == target_name), None)
         if not target_obj:
@@ -41,8 +46,8 @@ class LinkResolver:
             link_field=link_field_slug,
             target_object=target_name,
             target_slug=target_obj["slug"],
-            foreign_key=prop.get("link_foreign_key"),
-            target_key=prop.get("link_target_key", "id"),
-            datasource_type=obj_data["datasource_type"],
-            datasource_id=obj_data["datasource_id"],
+            foreign_key=foreign_key,
+            target_key=target_key,
+            datasource_type=obj_data.get("datasource_type", ""),
+            datasource_id=obj_data.get("datasource_id", ""),
         )
