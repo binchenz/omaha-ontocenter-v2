@@ -1,6 +1,7 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class ErrorResponse(BaseModel):
     error: str
-    detail: str | None = None
+    detail: Optional[str] = None
