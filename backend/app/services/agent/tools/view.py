@@ -347,24 +347,24 @@ class ToolRegistryView:
 
             link_prop = None
             for prop in source_obj.get("properties", []):
-                if prop.get("type") == "link" and prop.get("link_target") == target_obj.get("name"):
-                    link_prop = prop
-                    break
+                if prop.get("type") == "link":
+                    link_info = prop.get("link", {})
+                    if link_info.get("target") == target_obj.get("name"):
+                        link_prop = prop
+                        break
 
             if not link_prop:
                 return ToolResult(success=False, error=f"No link from {source_slug} to {target_slug}")
 
-            foreign_key_slug = link_prop.get("link_foreign_key")
-            foreign_key_prop = next((p for p in source_obj.get("properties", []) if p.get("slug") == foreign_key_slug), None)
-            if not foreign_key_prop:
-                return ToolResult(success=False, error=f"Foreign key '{foreign_key_slug}' not found")
+            link_info = link_prop.get("link", {})
+            foreign_key = link_info.get("foreign_key")
 
             target_id = params.get(f"{target_slug}_id")
             if not target_id:
                 return ToolResult(success=False, error=f"Missing required parameter: {target_slug}_id")
 
             filters = [{
-                "field": foreign_key_prop.get("name"),
+                "field": foreign_key,
                 "operator": "=",
                 "value": target_id,
             }]
