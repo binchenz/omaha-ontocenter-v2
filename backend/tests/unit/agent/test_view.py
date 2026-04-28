@@ -764,7 +764,7 @@ async def test_execute_reverse_nav(view):
 
     filters = first_call["filters"]
     assert len(filters) == 1
-    assert filters[0]["field"] == "Category ID"
+    assert filters[0]["field"] == "category_id"
     assert filters[0]["operator"] == "="
     assert filters[0]["value"] == "10"
 
