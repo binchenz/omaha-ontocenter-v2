@@ -102,7 +102,13 @@ class OntologyInferrer:
             if not isinstance(parsed, list):
                 return [TableClassification(name=t.name) for t in tables]
             return [TableClassification.model_validate(item) for item in parsed]
-        except Exception:
+        except (RuntimeError, ConnectionError, TimeoutError) as e:
+            import logging
+            logging.getLogger(__name__).warning("LLM classification failed: %s", e)
+            return [TableClassification(name=t.name) for t in tables]
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to parse LLM classification response: %s", e)
             return [TableClassification(name=t.name) for t in tables]
 
     def infer_table(self, table: TableSummary, datasource_id: str, template_hint: Optional[dict] = None) -> Optional[InferredObject]:
@@ -134,7 +140,13 @@ class OntologyInferrer:
                 parsed.setdefault("datasource_type", "sql")
                 obj = InferredObject.model_validate(parsed)
                 return self._validate_semantic_types(obj)
-            except Exception:
+            except (RuntimeError, ConnectionError, TimeoutError) as e:
+                import logging
+                logging.getLogger(__name__).warning("LLM inference attempt %d failed: %s", attempt + 1, e)
+                continue
+            except (json.JSONDecodeError, ValueError, KeyError) as e:
+                import logging
+                logging.getLogger(__name__).warning("Parse error on attempt %d: %s", attempt + 1, e)
                 continue
         return None
 
