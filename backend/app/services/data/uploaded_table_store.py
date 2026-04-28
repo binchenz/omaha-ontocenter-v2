@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Union
+
 
 """
 Persistent storage for DataFrames uploaded during a chat session.
@@ -10,18 +10,14 @@ so it survives across requests and process restarts.
 from pathlib import Path
 import pandas as pd
 
-
 _BASE = Path("data/uploads")
-
 
 def _table_dir(project_id: int, session_id: int) -> Path:
     return (_BASE / str(project_id) / str(session_id) / "_tables").resolve()
 
-
 def _table_path(project_id: int, session_id: int, table_name: str) -> Path:
     safe_name = Path(table_name).name
     return _table_dir(project_id, session_id) / f"{safe_name}.pkl"
-
 
 class UploadedTableStore:
     @staticmethod

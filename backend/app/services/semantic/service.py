@@ -1,8 +1,7 @@
 """Semantic layer service — parses extended YAML and expands computed fields to SQL."""
 import re
 import yaml
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Dict
 
 class SemanticService:
 
@@ -161,6 +160,5 @@ class SemanticService:
                 "columns": columns,
                 "relationships": [r for r in obj["relationships"]
                                   if r.get("from_object") == object_type or r.get("to_object") == object_type]}
-
 
 semantic_service = SemanticService()

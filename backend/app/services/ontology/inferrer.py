@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Optional, Union, Dict, List
+from typing import Optional, Union
 from app.config import settings
 
 try:
@@ -12,7 +12,6 @@ from app.schemas.ontology.auto_model import (
     TableClassification, InferredObject, InferredProperty,
     InferredRelationship, SEMANTIC_TYPES,
 )
-
 
 CLASSIFY_PROMPT = """分析以下数据库表，将每张表分类为：business（业务表）、system（系统表）、temporary（临时表）、unknown（未知）。
 
@@ -44,7 +43,6 @@ INFER_PROMPT = """分析以下数据库表，推断其业务含义。
 
 示例（仅供格式参考，实际内容根据数据推断）：
 {{"name": "订单", "source_entity": "{table_name}", "description": "...", "business_context": "...", "domain": "retail", "properties": [{{"name": "order_id", "data_type": "string", "semantic_type": "order_id"}}, {{"name": "amount", "data_type": "number", "semantic_type": "currency_cny"}}]}}"""
-
 
 class OntologyInferrer:
     def __init__(self):
@@ -162,7 +160,6 @@ class OntologyInferrer:
                         break
         return relationships
 
-
 def compact_template(template: dict) -> dict:
     """Reduce a template to the minimal hint passed to the LLM.
 
@@ -180,7 +177,6 @@ def compact_template(template: dict) -> dict:
         ],
         "relationships": template.get("relationships", []),
     }
-
 
 def merge_template_semantic_types(inferred, template):
     """Back-fill semantic_types on inferred objects from the template.

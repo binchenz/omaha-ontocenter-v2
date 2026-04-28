@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, List, Dict, Union
-
+from typing import Optional
 
 from app.services.agent.skills.loader import Skill, SkillLoader
 
@@ -12,7 +11,6 @@ _STAGE_MAP: dict[str, str] = {
     "modeling": "data_modeling",
     "ready": "data_query",
 }
-
 
 class SkillResolver:
     def __init__(self, loader: SkillLoader):

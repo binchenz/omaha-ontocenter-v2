@@ -1,17 +1,14 @@
 from pydantic import BaseModel
-from typing import Optional, Union, List, Dict
-
+from typing import Optional, List
 
 class AgentChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
 
-
 class ToolCallRecord(BaseModel):
     tool_name: str
     params: dict
     result_summary: str
-
 
 class AgentChatResponse(BaseModel):
     response: str

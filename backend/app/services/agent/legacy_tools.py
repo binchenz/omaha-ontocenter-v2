@@ -1,8 +1,7 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from app.services.ontology.store import OntologyStore
 from app.services.legacy.financial.omaha import OmahaService
-
 
 def get_tools(db: Session) -> List[Dict[str, Any]]:
     return [
@@ -40,7 +39,6 @@ def get_tools(db: Session) -> List[Dict[str, Any]]:
             },
         },
     ]
-
 
 def execute_tool(
     tool_name: str,

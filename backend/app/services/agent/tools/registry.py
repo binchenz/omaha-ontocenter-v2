@@ -3,10 +3,9 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, List, Dict, Union
+from typing import Any, Callable, Optional
 
 from app.services.agent.providers.base import ToolSpec
-
 
 # ---------------------------------------------------------------------------
 # ToolContext
@@ -23,7 +22,6 @@ class ToolContext:
     uploaded_tables: dict = field(default_factory=dict)
     session_store: Any = None  # app.services.agent.runtime.session_store module
 
-
 # ---------------------------------------------------------------------------
 # ToolResult
 # ---------------------------------------------------------------------------
@@ -36,7 +34,6 @@ class ToolResult:
 
     def to_dict(self) -> dict:
         return {"success": self.success, "data": self.data, "error": self.error}
-
 
 # ---------------------------------------------------------------------------
 # ToolRegistry
@@ -97,13 +94,11 @@ class ToolRegistry:
         except Exception as exc:  # noqa: BLE001
             return ToolResult(success=False, error=str(exc))
 
-
 # ---------------------------------------------------------------------------
 # Global singleton & convenience decorator
 # ---------------------------------------------------------------------------
 
 global_registry = ToolRegistry()
-
 
 def register_tool(name: str, description: str, parameters: dict) -> Callable:
     """Module-level decorator that registers into global_registry."""

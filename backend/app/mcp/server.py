@@ -8,7 +8,7 @@ Run with:
 import asyncio
 import json
 import sys
-from typing import Any, Tuple
+from typing import Tuple
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -24,7 +24,6 @@ server = Server("omaha-ontocenter")
 _PROJECT_ID: int = 0
 _CONFIG_YAML: str = ""
 
-
 def _load_context() -> Tuple[int, str]:
     """Resolve API key and return (project_id, config_yaml). Raises on failure."""
     key = get_api_key_from_env()
@@ -39,7 +38,6 @@ def _load_context() -> Tuple[int, str]:
     if isinstance(config, bytes):
         config = config.decode("utf-8")
     return project_id, config
-
 
 @server.list_tools()
 async def list_tools() -> list[types.Tool]:
@@ -151,7 +149,6 @@ async def list_tools() -> list[types.Tool]:
         ),
     ]
 
-
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     # Use session-level cached context — no DB round-trip per call.
@@ -210,7 +207,6 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
     return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
 
-
 async def main():
     global _PROJECT_ID, _CONFIG_YAML
 
@@ -227,7 +223,6 @@ async def main():
             write_stream,
             server.create_initialization_options(),
         )
-
 
 if __name__ == "__main__":
     asyncio.run(main())

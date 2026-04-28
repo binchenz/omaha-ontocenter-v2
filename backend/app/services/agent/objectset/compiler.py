@@ -1,8 +1,7 @@
 """Compiler for ObjectSet to OmahaService query arguments."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from app.services.agent.objectset import ObjectSet
-
 
 # Operator mapping from ObjectSet operators to SQL operators
 OPERATOR_MAP = {
@@ -15,7 +14,6 @@ OPERATOR_MAP = {
     "contains": "LIKE",
     "in": "IN",
 }
-
 
 def compile_query_args(object_set: ObjectSet) -> Dict[str, Any]:
     """

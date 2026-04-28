@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Union
+
 
 """JSON-based ontology draft storage scoped by (project_id, session_id)."""
 import json
@@ -8,14 +8,11 @@ from pathlib import Path
 # UploadedTableStore is also CWD-relative; switching one without the other would split storage.
 _BASE = Path("data/uploads")
 
-
 def _draft_dir(project_id: int, session_id: int) -> Path:
     return (_BASE / str(project_id) / str(session_id) / "_drafts").resolve()
 
-
 def _draft_path(project_id: int, session_id: int) -> Path:
     return _draft_dir(project_id, session_id) / "draft.json"
-
 
 class OntologyDraftStore:
     @staticmethod

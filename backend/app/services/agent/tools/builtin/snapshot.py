@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import itertools
 from datetime import datetime, timezone
-from typing import Any, Optional, List, Dict, Union
+from typing import List
 
 from app.services.agent.tools.registry import ToolContext, ToolResult, register_tool
 
@@ -12,7 +12,6 @@ from app.services.agent.tools.registry import ToolContext, ToolResult, register_
 # ---------------------------------------------------------------------------
 
 _id_counter = itertools.count(1)
-
 
 class SnapshotManager:
     """In-memory snapshot store. Will be migrated to DB later."""
@@ -42,10 +41,8 @@ class SnapshotManager:
         snapshots = self._snapshots.get(project_id, [])
         return list(reversed(snapshots[-limit:]))
 
-
 # Global instance
 snapshot_manager = SnapshotManager()
-
 
 # ---------------------------------------------------------------------------
 # undo_last tool

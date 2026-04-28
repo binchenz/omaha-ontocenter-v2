@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional, List, Dict, Union
+from typing import Any, Optional
 
 try:
     import anthropic as anthropic_sdk
@@ -8,7 +8,6 @@ except ImportError:
     anthropic_sdk = None
 
 from .base import LLMResponse, Message, ProviderAdapter, ToolCall, ToolSpec, TokenUsage
-
 
 class AnthropicAdapter(ProviderAdapter):
     def __init__(self, model: str, api_key: str, base_url: Optional[str] = None):

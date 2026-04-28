@@ -1,13 +1,11 @@
-from typing import Optional, List, Dict, Union
+
 
 """Loads industry templates from configs/templates/*.yaml."""
 from pathlib import Path
 import yaml
 
-
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 _TEMPLATE_DIR = _REPO_ROOT / "configs" / "templates"
-
 
 class TemplateLoader:
     @staticmethod

@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional, List, Dict, Union
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.models.chat.chat_session import ChatMessage
-
 
 class SessionManager:
     @staticmethod

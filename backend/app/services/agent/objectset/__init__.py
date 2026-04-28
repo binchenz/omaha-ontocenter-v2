@@ -1,8 +1,7 @@
 """ObjectSet: Immutable query builder for Omaha objects."""
 
 from dataclasses import dataclass, field, replace
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Dict, Optional
 
 @dataclass(frozen=True)
 class Filter:
@@ -11,13 +10,11 @@ class Filter:
     operator: str
     value: Any
 
-
 @dataclass(frozen=True)
 class Sort:
     """Immutable sort specification."""
     field: str
     desc: bool = False
-
 
 @dataclass(frozen=True)
 class ObjectSet:
@@ -54,6 +51,5 @@ class ObjectSet:
         from app.services.agent.objectset.compiler import compile_query_args
         compiled = compile_query_args(self)
         return omaha_service.query_objects(**compiled)
-
 
 __all__ = ["Filter", "Sort", "ObjectSet"]

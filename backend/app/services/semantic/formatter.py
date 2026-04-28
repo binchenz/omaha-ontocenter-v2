@@ -4,9 +4,8 @@ Semantic Type Formatter
 提供基于语义类型的数据格式化功能。
 """
 
-from typing import Any, Optional
+from typing import Any
 from datetime import datetime
-
 
 class SemanticTypeFormatter:
     """语义类型格式化器"""

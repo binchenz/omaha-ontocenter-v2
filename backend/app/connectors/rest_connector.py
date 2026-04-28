@@ -1,8 +1,7 @@
 import base64
-from typing import Any, Optional, List, Dict, Union
+from typing import Any
 import httpx
 from app.connectors.base import BaseConnector, ColumnDef
-
 
 class RESTConnector(BaseConnector):
     def test_connection(self) -> bool:

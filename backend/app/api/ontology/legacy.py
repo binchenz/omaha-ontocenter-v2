@@ -1,7 +1,7 @@
 """
 Ontology endpoints.
 """
-from typing import Dict, Any, Optional, List, Dict, Union
+from typing import Dict, Any, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -15,18 +15,15 @@ from app.services.ontology.importer import OntologyImporter
 
 router = APIRouter()
 
-
 class ValidateConfigRequest(BaseModel):
     """Request schema for config validation."""
 
     config_yaml: str
 
-
 class BuildOntologyRequest(BaseModel):
     """Request schema for building ontology."""
 
     config_yaml: str
-
 
 @router.post("/validate")
 async def validate_config(
@@ -37,7 +34,6 @@ async def validate_config(
     result = omaha_service.parse_config(request.config_yaml)
     return result
 
-
 @router.post("/build")
 async def build_ontology(
     request: BuildOntologyRequest,
@@ -46,7 +42,6 @@ async def build_ontology(
     """Build ontology from configuration."""
     result = omaha_service.build_ontology(request.config_yaml)
     return result
-
 
 @router.post("/generate", response_model=GenerateYamlResponse)
 def generate_yaml(
@@ -108,9 +103,7 @@ def generate_yaml(
     yaml_str = pyyaml.dump(config, allow_unicode=True, default_flow_style=False, sort_keys=False)
     return GenerateYamlResponse(yaml=yaml_str, valid=True)
 
-
 # ── CRUD endpoints for DB-backed ontology ──────────────────────────
-
 
 class OntologyObjectCreate(BaseModel):
     name: str
@@ -121,13 +114,11 @@ class OntologyObjectCreate(BaseModel):
     business_context: Optional[str] = None
     domain: Optional[str] = None
 
-
 class PropertyCreate(BaseModel):
     name: str
     data_type: str
     semantic_type: Optional[str] = None
     description: Optional[str] = None
-
 
 @router.get("/objects")
 async def list_ontology_objects(
@@ -139,7 +130,6 @@ async def list_ontology_objects(
     objects = store.list_objects(tenant_id)
     return [{"id": o.id, "name": o.name, "source_entity": o.source_entity,
              "datasource_id": o.datasource_id, "domain": o.domain} for o in objects]
-
 
 @router.get("/objects/{name}")
 async def get_ontology_object(
@@ -167,7 +157,6 @@ async def get_ontology_object(
                          for r in obj.health_rules],
     }
 
-
 @router.post("/objects")
 async def create_ontology_object(
     obj_in: OntologyObjectCreate,
@@ -191,7 +180,6 @@ async def create_ontology_object(
     )
     return {"id": obj.id, "name": obj.name}
 
-
 @router.delete("/objects/{name}")
 async def delete_ontology_object(
     name: str,
@@ -204,7 +192,6 @@ async def delete_ontology_object(
     if not deleted:
         raise HTTPException(status_code=404, detail="Object not found")
     return {"deleted": True}
-
 
 @router.post("/objects/{name}/properties")
 async def add_object_property(
@@ -226,7 +213,6 @@ async def add_object_property(
         description=prop_in.description,
     )
     return {"id": prop.id, "name": prop.name}
-
 
 @router.post("/import")
 async def import_ontology_yaml(

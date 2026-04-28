@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional, List, Dict, Union
-
+from typing import Any, Optional
 
 @dataclass
 class ColumnDef:
@@ -9,7 +8,6 @@ class ColumnDef:
     type: str
     nullable: bool = True
     description: str = ""
-
 
 class BaseConnector(ABC):
     def __init__(self, config: dict):

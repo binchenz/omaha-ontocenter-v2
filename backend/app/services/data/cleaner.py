@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field, asdict
-from typing import Literal, Optional, List, Dict, Union
+from typing import Literal, Optional
 import pandas as pd
 import re
-
 
 CleanRule = Literal["duplicate_rows", "strip_whitespace", "standardize_dates"]
 
@@ -11,7 +10,6 @@ _DATE_PATTERNS = [
     re.compile(r"\d{1,2}月\d{1,2}[号日]"),
     re.compile(r"^\d{5}$"),  # Excel serial date
 ]
-
 
 @dataclass
 class QualityIssue:
@@ -31,11 +29,9 @@ class QualityReport:
     def to_dict(self) -> dict:
         return {"score": self.score, "issues": [asdict(i) for i in self.issues]}
 
-
 def _is_string_column(series: pd.Series) -> bool:
     dtype_name = series.dtype.name.lower()
     return series.dtype == object or dtype_name in ("str", "string", "object")
-
 
 class DataCleaner:
     @staticmethod

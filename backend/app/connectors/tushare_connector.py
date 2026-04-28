@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Dict, Union
+
 import tushare as ts
 import pandas as pd
 from app.connectors.base import BaseConnector, ColumnDef
@@ -15,7 +15,6 @@ SUPPORTED_PARAMS = {
     "index_classify": ["src"],
     "stk_factor": ["ts_code", "trade_date", "start_date", "end_date"],
 }
-
 
 class TushareConnector(BaseConnector):
     def _pro(self):

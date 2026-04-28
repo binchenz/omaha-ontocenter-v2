@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Union
+from typing import Optional
 
 from sqlalchemy.orm import Session, selectinload, joinedload
 from app.models.ontology.ontology import (
@@ -11,7 +11,6 @@ from app.models.ontology.ontology import (
     DomainKnowledge,
 )
 from app.services.ontology.slug import slugify_name, ensure_unique_slug
-
 
 class OntologyStore:
     def __init__(self, db: Session):

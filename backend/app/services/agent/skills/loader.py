@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional, List, Dict, Union
-
-
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
-
 
 @dataclass
 class Skill:
@@ -17,7 +13,6 @@ class Skill:
     system_prompt: str
     allowed_tools: list[str] = field(default_factory=list)
     trigger_keywords: list[str] = field(default_factory=list)
-
 
 class SkillLoader:
     def __init__(self, definitions_dir: str | Path | None = None):
