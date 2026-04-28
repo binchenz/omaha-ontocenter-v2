@@ -61,8 +61,9 @@ class OntologyCacheService:
             reverse = (order.lower() == "desc")
             try:
                 data = sorted(data, key=lambda x: (x.get(order_by) is None, x.get(order_by, 0)), reverse=reverse)
-            except:
-                pass
+            except (TypeError, KeyError) as e:
+                import logging
+                logging.getLogger(__name__).warning("Sort failed on field %s: %s", order_by, e)
 
         # Apply field selection if requested
         if select and data:
@@ -98,7 +99,7 @@ class OntologyCacheService:
                         clean_value = str(float(clean_value.replace('万', '')) * 1e4)
                     try:
                         raw_record[key] = float(clean_value)
-                    except:
+                    except (ValueError, OverflowError):
                         raw_record[key] = value
                 else:
                     raw_record[key] = value
