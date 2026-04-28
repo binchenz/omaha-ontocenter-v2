@@ -314,13 +314,18 @@ class TestChatAgent:
         assert any(s["id"] == state["session_id"] for s in data)
 
     def test_send_message(self):
-        with patch('app.services.agent.chat_service.ChatService.send_message') as mock_send:
-            mock_send.return_value = {
-                "message": "找到 1 条 Product 记录",
-                "data_table": [{"id": 1, "name": "Widget"}],
-                "chart_config": None,
-                "sql": "SELECT id, name FROM products LIMIT 10"
-            }
+        with patch('app.services.agent.chat_service.ChatServiceV2.send_message') as mock_send:
+            async def _async_return(*args, **kwargs):
+                return {
+                    "message": "找到 1 条 Product 记录",
+                    "data_table": [{"id": 1, "name": "Widget"}],
+                    "chart_config": None,
+                    "sql": "SELECT id, name FROM products LIMIT 10",
+                    "tool_calls": [],
+                    "structured": None,
+                    "setup_stage": "ready",
+                }
+            mock_send.side_effect = _async_return
             response = client.post(
                 f"/api/v1/chat/{state['project_id']}/sessions/{state['session_id']}/message",
                 json={"message": "查询所有商品"},
@@ -333,13 +338,18 @@ class TestChatAgent:
             assert data["data_table"] is not None
 
     def test_send_second_message_multi_turn(self):
-        with patch('app.services.agent.chat_service.ChatService.send_message') as mock_send:
-            mock_send.return_value = {
-                "message": "价格最高的商品是 Widget，价格 99.99",
-                "data_table": [{"name": "Widget", "price": 99.99}],
-                "chart_config": {"series": [{"type": "bar", "data": [99.99]}]},
-                "sql": None
-            }
+        with patch('app.services.agent.chat_service.ChatServiceV2.send_message') as mock_send:
+            async def _async_return(*args, **kwargs):
+                return {
+                    "message": "价格最高的商品是 Widget，价格 99.99",
+                    "data_table": [{"name": "Widget", "price": 99.99}],
+                    "chart_config": {"series": [{"type": "bar", "data": [99.99]}]},
+                    "sql": None,
+                    "tool_calls": [],
+                    "structured": None,
+                    "setup_stage": "ready",
+                }
+            mock_send.side_effect = _async_return
             response = client.post(
                 f"/api/v1/chat/{state['project_id']}/sessions/{state['session_id']}/message",
                 json={"message": "哪个商品价格最高？"},
