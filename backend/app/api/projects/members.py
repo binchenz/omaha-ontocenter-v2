@@ -8,6 +8,7 @@ from app.database import get_db
 from app.api.deps import get_current_user, get_project_for_owner
 from app.models.auth.user import User
 from app.models.project.project_member import ProjectMember
+from app.services.platform.audit import log_action
 
 router = APIRouter(prefix="/projects", tags=["members"])
 
@@ -78,6 +79,11 @@ def add_member(
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to add member")
     db.refresh(member)
+    try:
+        log_action(db, action="member.add", user_id=user.id, project_id=project_id,
+                   resource_type="member", resource_id=str(target.id))
+    except Exception:
+        pass
     return {"user_id": target.id, "username": target.username, "role": member.role}
 
 
@@ -137,6 +143,11 @@ def remove_member(
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to remove member")
+    try:
+        log_action(db, action="member.remove", user_id=user.id, project_id=project_id,
+                   resource_type="member", resource_id=str(member_user_id))
+    except Exception:
+        pass
     return {"removed": True}
 
 

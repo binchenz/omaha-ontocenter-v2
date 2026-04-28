@@ -110,6 +110,8 @@ def delete_project(
 ):
     """Delete a project."""
     project = get_project_for_owner(project_id, current_user, db)
+    log_action(db, action="project.delete", user_id=current_user.id, project_id=project_id,
+               resource_type="project", resource_id=str(project_id), commit=False)
     db.delete(project)
     try:
         db.commit()

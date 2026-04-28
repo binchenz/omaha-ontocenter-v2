@@ -10,6 +10,7 @@ from app.schemas.auth.auth import Token, LoginRequest
 from app.schemas.auth.user import User as UserSchema, UserCreate
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.api.deps import get_current_user
+from app.services.platform.audit import log_action
 
 router = APIRouter()
 
@@ -65,6 +66,11 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         )
 
     access_token = create_access_token(data={"sub": str(user.id), "username": user.username})
+
+    try:
+        log_action(db, action="auth.login", user_id=user.id, resource_type="user", resource_id=str(user.id))
+    except Exception:
+        pass
 
     return {"access_token": access_token, "token_type": "bearer"}
 

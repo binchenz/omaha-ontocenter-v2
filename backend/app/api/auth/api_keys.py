@@ -11,6 +11,7 @@ from app.models.auth.user import User
 from app.models.auth.api_key import ProjectApiKey
 from app.api.deps import get_current_user, get_project_for_owner
 from app.mcp.auth import _hash_key
+from app.services.platform.audit import log_action
 
 router = APIRouter()
 
@@ -62,6 +63,10 @@ def create_api_key(
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to create API key")
     db.refresh(api_key)
+    try:
+        log_action(db, action="apikey.create", user_id=current_user.id, resource_type="api_key", resource_id=str(api_key.id))
+    except Exception:
+        pass
     return {**ApiKeyResponse.model_validate(api_key).model_dump(), "key": key}
 
 
