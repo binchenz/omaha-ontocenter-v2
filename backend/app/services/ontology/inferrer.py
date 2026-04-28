@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from typing import Optional, Union
 from app.config import settings
@@ -12,6 +13,8 @@ from app.schemas.ontology.auto_model import (
     TableClassification, InferredObject, InferredProperty,
     InferredRelationship, SEMANTIC_TYPES,
 )
+
+logger = logging.getLogger(__name__)
 
 CLASSIFY_PROMPT = """分析以下数据库表，将每张表分类为：business（业务表）、system（系统表）、temporary（临时表）、unknown（未知）。
 
@@ -103,12 +106,10 @@ class OntologyInferrer:
                 return [TableClassification(name=t.name) for t in tables]
             return [TableClassification.model_validate(item) for item in parsed]
         except (RuntimeError, ConnectionError, TimeoutError) as e:
-            import logging
-            logging.getLogger(__name__).warning("LLM classification failed: %s", e)
+            logger.warning("LLM classification failed: %s", e)
             return [TableClassification(name=t.name) for t in tables]
         except (json.JSONDecodeError, ValueError, KeyError) as e:
-            import logging
-            logging.getLogger(__name__).warning("Failed to parse LLM classification response: %s", e)
+            logger.warning("Failed to parse LLM classification response: %s", e)
             return [TableClassification(name=t.name) for t in tables]
 
     def infer_table(self, table: TableSummary, datasource_id: str, template_hint: Optional[dict] = None) -> Optional[InferredObject]:
@@ -141,12 +142,10 @@ class OntologyInferrer:
                 obj = InferredObject.model_validate(parsed)
                 return self._validate_semantic_types(obj)
             except (RuntimeError, ConnectionError, TimeoutError) as e:
-                import logging
-                logging.getLogger(__name__).warning("LLM inference attempt %d failed: %s", attempt + 1, e)
+                logger.warning("LLM inference attempt %d failed: %s", attempt + 1, e)
                 continue
             except (json.JSONDecodeError, ValueError, KeyError) as e:
-                import logging
-                logging.getLogger(__name__).warning("Parse error on attempt %d: %s", attempt + 1, e)
+                logger.warning("Parse error on attempt %d: %s", attempt + 1, e)
                 continue
         return None
 

@@ -14,6 +14,7 @@ from app.api.auth import public_auth
 from app.api.legacy.financial import public_query
 from app import models as _models  # noqa: F401 — registers all ORM classes with Base.metadata
 from app.services.platform.scheduler import scheduler
+from app.schemas.error import ErrorResponse
 
 
 @asynccontextmanager
@@ -47,7 +48,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
-        content={"error": "Internal Server Error", "detail": None},
+        content=ErrorResponse(error="Internal Server Error").model_dump(),
     )
 
 

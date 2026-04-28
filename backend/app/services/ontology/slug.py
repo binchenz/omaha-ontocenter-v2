@@ -69,9 +69,10 @@ def ensure_unique_slug(db: Session, base_slug: str, table_name: str,
     """
     from sqlalchemy import text
 
+    safe_table = _validate_sql_identifier(table_name)
+    safe_column = _validate_sql_identifier(column_name)
+
     def _count(slug_candidate: str) -> int:
-        safe_table = _validate_sql_identifier(table_name)
-        safe_column = _validate_sql_identifier(column_name)
         q = f"SELECT COUNT(*) FROM {safe_table} WHERE {safe_column} = :slug"
         params: dict = {"slug": slug_candidate}
         if exclude_id is not None:

@@ -1,4 +1,5 @@
 """Ontology-based cache service using OmahaService."""
+import logging
 from typing import List, Dict, Any, Optional
 import yaml
 from sqlalchemy.orm import Session
@@ -62,7 +63,6 @@ class OntologyCacheService:
             try:
                 data = sorted(data, key=lambda x: (x.get(order_by) is None, x.get(order_by, 0)), reverse=reverse)
             except (TypeError, KeyError) as e:
-                import logging
                 logging.getLogger(__name__).warning("Sort failed on field %s: %s", order_by, e)
 
         # Apply field selection if requested
