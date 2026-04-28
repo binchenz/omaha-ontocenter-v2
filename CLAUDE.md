@@ -297,3 +297,17 @@ python -m app.mcp.server
 - Multi-datasource query execution
 - YAML-based ontology configuration with validation
 - DataHub metadata integration
+- **Link Type System** (Palantir Foundry-inspired): forward/reverse navigation, multi-hop paths, cross-datasource links
+- **Per-Object Tool Generation**: dynamic `search_*`, `count_*`, `aggregate_*` tools per ontology object
+- **DeepSeek Thinking Mode**: full `reasoning_content` passthrough for multi-turn conversations
+- **Auto-Slug Generation**: ASCII-safe identifiers with pinyin transliteration (via `pypinyin`)
+
+## Slug System
+
+All ontology objects and properties have a `slug` field (ASCII identifier) alongside their `name` (user-friendly, supports Chinese):
+
+- **Why**: OpenAI/DeepSeek tool names must match `^[a-zA-Z0-9_-]+$`. Tools are generated as `search_<slug>`, `count_<slug>`, etc.
+- **Generation**: `OntologyStore.create_object()` and `add_property()` always generate slug from name via `slugify_name()` (any explicit `slug` parameter is ignored for safety).
+- **Chinese names**: Transliterated via `pypinyin` (e.g. "订单" → "ding-dan"). Falls back to `obj_<sha1[:8]>` if pypinyin unavailable.
+- **Uniqueness**: Scoped by tenant (objects) or by object (properties). Duplicates auto-suffix with `-1`, `-2`, etc.
+- **Maintenance**: Run `python fix_slugs.py` from `backend/` to repair any legacy invalid slugs.

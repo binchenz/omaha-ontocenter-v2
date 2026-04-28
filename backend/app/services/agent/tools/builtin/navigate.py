@@ -21,7 +21,7 @@ from app.services.agent.tools.registry import ToolContext, ToolResult, register_
             },
             "path_filters": {
                 "type": "array",
-                "items": {"type": "object"},
+                "items": {"type": "object", "additionalProperties": True},
                 "description": "Array of filter objects, one per hop (e.g. [{}, {price_min: 1000}])",
             },
             "select": {

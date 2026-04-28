@@ -22,6 +22,16 @@ omaha_ontocenter/
 - **Frontend**: React 18 + TypeScript + Ant Design + Vite
 - **Data**: Tushare Pro API, PostgreSQL, MySQL
 - **Auth**: JWT-based authentication
+- **AI**: DeepSeek / OpenAI / Anthropic (configurable LLM provider)
+
+## Key Features
+
+- **Ontology Management**: YAML-based business object definitions with semantic types
+- **Link Type System**: Palantir Foundry-inspired object relationships (forward/reverse navigation, multi-hop paths)
+- **Per-Object Tools**: Dynamic tool generation (`search_*`, `count_*`, `aggregate_*`) per ontology object
+- **Multi-Datasource**: Cross-datasource queries (PostgreSQL, MySQL, SQLite, Excel, Tushare)
+- **AI Agent**: ReAct loop with DeepSeek thinking mode support
+- **Auto-Slug Generation**: ASCII-safe identifiers (with pinyin transliteration for Chinese names)
 
 ## Active API Surfaces
 
