@@ -1,0 +1,114 @@
+datasources:
+  - id: shop_db
+    type: sqlite
+    connection:
+      url: sqlite:///test_shop.db
+    description: 电商商品订单数据库
+
+  - id: customer_excel
+    type: excel
+    connection:
+      url: file://test_customers.xlsx
+    description: 客户VIP等级数据
+
+ontology:
+  objects:
+    - name: Category
+      slug: category
+      datasource: shop_db
+      source_entity: categories
+      description: 商品类目
+      properties:
+        - name: 类目ID
+          slug: category_id
+          type: string
+        - name: 类目名称
+          slug: name
+          type: string
+        - name: 父类目
+          slug: parent
+          type: link
+          target: Category
+          foreign_key: parent_id
+          target_key: category_id
+
+    - name: Product
+      slug: product
+      datasource: shop_db
+      source_entity: products
+      description: 商品信息
+      properties:
+        - name: 商品ID
+          slug: product_id
+          type: string
+        - name: 商品名称
+          slug: name
+          type: string
+        - name: 价格
+          slug: price
+          type: number
+          semantic_type: currency_cny
+        - name: 库存
+          slug: stock
+          type: integer
+        - name: 类目
+          slug: category
+          type: link
+          target: Category
+          foreign_key: category_id
+          target_key: category_id
+
+    - name: Order
+      slug: order
+      datasource: shop_db
+      source_entity: orders
+      description: 订单信息
+      properties:
+        - name: 订单ID
+          slug: order_id
+          type: string
+        - name: 数量
+          slug: quantity
+          type: integer
+        - name: 金额
+          slug: amount
+          type: number
+          semantic_type: currency_cny
+        - name: 下单时间
+          slug: order_date
+          type: string
+          semantic_type: date
+        - name: 商品
+          slug: product
+          type: link
+          target: Product
+          foreign_key: product_id
+          target_key: product_id
+        - name: 客户
+          slug: customer
+          type: link
+          target: Customer
+          foreign_key: customer_id
+          target_key: customer_id
+
+    - name: Customer
+      slug: customer
+      datasource: customer_excel
+      source_entity: test_customers.xlsx
+      description: 客户VIP信息
+      properties:
+        - name: 客户ID
+          slug: customer_id
+          type: string
+        - name: 姓名
+          slug: name
+          type: string
+        - name: VIP等级
+          slug: vip_level
+          type: string
+        - name: 电话
+          slug: phone
+          type: string
+        - name: 城市
+          slug: city
+          type: string
