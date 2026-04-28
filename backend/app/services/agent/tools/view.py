@@ -196,13 +196,21 @@ class ToolRegistryView:
 
             self._save_objectset(ctx, object_name, obj_slug, filters, selected_columns, limit, data)
 
+            meta = {
+                "object_type": object_name,
+                "object_slug": obj_slug,
+                "row_count": len(data),
+                "filters_applied": filters,
+            }
+
             if mode == "count":
                 return ToolResult(
                     success=True,
                     data={"count": len(data), "data": data[:10]},
+                    meta=meta,
                 )
             else:
-                return ToolResult(success=True, data=result)
+                return ToolResult(success=True, data=result, meta=meta)
 
         except Exception as exc:
             return ToolResult(success=False, error=str(exc))
@@ -279,6 +287,13 @@ class ToolRegistryView:
         return ToolResult(
             success=True,
             data={"groups": output, "metric": metric, "group_by": group_by_slug},
+            meta={
+                "object_type": object_name,
+                "object_slug": obj_slug,
+                "group_by": group_by_slug,
+                "metric": metric,
+                "row_count": len(output),
+            },
         )
 
     async def _execute_refine(self, params: dict, ctx: ToolContext) -> ToolResult:
