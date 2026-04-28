@@ -146,7 +146,7 @@ async def test_executor_max_iterations(skill, registry):
 
     response = await agent.run(runtime, ctx)
 
-    assert "超时" in response.message
+    assert "已达到最大轮次" in response.message
     # provider.send should have been called exactly max_iterations times
     assert provider.send.call_count == 3
 
