@@ -82,7 +82,11 @@ def save_asset(
     ]
 
     db.add_all(lineage_records)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to save asset")
     db.refresh(asset)
 
     return asset
@@ -134,7 +138,11 @@ def delete_asset(
     get_project_for_owner(project_id, current_user, db)
     asset = _get_asset(asset_id, project_id, db)
     db.delete(asset)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete asset")
     return None
 
 

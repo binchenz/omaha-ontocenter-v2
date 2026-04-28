@@ -72,7 +72,11 @@ def add_member(
 
     member = ProjectMember(project_id=project_id, user_id=target.id, role=req.role)
     db.add(member)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to add member")
     db.refresh(member)
     return {"user_id": target.id, "username": target.username, "role": member.role}
 
@@ -99,7 +103,11 @@ def update_member_role(
         raise HTTPException(status_code=404, detail="Member not found")
 
     member.role = req.role
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to update member role")
     return {"user_id": member_user_id, "role": req.role}
 
 
@@ -124,7 +132,11 @@ def remove_member(
         raise HTTPException(status_code=404, detail="Member not found")
 
     db.delete(member)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to remove member")
     return {"removed": True}
 
 

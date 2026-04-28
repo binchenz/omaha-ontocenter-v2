@@ -2,7 +2,7 @@
 Project management endpoints.
 """
 from typing import List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -37,7 +37,11 @@ def create_project(
     db.flush()  # get project.id without committing
     log_action(db, action="project.create", user_id=current_user.id,
                project_id=project.id, resource_type="project", resource_id=str(project.id), commit=False)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to create project")
     db.refresh(project)
 
     return project
@@ -88,7 +92,11 @@ def update_project(
     if "omaha_config" in update_data:
         log_action(db, action="config.save", user_id=current_user.id,
                    project_id=project_id, resource_type="config", resource_id=str(project_id), commit=False)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to update project")
     db.refresh(project)
 
     return project
@@ -103,6 +111,10 @@ def delete_project(
     """Delete a project."""
     project = get_project_for_owner(project_id, current_user, db)
     db.delete(project)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete project")
 
     return None
