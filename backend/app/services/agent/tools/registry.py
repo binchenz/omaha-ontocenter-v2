@@ -31,9 +31,13 @@ class ToolResult:
     success: bool
     data: Optional[dict] = None
     error: Optional[str] = None
+    meta: Optional[dict] = None
 
     def to_dict(self) -> dict:
-        return {"success": self.success, "data": self.data, "error": self.error}
+        d = {"success": self.success, "data": self.data, "error": self.error}
+        if self.meta:
+            d["meta"] = self.meta
+        return d
 
 # ---------------------------------------------------------------------------
 # ToolRegistry
