@@ -774,8 +774,8 @@ async def test_navigate_path_tool(view):
     """Test navigate_path tool execution."""
     omaha_service = Mock()
     omaha_service.query_objects = Mock(side_effect=[
-        {"success": True, "data": [{"id": 10, "name": "手机"}]},
         {"success": True, "data": [{"id": 1, "name": "iPhone", "category_id": 10, "price": 5000}]},
+        {"success": True, "data": [{"id": 10, "name": "手机"}]},
     ])
 
     ontology = {
@@ -820,12 +820,12 @@ async def test_navigate_path_tool(view):
     ctx.config_yaml = "test.yaml"
 
     result = await view.execute("navigate_path", {
-        "start_object": "Category",
-        "start_filters": {"name": "手机"},
+        "start_object": "Product",
+        "start_filters": {"name": "iPhone"},
         "path": ["category"],
-        "path_filters": [{"price_min": 1000}],
+        "path_filters": [{}],
     }, ctx)
 
     assert result.success is True
     assert len(result.data) == 1
-    assert result.data[0]["name"] == "iPhone"
+    assert result.data[0]["name"] == "手机"

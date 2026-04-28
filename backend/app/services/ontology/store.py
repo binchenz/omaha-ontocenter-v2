@@ -28,10 +28,10 @@ class OntologyStore:
                       description: str = None, business_context: str = None,
                       domain: str = None, default_filters: list = None,
                       slug: str = None) -> OntologyObject:
-        if slug is None:
-            base_slug = slugify_name(name)
-            slug = ensure_unique_slug(self.db, base_slug, "ontology_objects", "slug",
-                                      tenant_id=tenant_id)
+        # Always generate slug from name to ensure validity
+        base_slug = slugify_name(name)
+        slug = ensure_unique_slug(self.db, base_slug, "ontology_objects", "slug",
+                                  tenant_id=tenant_id)
         return self._persist(OntologyObject(
             tenant_id=tenant_id, name=name, slug=slug, source_entity=source_entity,
             datasource_id=datasource_id, datasource_type=datasource_type,
@@ -91,10 +91,10 @@ class OntologyStore:
             link_foreign_key = None
             link_target_key = None
 
-        if slug is None:
-            base_slug = slugify_name(name)
-            slug = ensure_unique_slug(self.db, base_slug, "object_properties", "slug",
-                                      object_id=object_id)
+        # Always generate slug from name to ensure validity
+        base_slug = slugify_name(name)
+        slug = ensure_unique_slug(self.db, base_slug, "object_properties", "slug",
+                                  object_id=object_id)
         return self._persist(ObjectProperty(
             object_id=object_id, name=name, slug=slug, data_type=data_type,
             semantic_type=semantic_type, description=description,

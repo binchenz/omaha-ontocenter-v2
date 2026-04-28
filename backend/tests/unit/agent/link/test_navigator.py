@@ -37,9 +37,11 @@ def retail_ontology():
                         "name": "category",
                         "slug": "category",
                         "type": "link",
-                        "link_target": "Category",
-                        "link_foreign_key": "category_id",
-                        "link_target_key": "id",
+                        "link": {
+                            "target": "Category",
+                            "foreign_key": "category_id",
+                            "target_key": "id",
+                        }
                     },
                 ],
             },
@@ -56,9 +58,11 @@ def retail_ontology():
                         "name": "sku",
                         "slug": "sku",
                         "type": "link",
-                        "link_target": "SKU",
-                        "link_foreign_key": "sku_id",
-                        "link_target_key": "id",
+                        "link": {
+                            "target": "SKU",
+                            "foreign_key": "sku_id",
+                            "target_key": "id",
+                        }
                     },
                 ],
             },
@@ -76,45 +80,45 @@ def mock_ctx():
 
 def test_navigate_single_hop(retail_ontology, mock_ctx):
     params = {
-        "start_object": "Category",
-        "start_filters": {"id": "cat1"},
+        "start_object": "SKU",
+        "start_filters": {"id": "sku1"},
         "path": ["category"],
         "fields": ["id", "name"],
     }
 
     mock_ctx.omaha_service.query_objects.side_effect = [
-        {"success": True, "data": [{"id": "cat1", "name": "Electronics"}]},
         {"success": True, "data": [{"id": "sku1", "name": "Phone", "category_id": "cat1"}]},
+        {"success": True, "data": [{"id": "cat1", "name": "Electronics"}]},
     ]
 
     result = PathNavigator.navigate(params, retail_ontology, mock_ctx)
 
     assert result["success"] is True
     assert len(result["data"]) == 1
-    assert result["data"][0]["id"] == "sku1"
-    assert result["data"][0]["name"] == "Phone"
+    assert result["data"][0]["id"] == "cat1"
+    assert result["data"][0]["name"] == "Electronics"
     assert mock_ctx.omaha_service.query_objects.call_count == 2
 
 
 def test_navigate_multi_hop(retail_ontology, mock_ctx):
     params = {
-        "start_object": "Category",
-        "start_filters": {"id": "cat1"},
-        "path": ["category", "sku"],
-        "fields": ["id", "content"],
+        "start_object": "Review",
+        "start_filters": {"id": "rev1"},
+        "path": ["sku", "category"],
+        "fields": ["id", "name"],
     }
 
     mock_ctx.omaha_service.query_objects.side_effect = [
-        {"success": True, "data": [{"id": "cat1", "name": "Electronics"}]},
-        {"success": True, "data": [{"id": "sku1", "name": "Phone", "category_id": "cat1"}]},
         {"success": True, "data": [{"id": "rev1", "content": "Great!", "sku_id": "sku1"}]},
+        {"success": True, "data": [{"id": "sku1", "name": "Phone", "category_id": "cat1"}]},
+        {"success": True, "data": [{"id": "cat1", "name": "Electronics"}]},
     ]
 
     result = PathNavigator.navigate(params, retail_ontology, mock_ctx)
 
     assert result["success"] is True
     assert len(result["data"]) == 1
-    assert result["data"][0]["id"] == "rev1"
-    assert result["data"][0]["content"] == "Great!"
+    assert result["data"][0]["id"] == "cat1"
+    assert result["data"][0]["name"] == "Electronics"
     assert mock_ctx.omaha_service.query_objects.call_count == 3
 

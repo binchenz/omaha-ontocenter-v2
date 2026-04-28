@@ -34,7 +34,6 @@ class LinkExpander:
     @staticmethod
     def _fetch_target_object(link_def: LinkDefinition, fk_value: Any, ctx: Any) -> Optional[dict[str, Any]]:
         result = ctx.omaha_service.query_objects(
-            config_yaml=ctx.config_yaml,
             object_type=link_def.target_object,
             filters=[{"field": link_def.target_key, "operator": "=", "value": fk_value}],
             limit=1,

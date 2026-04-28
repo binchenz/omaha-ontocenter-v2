@@ -176,16 +176,17 @@ class TestOntologyStoreSlugPersistence:
         assert obj.slug == "customer-order"
 
     def test_create_object_with_explicit_slug(self, db_session, tenant):
+        """Explicit slug parameter is ignored - always generated from name for safety."""
         store = OntologyStore(db_session)
         obj = store.create_object(
             tenant_id=tenant.id,
             name="Customer Order",
-            slug="custom-slug",
+            slug="custom-slug",  # This will be ignored
             source_entity="t_order",
             datasource_id="mysql",
             datasource_type="sql",
         )
-        assert obj.slug == "custom-slug"
+        assert obj.slug == "customer-order"  # Generated from name
 
     def test_create_object_slug_uniqueness(self, db_session, tenant):
         store = OntologyStore(db_session)

@@ -50,28 +50,24 @@ class PathNavigator:
         ontology: dict,
         ctx: Any,
     ):
-        for obj in ontology.get("objects", []):
-            link_prop = next((p for p in obj.get("properties", [])
-                            if p["slug"] == link_field and p.get("type") == "link"
-                            and p.get("link_target") == source_object), None)
-            if link_prop:
-                target_ids = [row["id"] for row in rows if "id" in row]
-                if not target_ids:
-                    return None, []
+        link_def = LinkResolver.resolve_link(source_object, link_field, ontology)
+        if not link_def:
+            return None, []
 
-                foreign_key = link_prop.get("link_foreign_key")
-                filters = {foreign_key: target_ids}
-                filters.update(hop_filters)
+        target_ids = [row[link_def.target_key] for row in rows if link_def.target_key in row]
+        if not target_ids:
+            return None, []
 
-                result = ctx.omaha_service.query_objects(
-                    config_yaml=ctx.config_yaml,
-                    object_name=obj["name"],
-                    filters=filters,
-                )
-                data = result.get("data", []) if result.get("success") else []
-                return obj["name"], data
+        filters = {link_def.foreign_key: target_ids}
+        filters.update(hop_filters)
 
-        return None, []
+        result = ctx.omaha_service.query_objects(
+            config_yaml=ctx.config_yaml,
+            object_name=link_def.target_object,
+            filters=filters,
+        )
+        data = result.get("data", []) if result.get("success") else []
+        return link_def.target_object, data
 
     @staticmethod
     def _select_fields(rows: List[Dict[str, Any]], fields: List[str]) -> List[Dict[str, Any]]:
