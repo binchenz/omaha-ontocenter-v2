@@ -285,10 +285,42 @@ ontology:
 # ─── MCP Server Protocol ──────────────────────────────────────────────────────
 
 class TestMcpServerProtocol:
-    """Test MCP server via subprocess (official SDK version)."""
+    """Test MCP server via subprocess (official SDK version).
+
+    NOTE: These tests require a valid API key seeded in the production omaha.db
+    (REAL_API_KEY below) AND that the MCP server subprocess can find it.
+    They are skipped by default because the hardcoded key is environment-specific
+    and the subprocess uses the actual omaha.db, not the test DB. To run locally:
+      1. Generate an API key via the UI/API
+      2. Update REAL_API_KEY below
+      3. Remove the @pytest.mark.skip decorator on each test
+    """
 
     # Real API key in omaha.db (created during Claude Desktop config setup)
     REAL_API_KEY = "omaha_7_d65f7f9de67e5ef64340ec39b7466a1e"
+
+    @pytest.fixture(autouse=True)
+    def _skip_if_key_unavailable(self):
+        """Skip if the hardcoded REAL_API_KEY is not present in omaha.db."""
+        import sqlite3, hashlib, os
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'omaha.db')
+        if not os.path.exists(db_path):
+            pytest.skip("omaha.db not found; MCP integration tests require seeded key")
+        key_hash = hashlib.sha256(self.REAL_API_KEY.encode()).hexdigest()
+        try:
+            conn = sqlite3.connect(db_path)
+            row = conn.execute(
+                "SELECT 1 FROM project_api_keys WHERE key_hash = ? LIMIT 1",
+                (key_hash,)
+            ).fetchone()
+            conn.close()
+        except sqlite3.OperationalError:
+            pytest.skip("project_api_keys table missing; MCP integration tests skipped")
+        if not row:
+            pytest.skip(
+                "REAL_API_KEY not seeded in omaha.db; MCP integration tests skipped. "
+                "To enable: generate a key via the API and update REAL_API_KEY constant."
+            )
 
     def _run_mcp(self, messages: list) -> list:
         """Send messages to MCP server and collect responses."""
