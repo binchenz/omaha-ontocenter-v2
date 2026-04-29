@@ -65,7 +65,12 @@ class ChatServiceV2:
         self.db = db
         self.tenant_id: int = project.tenant_id or project.owner_id
 
-    async def send_message(self, session_id: int, user_message: str) -> dict[str, Any]:
+    async def send_message(
+        self,
+        session_id: int,
+        user_message: str,
+        uploaded_tables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         # 1. Resolve skill
         setup_stage: str = getattr(self.project, "setup_stage", None) or "idle"
         loader = SkillLoader()
@@ -111,6 +116,7 @@ class ChatServiceV2:
             project_id=self.project.id,
             session_id=session_id,
             ontology_context=ontology_context,
+            uploaded_tables=uploaded_tables or {},
             session_store=session_store,
         )
 
