@@ -162,7 +162,7 @@ async def test_view_executes_derived_with_omaha(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
 
     # Execute search_product with filters
@@ -227,7 +227,7 @@ async def test_view_count_tool_returns_count_and_sample(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
 
     result = await view.execute("count_product", {}, ctx)
@@ -258,7 +258,7 @@ async def test_view_executes_aggregate_count_per_group(view):
             ],
         }]
     }
-    ctx = ToolContext(db=None, omaha_service=omaha_service, ontology_context={"ontology": ontology})
+    ctx = ToolContext(db=None, omaha_service=omaha_service, ontology_context=ontology)
     result = await view.execute("aggregate_product", {"group_by": "city", "metric": "count"}, ctx)
     assert result.success is True
     assert result.data["group_by"] == "city"
@@ -287,7 +287,7 @@ async def test_view_executes_aggregate_avg_for_numeric(view):
             ],
         }]
     }
-    ctx = ToolContext(db=None, omaha_service=omaha_service, ontology_context={"ontology": ontology})
+    ctx = ToolContext(db=None, omaha_service=omaha_service, ontology_context=ontology)
     result = await view.execute("aggregate_product", {"group_by": "city", "metric": "price_avg"}, ctx)
     assert result.success is True
     groups = {row["group_by_value"]: row["metric_value"] for row in result.data["groups"]}
@@ -304,7 +304,7 @@ async def test_view_derived_tool_unknown_object_slug(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
 
     result = await view.execute("search_product", {}, ctx)
@@ -344,7 +344,7 @@ async def test_view_derived_tool_omaha_error_propagates(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
 
     result = await view.execute("search_product", {}, ctx)
@@ -376,7 +376,7 @@ async def test_view_build_filters_exact_match(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
 
     await view.execute("search_product", {"name": "iPhone"}, ctx)
@@ -410,7 +410,7 @@ async def test_view_build_filters_skips_none_values(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
 
     await view.execute("search_product", {"name": "iPhone", "price": None}, ctx)
@@ -440,7 +440,7 @@ async def test_view_build_filters_skips_unknown_slugs(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
 
     await view.execute("search_product", {"name": "iPhone", "unknown_slug": "value"}, ctx)
@@ -477,7 +477,7 @@ async def test_view_records_last_objectset_after_search(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
         session_id=session_id,
         session_store=session_store,
     )
@@ -531,7 +531,7 @@ async def test_view_refine_objectset_merges_filters(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
         session_id=session_id,
         session_store=session_store,
     )
@@ -606,7 +606,7 @@ async def test_view_refine_updates_session_store(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
         session_id=session_id,
         session_store=session_store,
     )
@@ -683,7 +683,7 @@ async def test_search_tool_expands_links(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
     ctx.config_yaml = "test.yaml"
 
@@ -747,7 +747,7 @@ async def test_execute_reverse_nav(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
     ctx.config_yaml = "test.yaml"
 
@@ -815,7 +815,7 @@ async def test_navigate_path_tool(view):
     ctx = ToolContext(
         db=None,
         omaha_service=omaha_service,
-        ontology_context={"ontology": ontology},
+        ontology_context=ontology,
     )
     ctx.config_yaml = "test.yaml"
 

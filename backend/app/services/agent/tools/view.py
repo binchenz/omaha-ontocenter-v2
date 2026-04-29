@@ -147,8 +147,7 @@ class ToolRegistryView:
                     success=False, error=f"Invalid derived tool name: {name}"
                 )
 
-            ontology = ctx.ontology_context.get("ontology", {})
-            objects = ontology.get("objects", [])
+            objects = ctx.ontology_context.get("objects", [])
             obj_def = next(
                 (obj for obj in objects if obj.get("slug") == obj_slug), None
             )
@@ -190,8 +189,7 @@ class ToolRegistryView:
 
             data = result.get("data", [])
             if data:
-                ontology = ctx.ontology_context.get("ontology", {})
-                self.link_expander.expand_links(data, object_name, ontology, ctx)
+                self.link_expander.expand_links(data, object_name, ctx.ontology_context, ctx)
                 result["data"] = data
 
             self._save_objectset(ctx, object_name, obj_slug, filters, selected_columns, limit, data)
@@ -309,9 +307,8 @@ class ToolRegistryView:
             )
 
         obj_slug = last["obj_slug"]
-        ontology = ctx.ontology_context.get("ontology", {})
         obj_def = next(
-            (o for o in ontology.get("objects", []) if o.get("slug") == obj_slug), None
+            (o for o in ctx.ontology_context.get("objects", []) if o.get("slug") == obj_slug), None
         )
         if not obj_def:
             return ToolResult(success=False, error=f"Object '{obj_slug}' no longer in ontology")
@@ -349,8 +346,7 @@ class ToolRegistryView:
 
             source_slug = source_slug_plural[:-1]
 
-            ontology = ctx.ontology_context.get("ontology", {})
-            objects = ontology.get("objects", [])
+            objects = ctx.ontology_context.get("objects", [])
 
             source_obj = next((o for o in objects if o.get("slug") == source_slug), None)
             if not source_obj:
@@ -398,7 +394,7 @@ class ToolRegistryView:
 
             data = result.get("data", [])
             if data:
-                self.link_expander.expand_links(data, source_obj.get("name"), ontology, ctx)
+                self.link_expander.expand_links(data, source_obj.get("name"), ctx.ontology_context, ctx)
                 result["data"] = data
 
             return ToolResult(success=True, data=result)
@@ -410,8 +406,7 @@ class ToolRegistryView:
         """Execute navigate_path tool for multi-hop navigation."""
         from app.services.agent.link.navigator import PathNavigator
         try:
-            ontology = ctx.ontology_context.get("ontology", {})
-            result = PathNavigator.navigate(params, ontology, ctx)
+            result = PathNavigator.navigate(params, ctx.ontology_context, ctx)
             return ToolResult(success=result.get("success", False), data=result.get("data"))
         except Exception as exc:
             return ToolResult(success=False, error=str(exc))
