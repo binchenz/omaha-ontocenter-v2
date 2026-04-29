@@ -88,37 +88,25 @@ def test_full_e2e_flow(client):
     })
     assert response.status_code == 200
 
-    # Step 3: Query agent
-    response = client.post("/api/v1/agent/query", json={"message": "Show me the schema of Order"})
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["tool_calls"]) == 1
-    assert data["tool_calls"][0]["tool"] == "get_ontology_schema"
-
-    # Step 4: Get context
-    response = client.get("/api/v1/agent/context")
-    assert response.status_code == 200
-    assert "Order" in response.json()["context"]
-
-    # Step 5: List objects
+    # Step 3: List objects
     response = client.get("/api/v1/ontology/objects")
     assert response.status_code == 200
     objects = response.json()
     assert len(objects) == 1
     assert objects[0]["name"] == "Order"
 
-    # Step 6: Get object detail
+    # Step 4: Get object detail
     response = client.get("/api/v1/ontology/objects/Order")
     assert response.status_code == 200
     obj = response.json()
     assert obj["domain"] == "retail"
     assert any(p["name"] == "total_amount" for p in obj["properties"])
 
-    # Step 7: Delete object
+    # Step 5: Delete object
     response = client.delete("/api/v1/ontology/objects/Order")
     assert response.status_code == 200
     assert response.json()["deleted"] is True
 
-    # Step 8: Confirm deletion
+    # Step 6: Confirm deletion
     response = client.get("/api/v1/ontology/objects/Order")
     assert response.status_code == 404

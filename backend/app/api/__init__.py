@@ -5,7 +5,7 @@ from fastapi import APIRouter
 
 from app.api.auth import login, api_keys
 from app.api.projects import crud as projects_crud, members, assets, audit
-from app.api.chat import chat, agent
+from app.api.chat import chat
 from app.api.ontology import store as ontology_store, legacy as ontology_legacy, semantic
 from app.api.pipelines import crud as pipelines_crud
 from app.api.legacy.financial import query, datasources, datahub, watchlist
@@ -26,5 +26,4 @@ api_router.include_router(datasources.router, tags=["datasources"])
 api_router.include_router(members.router, tags=["members"])
 api_router.include_router(audit.router, tags=["audit"])
 api_router.include_router(pipelines_crud.router, tags=["pipelines"])
-api_router.include_router(agent.router, prefix="/agent", tags=["agent"])
 api_router.include_router(ontology_store.router, prefix="/ontology-store", tags=["ontology-store"])
