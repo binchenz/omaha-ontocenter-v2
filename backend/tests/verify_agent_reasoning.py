@@ -6,13 +6,11 @@ Usage:
     cd backend && .venv/bin/python tests/verify_agent_reasoning.py
 """
 import asyncio
-import json
 import os
 import sqlite3
 import sys
 import tempfile
 from datetime import datetime
-from unittest.mock import MagicMock
 
 # Setup path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
@@ -166,7 +164,7 @@ ontology:
 # ─── 3. Build ontology context (mimics OntologyStore.get_full_ontology) ──────
 
 def build_ontology_context() -> dict:
-    inner = {
+    return {
         "objects": [
             {
                 "name": "订单",
@@ -212,9 +210,6 @@ def build_ontology_context() -> dict:
         ],
         "relationships": [],
     }
-    # view.py expects ctx.ontology_context["ontology"]["objects"] — wrap accordingly.
-    # factory.build() reads top-level "objects" — so include both forms.
-    return {"objects": inner["objects"], "relationships": inner["relationships"], "ontology": inner}
 
 
 # ─── 4. Run agent queries ────────────────────────────────────────────────────
@@ -266,23 +261,25 @@ async def run_query(provider, skill, ontology_context, omaha_service, query: str
 
 
 async def main():
-    # Setup
-    tmp = tempfile.mkdtemp()
-    db_path = os.path.join(tmp, "retail_test.db")
-    create_mock_db(db_path)
-    config_yaml = build_yaml_config(db_path)
-    ontology_context = build_ontology_context()
+    with tempfile.TemporaryDirectory() as tmp:
+        db_path = os.path.join(tmp, "retail_test.db")
+        create_mock_db(db_path)
+        config_yaml = build_yaml_config(db_path)
+        ontology_context = build_ontology_context()
 
-    # Build services
-    from app.services.legacy.financial.omaha import OmahaService
-    from app.services.agent.chat_service import ProviderFactory
-    from app.services.agent.skills.loader import SkillLoader
+        from app.services.legacy.financial.omaha import OmahaService
+        from app.services.agent.chat_service import ProviderFactory
+        from app.services.agent.skills.loader import SkillLoader
 
-    omaha_service = OmahaService(config_yaml)
-    provider = ProviderFactory.create()
-    loader = SkillLoader()
-    skill = loader.load("data_query")
+        omaha_service = OmahaService(config_yaml)
+        provider = ProviderFactory.create()
+        loader = SkillLoader()
+        skill = loader.load("data_query")
 
+        await _run_test_cases(provider, skill, ontology_context, omaha_service, db_path)
+
+
+async def _run_test_cases(provider, skill, ontology_context, omaha_service, db_path):
     print("=" * 80)
     print("  Agent Reasoning Verification")
     print(f"  Provider: {provider.__class__.__name__}")
@@ -308,7 +305,8 @@ async def main():
             "name": "Case 3: 追问对比 — 应该用 think",
             "query": "跟2月比，华东地区高客单（>1万）订单数量变化如何？",
             "expect_think": True,
-            "history": [],
+            # No "history" key — falls back to accumulated conversation_history
+            # so the LLM can interpret "跟2月比" against Case 2's context.
         },
         {
             "name": "Case 4: 聚合查询 — aggregate 优先",
@@ -372,10 +370,6 @@ async def main():
         print(f"     Tools: {' → '.join(tools)}")
         print(f"     Answer preview: {r['answer'][:80]}...")
     print()
-
-    # Clean up
-    os.unlink(db_path)
-    os.rmdir(tmp)
 
 
 if __name__ == "__main__":

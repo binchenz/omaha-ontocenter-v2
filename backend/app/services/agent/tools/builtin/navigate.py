@@ -37,9 +37,6 @@ from app.services.agent.tools.registry import ToolContext, ToolResult, register_
 async def navigate_path(params: dict, ctx: ToolContext) -> ToolResult:
     from app.services.agent.link.navigator import PathNavigator
 
-    ontology = ctx.ontology_context
-
-    # Convert path_filters to list if needed
     path_filters = params.get("path_filters", [])
     if isinstance(path_filters, dict):
         path_filters = []
@@ -52,5 +49,5 @@ async def navigate_path(params: dict, ctx: ToolContext) -> ToolResult:
         "fields": params.get("select", []),
     }
 
-    result = PathNavigator.navigate(nav_params, ontology, ctx)
+    result = PathNavigator.navigate(nav_params, ctx.ontology_context, ctx)
     return ToolResult(success=result.get("success", False), data=result.get("data"))

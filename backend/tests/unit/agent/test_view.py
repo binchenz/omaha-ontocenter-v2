@@ -561,7 +561,7 @@ async def test_view_refine_without_prior_returns_error(view):
     ctx = ToolContext(
         db=None,
         omaha_service=Mock(),
-        ontology_context={"ontology": {"objects": []}},
+        ontology_context={"objects": []},
         session_id=session_id,
         session_store=session_store,
     )

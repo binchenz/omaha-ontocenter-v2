@@ -1,18 +1,23 @@
-"""Regression test for ontology_context structure bug.
-
-The bug: view.py and navigate.py used `ctx.ontology_context.get("ontology", {})`
-which always returned {} because OntologyStore.get_full_ontology() returns
-a flat structure with "objects" at the top level, not nested under "ontology".
-
-This made all derived tools (search_*/count_*/aggregate_*) fail with
-"Object with slug 'X' not found" in production.
+"""Derived tools must resolve objects via the flat ontology_context shape
+({"objects": [...], "relationships": [...]}) returned by
+OntologyStore.get_full_ontology().
 """
 import asyncio
 from unittest.mock import MagicMock
 
-from app.services.agent.tools.registry import ToolContext
+from app.services.agent.providers.base import ToolSpec
+from app.services.agent.tools.registry import ToolContext, ToolRegistry
 from app.services.agent.tools.view import ToolRegistryView
-from app.services.agent.tools.registry import ToolRegistry
+
+
+_DERIVED_SPECS = [
+    ToolSpec(name="search_order", description="Search orders", parameters={}),
+    ToolSpec(name="count_order", description="Count orders", parameters={}),
+]
+
+
+def _make_view():
+    return ToolRegistryView(builtin=ToolRegistry(), derived=_DERIVED_SPECS)
 
 
 def _make_ctx(omaha_query_result):
@@ -48,9 +53,8 @@ def _make_ctx(omaha_query_result):
 def test_search_resolves_object_with_flat_ontology_context():
     """search_<slug> must find the object using the flat shape from OntologyStore."""
     ctx = _make_ctx({"success": True, "data": [{"id": "O1", "amount": 100}]})
-    view = ToolRegistryView(builtin=ToolRegistry(), derived=[])
 
-    result = asyncio.run(view._execute_derived("search_order", {}, ctx))
+    result = asyncio.run(_make_view().execute("search_order", {}, ctx))
 
     assert result.success is True, f"Expected success, got error: {result.error}"
     assert result.meta is not None
@@ -59,10 +63,10 @@ def test_search_resolves_object_with_flat_ontology_context():
 
 
 def test_count_resolves_object_with_flat_ontology_context():
+    """count_<slug> must find the object using the flat shape from OntologyStore."""
     ctx = _make_ctx({"success": True, "data": [{"id": "O1"}, {"id": "O2"}]})
-    view = ToolRegistryView(builtin=ToolRegistry(), derived=[])
 
-    result = asyncio.run(view._execute_derived("count_order", {}, ctx))
+    result = asyncio.run(_make_view().execute("count_order", {}, ctx))
 
     assert result.success is True, f"Expected success, got error: {result.error}"
     assert result.data["count"] == 2
