@@ -121,13 +121,32 @@ The `SemanticQueryBuilder` is generic — it builds queries with semantic type a
 - `configs/templates/retail.yaml` — stays as industry template for modeling
 - Move from `configs/templates/` to `app/services/ontology/templates/` for co-location
 
-## Open Questions
+## Naming Decisions (Confirmed)
 
-### Should `OmahaService` be renamed to `QueryEngine`?
-**Recommendation: Yes.** "Omaha" is the project name, not a description of what the class does. `QueryEngine` is clearer for a generic platform. But this affects ~20 import sites — decide before executing.
+### `OmahaService` → `QueryEngine`
+The class name will change as part of the move from `legacy/financial/omaha.py` to `query/engine.py`. "Omaha" is the project name, not a description of the class's responsibility. `QueryEngine` is the right name for a generic platform's query primitive. This rename affects ~20 import sites; doing it now (alongside the path move) keeps the cost low.
 
-### Should `frontend/src/pages/legacy/` be renamed?
-**Recommendation: Yes, to `pages/shared/`.** The 6 remaining files (DatasourceManager, OntologyEditor, MembersManager, AuditLogViewer, PipelineManager, ObjectExplorer) are reusable business components consumed by v2 pages. "legacy" is a misnomer. Rename to `shared/` and update the 10 import paths.
+### `frontend/src/pages/legacy/` → `frontend/src/pages/shared/`
+After deleting the 2 financial-specific files (`Explorer.tsx`, `QueryHistory.tsx`), the remaining 6 files (DatasourceManager, OntologyEditor, MembersManager, AuditLogViewer, PipelineManager, ObjectExplorer) are reusable business components imported by v2 pages — they are not legacy. Rename the directory and update the 10 import paths.
+
+## Known Deferred Architecture Debt
+
+This spec deliberately scopes itself to **mechanical deletion and renaming**. It does not solve three deeper architectural problems that we are aware of:
+
+### 1. `engine.py` is a 5-responsibility class
+After removing the financial methods, the retained `QueryEngine` (~400 lines) still mixes: YAML parsing, ontology building, query construction, connector dispatch, result formatting. Some of these responsibilities already have homes elsewhere (`services/ontology/`, `services/semantic/formatter.py`) and the engine should delegate rather than reimplement.
+
+**Why deferred:** Decomposing it now would balloon this spec's scope from 1–2 days to 1–2 weeks. Better to land the rename + delete first, then tackle engine decomposition as its own focused spec.
+
+### 2. Frontend v2 pages are 1-line wrappers
+`pages/apps/DatasourcePage.tsx`, `pages/apps/PipelinesPage.tsx`, `pages/settings/SettingsPage.tsx`, etc. each consist of a single `import` line and a single render. The v2 page restructure left the actual implementation in the (renamed) `shared/` directory. Renaming `legacy/` → `shared/` makes the naming honest, but does not eliminate the wrapper-page indirection.
+
+**Why deferred:** Eliminating wrappers requires deciding the v2 page model: do pages own their content, or are they just route mountpoints? That is a frontend architecture question separate from removing the financial vertical.
+
+### 3. No verticals extension point
+If retail, manufacturing, or SaaS-connector verticals (用友/钉钉/有赞) are added in the future, there is no clear "vertical insertion point" in the architecture. They could end up replicating the `legacy/financial/` pattern.
+
+**Why deferred:** Designing a verticals extension point is YAGNI today — there is no concrete second vertical to validate the design against. Defer until the first new vertical actually appears.
 
 ## Execution Order
 
@@ -139,11 +158,11 @@ Phase 1 (backend deletions — no frontend changes):
 5. Delete `tushare_connector.py` + deregister
 6. Delete financial config YAML + `_paths.py` cleanup
 7. Clean `omaha.py` — remove Tushare/financial methods
-8. Move cleaned `omaha.py` → `app/services/query/engine.py`
+8. Move cleaned `omaha.py` → `app/services/query/engine.py`, rename class `OmahaService` → `QueryEngine`
 9. Move `query_builder.py` → `app/services/query/builder.py`
 10. Delete MCP `screen_stocks` + DataHub integration
 11. Clean `app/config.py`, `.env.example`, health check
-12. Update all imports (~70 files)
+12. Update all imports (~70 files), including `OmahaService` → `QueryEngine` rename (~20 sites)
 13. Run full test suite
 
 Phase 2 (frontend + naming):
@@ -151,9 +170,10 @@ Phase 2 (frontend + naming):
 15. Rename `pages/legacy/` → `pages/shared/`, update imports
 16. Frontend tsc + build verification
 
-Phase 3 (optional — future):
-17. Rename `OmahaService` → `QueryEngine` (if decided)
-18. Further decompose the 711-line engine into smaller focused modules
+Deferred (separate spec when needed):
+- Decompose `engine.py` into single-responsibility modules
+- Eliminate frontend wrapper-page pattern
+- Verticals extension point
 
 ## Success Criteria
 
@@ -162,9 +182,10 @@ Phase 3 (optional — future):
 - `grep -rn "CachedStock\|CachedFinancial\|cached_stock" backend/app/` returns 0 hits
 - `grep -rn "screen_stocks" backend/app/` returns 0 hits
 - `grep -rn "datahub\|DataHub\|DATAHUB" backend/app/` returns 0 hits
-- No file path contains `legacy/financial`
+- `grep -rn "OmahaService" backend/app/` returns 0 hits
+- No file path contains `legacy/financial` or `pages/legacy`
 - Backend test suite passes
 - Frontend tsc + build passes
-- `app/services/query/engine.py` exists and is importable
+- `app/services/query/engine.py::QueryEngine` exists and is importable
 - `app/services/query/builder.py` exists and is importable
 - All scenario scripts (`verify_modeling_scenario.py`, `verify_complex_scenario.py`) still pass
