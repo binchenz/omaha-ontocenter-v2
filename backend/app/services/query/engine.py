@@ -1,5 +1,9 @@
 """
-Omaha Core integration service - Simplified for Phase 1.
+QueryEngine — generic ontology query service.
+
+Formerly OmahaService in services/legacy/financial/omaha.py.
+Tushare-specific methods have been removed; the engine now routes
+exclusively through the connector registry.
 """
 from typing import Dict, Any, List, Optional, Tuple
 import operator as op
@@ -9,11 +13,10 @@ import sqlite3
 
 import pymysql
 import pandas as pd
-import tushare as ts
 import yaml
 
 from app.services.semantic.service import semantic_service
-from app.services.legacy.financial.query_builder import SemanticQueryBuilder
+from app.services.query.builder import SemanticQueryBuilder
 from app.services.semantic.computed_property import ComputedPropertyEngine
 from app.services.semantic.formatter import SemanticTypeFormatter
 
@@ -37,8 +40,12 @@ def _find_by_id(items: List[Dict[str, Any]], item_id: str) -> Optional[Dict[str,
     return next((item for item in items if item.get("id") == item_id), None)
 
 
-class OmahaService:
-    """Service for integrating with Omaha Core."""
+class QueryEngine:
+    """Generic ontology query engine.
+
+    Replaces the legacy OmahaService; compatible alias ``OmahaService`` is
+    provided below for backwards compatibility during migration.
+    """
 
     def __init__(self, config_yaml: str = None):
         self.config_yaml = config_yaml
@@ -266,7 +273,7 @@ class OmahaService:
         joins: Optional[List[Dict[str, Any]]] = None,
         limit: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Query objects using Omaha Core."""
+        """Query objects using the connector registry."""
         if object_type is None and config_yaml is not None and self.config_yaml is not None:
             # Single positional argument is object_type
             object_type = config_yaml
@@ -286,16 +293,7 @@ class OmahaService:
             if not ds_config:
                 return {"success": False, "error": f"Datasource '{datasource_id}' not found"}
 
-            ds_type = ds_config.get("type", "")
-
-            # Route by datasource type
-            if ds_type == "tushare":
-                source_entity = obj_def.get("source_entity") or obj_def.get("api_name", "")
-                if source_entity == "computed_technical":
-                    return self._compute_technical_indicators(ds_config, obj_def, filters, selected_columns, limit)
-                return self._query_tushare(ds_config, obj_def, selected_columns, filters, limit)
-            else:
-                return self._query_connector(obj_def, ds_config, selected_columns, filters, limit)
+            return self._query_connector(obj_def, ds_config, selected_columns, filters, limit)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -351,14 +349,9 @@ class OmahaService:
         limit: int,
         db_type: str,
     ) -> Tuple[str, List[Any]]:
-        """Build query from custom SQL query definition.
-
-        For objects that use 'query' field instead of 'table'.
-        Wraps the custom query as a subquery and applies filters/limits.
-        """
+        """Build query from custom SQL query definition."""
         params: List[Any] = []
 
-        # Wrap custom query as subquery
         if selected_columns:
             columns_str = ", ".join(selected_columns)
         else:
@@ -366,13 +359,11 @@ class OmahaService:
 
         query = f"SELECT {columns_str} FROM ({custom_query.strip()}) AS {object_type}"
 
-        # Apply filters if provided
         if filters:
             where_clause, params = self._build_where_clause(filters, db_type)
             if where_clause:
                 query += f" WHERE {where_clause}"
 
-        # Apply limit
         if limit is not None:
             query += f" LIMIT {limit}"
 
@@ -438,117 +429,6 @@ class OmahaService:
             charset="utf8mb4",
         )
 
-    def _query_tushare(
-        self,
-        ds_config: Dict[str, Any],
-        obj_def: Dict[str, Any],
-        selected_columns: Optional[List[str]],
-        filters: Optional[List[Dict[str, Any]]],
-        limit: int,
-    ) -> Dict[str, Any]:
-        """Query Tushare Pro API."""
-        try:
-            # Get token from datasource config
-            token = ds_config.get("connection", {}).get("token")
-            if not token:
-                return {"success": False, "error": "Tushare token not found in datasource config"}
-
-            # Initialize Tushare Pro API
-            pro = ts.pro_api(token)
-
-            # Get API name and params from object definition
-            api_name = obj_def.get("source_entity") or obj_def.get("api_name")
-            if not api_name:
-                return {"success": False, "error": "Object must have 'source_entity' or 'api_name' field for Tushare datasource"}
-
-            # Define supported API parameters for each API
-            # These are parameters that Tushare API accepts directly
-            supported_params = {
-                "stock_basic": ["ts_code", "name", "exchange", "market", "list_status", "is_hs"],
-                "daily": ["ts_code", "trade_date", "start_date", "end_date"],
-                "daily_basic": ["ts_code", "trade_date", "start_date", "end_date"],
-                "fina_indicator": ["ts_code", "ann_date", "start_date", "end_date", "period"],
-                "income": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
-                "balancesheet": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
-                "cashflow": ["ts_code", "ann_date", "start_date", "end_date", "period", "report_type", "comp_type"],
-                "concept": ["src"],
-                "concept_detail": ["id", "ts_code"],
-            }
-
-            api_supported = supported_params.get(api_name, [])
-
-            # Combine default_filters and user filters, then split into
-            # API-side params vs client-side filters
-            all_filters = list(obj_def.get("default_filters", []))
-            all_filters.extend(filters or [])
-
-            api_params = {}
-            client_filters = []
-            for f in all_filters:
-                field = f.get("field")
-                value = f.get("value")
-                if not (field and value):
-                    continue
-                if field in api_supported:
-                    api_params[field] = value
-                else:
-                    client_filters.append({
-                        "field": field,
-                        "value": value,
-                        "operator": f.get("operator", "="),
-                    })
-
-            # Request more data if we need to filter client-side
-            if limit is not None:
-                api_params["limit"] = limit * 10 if client_filters else limit
-
-            # Call Tushare API
-            df = getattr(pro, api_name)(**api_params)
-
-            # Convert DataFrame to list of dicts
-            if df is None or df.empty:
-                return {"success": True, "data": [], "count": 0}
-
-            # Apply client-side filters
-            for f in client_filters:
-                field = f["field"]
-                value = f["value"]
-                operator = f.get("operator", "=")
-
-                if field not in df.columns:
-                    continue
-
-                if operator == "in":
-                    df = df[df[field].isin(value if isinstance(value, list) else [value])]
-                elif operator in _DF_OPS:
-                    df = df[_DF_OPS[operator](df[field], value)]
-
-            # Apply limit after client-side filtering
-            if limit is not None and len(df) > limit:
-                df = df.head(limit)
-
-            # Apply computed properties if defined
-            computed_props = obj_def.get('computed_properties', [])
-            if computed_props and not df.empty:
-                try:
-                    engine = ComputedPropertyEngine()
-                    df = engine.compute_properties(df, computed_props)
-                except Exception as e:
-                    return {"success": False, "error": f"Computed property error: {str(e)}"}
-
-            # Filter columns if specified
-            if selected_columns:
-                available_cols = [col for col in selected_columns if col in df.columns]
-                if available_cols:
-                    df = df[available_cols]
-
-            # Apply semantic type formatting
-            data = self._format_data_with_semantic_types(df, obj_def)
-            return {"success": True, "data": data, "count": len(data)}
-
-        except Exception as e:
-            return {"success": False, "error": f"Tushare query failed: {str(e)}"}
-
     def _format_data_with_semantic_types(
         self, df: pd.DataFrame, obj_def: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
@@ -556,7 +436,6 @@ class OmahaService:
         if df.empty:
             return []
 
-        # Build semantic type map from both regular and computed properties
         all_props = obj_def.get('properties', []) + obj_def.get('computed_properties', [])
         semantic_type_map = {
             prop['name']: prop['semantic_type']
@@ -576,102 +455,6 @@ class OmahaService:
                         )
 
         return data
-
-    def _compute_technical_indicators(
-        self,
-        ds_config: Dict[str, Any],
-        obj_def: Dict[str, Any],
-        filters: Optional[List[Dict[str, Any]]],
-        selected_columns: Optional[List[str]],
-        limit: int,
-    ) -> Dict[str, Any]:
-        """Compute technical indicators (MA, MACD, RSI, KDJ) from daily price data."""
-        try:
-            token = ds_config.get("connection", {}).get("token")
-            if not token:
-                return {"success": False, "error": "Tushare token not found"}
-
-            # Extract ts_code from filters (required)
-            ts_code = None
-            for f in (filters or []):
-                if f.get("field") == "ts_code":
-                    ts_code = f.get("value")
-                    break
-            if not ts_code:
-                return {"success": False, "error": "ts_code is required for TechnicalIndicator queries"}
-
-            # Fetch enough daily data to compute indicators (need at least 60 days)
-            pro = ts.pro_api(token)
-            df = pro.daily(ts_code=ts_code, limit=120)
-            if df is None or df.empty:
-                return {"success": True, "data": [], "count": 0}
-
-            # Sort ascending for calculation
-            df = df.sort_values("trade_date").reset_index(drop=True)
-            close = df["close"]
-
-            # MA indicators
-            df["ma5"] = close.rolling(5).mean().round(4)
-            df["ma10"] = close.rolling(10).mean().round(4)
-            df["ma20"] = close.rolling(20).mean().round(4)
-            df["ma60"] = close.rolling(60).mean().round(4)
-
-            # MACD (12, 26, 9)
-            ema12 = close.ewm(span=12, adjust=False).mean()
-            ema26 = close.ewm(span=26, adjust=False).mean()
-            df["macd_dif"] = (ema12 - ema26).round(4)
-            df["macd_dea"] = df["macd_dif"].ewm(span=9, adjust=False).mean().round(4)
-            df["macd_bar"] = ((df["macd_dif"] - df["macd_dea"]) * 2).round(4)
-
-            # RSI (14)
-            delta = close.diff()
-            gain = delta.clip(lower=0).rolling(14).mean()
-            loss = (-delta.clip(upper=0)).rolling(14).mean()
-            rs = gain / loss.replace(0, float("nan"))
-            df["rsi14"] = (100 - 100 / (1 + rs)).round(2)
-
-            # KDJ (9, 3, 3)
-            low_min = df["low"].rolling(9).min()
-            high_max = df["high"].rolling(9).max()
-            rsv = ((close - low_min) / (high_max - low_min).replace(0, float("nan")) * 100)
-            df["kdj_k"] = rsv.ewm(com=2, adjust=False).mean().round(2)
-            df["kdj_d"] = df["kdj_k"].ewm(com=2, adjust=False).mean().round(2)
-            df["kdj_j"] = (3 * df["kdj_k"] - 2 * df["kdj_d"]).round(2)
-
-            # Add signal columns
-            df["ma_signal"] = "neutral"
-            df.loc[df["ma5"] > df["ma20"], "ma_signal"] = "bullish"
-            df.loc[df["ma5"] < df["ma20"], "ma_signal"] = "bearish"
-
-            df["macd_signal"] = "neutral"
-            df.loc[df["macd_bar"] > 0, "macd_signal"] = "bullish"
-            df.loc[df["macd_bar"] < 0, "macd_signal"] = "bearish"
-
-            df["rsi_signal"] = "neutral"
-            df.loc[df["rsi14"] > 70, "rsi_signal"] = "overbought"
-            df.loc[df["rsi14"] < 30, "rsi_signal"] = "oversold"
-
-            # Sort descending (latest first) and limit
-            df = df.sort_values("trade_date", ascending=False)
-            if limit is not None:
-                df = df.head(limit)
-
-            # Filter columns if specified
-            all_cols = ["ts_code", "trade_date", "close", "ma5", "ma10", "ma20", "ma60",
-                       "macd_dif", "macd_dea", "macd_bar", "rsi14",
-                       "kdj_k", "kdj_d", "kdj_j", "ma_signal", "macd_signal", "rsi_signal"]
-            if selected_columns:
-                cols = [c for c in selected_columns if c in df.columns]
-                if cols:
-                    df = df[cols]
-            else:
-                df = df[[c for c in all_cols if c in df.columns]]
-
-            data = df.to_dict("records")
-            return {"success": True, "data": data, "count": len(data)}
-
-        except Exception as e:
-            return {"success": False, "error": f"Technical indicator computation failed: {str(e)}"}
 
     def _execute_query(
         self, ds_config: Dict[str, Any], ds_type: str, query: str, params: List[Any]
@@ -708,4 +491,9 @@ class OmahaService:
         }
 
 
-omaha_service = OmahaService()
+# Backwards-compatibility alias — prefer QueryEngine in new code.
+OmahaService = QueryEngine
+
+query_engine = QueryEngine()
+# Legacy module-level alias used by older import sites.
+omaha_service = query_engine

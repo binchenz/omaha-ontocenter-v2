@@ -11,7 +11,6 @@ class ProjectBase(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
-    datahub_dataset_urn: Optional[str] = None
 
 
 class ProjectCreate(ProjectBase):
@@ -25,7 +24,6 @@ class ProjectUpdate(BaseModel):
 
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = None
-    datahub_dataset_urn: Optional[str] = None
     omaha_config: Optional[str] = None
 
 

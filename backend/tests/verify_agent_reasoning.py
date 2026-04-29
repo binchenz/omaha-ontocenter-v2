@@ -267,7 +267,7 @@ async def main():
         config_yaml = build_yaml_config(db_path)
         ontology_context = build_ontology_context()
 
-        from app.services.legacy.financial.omaha import OmahaService
+        from app.services.query.engine import OmahaService
         from app.services.agent.chat_service import ProviderFactory
         from app.services.agent.skills.loader import SkillLoader
 

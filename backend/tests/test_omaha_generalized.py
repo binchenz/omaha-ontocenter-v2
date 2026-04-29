@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from app.services.legacy.financial.omaha import OmahaService
+from app.services.query.engine import OmahaService
 
 
 GENERAL_CONFIG = """

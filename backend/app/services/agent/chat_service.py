@@ -30,9 +30,6 @@ from app.services.agent.runtime import session_store
 from app.services.agent.orchestrator.executor import ExecutorAgent
 from app.services.ontology.store import OntologyStore
 
-# Backward compatibility — API layer still imports ChatService
-from app.services.agent._legacy_chat_service import ChatService  # noqa: F401
-
 
 class ProviderFactory:
     @staticmethod
@@ -107,11 +104,11 @@ class ChatServiceV2:
         # 9. Create ToolRegistryView
         tool_view = ToolRegistryView(builtin=global_registry, derived=derived_specs)
 
-        # 10. Build ToolContext with omaha_service
-        omaha_service = self._build_omaha_service()
+        # 10. Build ToolContext with query_engine
+        query_engine = self._build_query_engine()
         ctx = ToolContext(
             db=self.db,
-            omaha_service=omaha_service,
+            omaha_service=query_engine,
             tenant_id=self.tenant_id,
             project_id=self.project.id,
             session_id=session_id,
@@ -144,13 +141,13 @@ class ChatServiceV2:
             "structured": response.structured,
         }
 
-    def _build_omaha_service(self):
-        """Build OmahaService from project.omaha_config if available."""
+    def _build_query_engine(self):
+        """Build QueryEngine from project.omaha_config if available."""
         config_yaml = getattr(self.project, "omaha_config", None)
         if not config_yaml:
             return None
         try:
-            from app.services.legacy.financial.omaha import OmahaService
-            return OmahaService(config_yaml)
+            from app.services.query.engine import QueryEngine
+            return QueryEngine(config_yaml)
         except Exception:
             return None

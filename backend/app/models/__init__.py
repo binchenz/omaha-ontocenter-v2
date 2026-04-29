@@ -11,16 +11,8 @@ from app.models.ontology import (
     DatasetAsset,
     DataLineage,
 )
-from app.models.chat import ChatSession, ChatMessage, QueryHistory, PublicQueryLog
+from app.models.chat import ChatSession, ChatMessage, PublicQueryLog
 from app.models.pipeline import Pipeline, PipelineRun
-from app.models.legacy.financial import (
-    CachedStock,
-    CachedFinancialIndicator,
-    CachedIncomeStatement,
-    CachedBalanceSheet,
-    CachedCashFlow,
-    Watchlist,
-)
 
 __all__ = [
     "User",
@@ -41,14 +33,7 @@ __all__ = [
     "DataLineage",
     "ChatSession",
     "ChatMessage",
-    "QueryHistory",
     "PublicQueryLog",
     "Pipeline",
     "PipelineRun",
-    "CachedStock",
-    "CachedFinancialIndicator",
-    "CachedIncomeStatement",
-    "CachedBalanceSheet",
-    "CachedCashFlow",
-    "Watchlist",
 ]

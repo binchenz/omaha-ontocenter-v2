@@ -160,69 +160,6 @@ class TestProjects:
         assert response.status_code == 403
 
 
-# ─── Object Explorer Tests ────────────────────────────────────────────────────
-
-class TestObjectExplorer:
-    def test_list_objects(self):
-        response = client.get(
-            f"/api/v1/query/{state['project_id']}/objects",
-            headers=state["headers"]
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert "objects" in data
-        assert "Product" in data["objects"]
-
-    def test_get_schema(self):
-        response = client.get(
-            f"/api/v1/query/{state['project_id']}/schema/Product",
-            headers=state["headers"]
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data.get("success") is True
-        assert "columns" in data
-
-    def test_get_relationships(self):
-        response = client.get(
-            f"/api/v1/query/{state['project_id']}/relationships/Product",
-            headers=state["headers"]
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert "relationships" in data
-
-    def test_query_objects(self):
-        with patch('app.services.legacy.financial.omaha.OmahaService.query_objects') as mock_query:
-            mock_query.return_value = {
-                "success": True,
-                "data": [{"id": 1, "name": "Widget", "price": 9.99}],
-                "count": 1
-            }
-            response = client.post(
-                f"/api/v1/query/{state['project_id']}/query",
-                json={
-                    "object_type": "Product",
-                    "selected_columns": ["Product.id", "Product.name"],
-                    "limit": 10
-                },
-                headers=state["headers"]
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
-            assert len(data["data"]) == 1
-
-    def test_query_history(self):
-        response = client.get(
-            f"/api/v1/query/{state['project_id']}/history",
-            headers=state["headers"]
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-
-
 # ─── Asset Management Tests ───────────────────────────────────────────────────
 
 class TestAssets:

@@ -13,9 +13,7 @@ import SettingsPage from './pages/settings/SettingsPage';
 import ApiKeysPage from './pages/settings/ApiKeysPage';
 import AuditPage from './pages/settings/AuditPage';
 
-const Explorer = React.lazy(() => import('./pages/legacy/Explorer'));
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
-const QueryHistory = React.lazy(() => import('./pages/legacy/QueryHistory'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const OntologyBrowser = React.lazy(() => import('./pages/ontology/OntologyBrowser'));
 const OntologyGraph = React.lazy(() => import('./pages/ontology/OntologyGraph'));
@@ -69,11 +67,9 @@ const App: React.FC = () => {
               </PrivateRoute>
             }
           >
-            <Route index element={<Navigate to="/explorer" replace />} />
-            <Route path="explorer" element={<Explorer />} />
+            <Route index element={<Navigate to="/app/assistant" replace />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="map" element={<Navigate to="/app/ontology/graph" replace />} />
-            <Route path="history" element={<QueryHistory />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

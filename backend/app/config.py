@@ -21,10 +21,6 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # DataHub
-    DATAHUB_GMS_URL: str
-    DATAHUB_GMS_TOKEN: Optional[str] = None
-
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
@@ -35,9 +31,6 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 
-    # Tushare
-    TUSHARE_TOKEN: Optional[str] = None
-
     # Inference
     INFER_LLM_PROVIDER: str = "deepseek"
     INFER_MAX_RETRIES: int = 1
@@ -45,7 +38,7 @@ class Settings(BaseSettings):
     INFER_SAMPLE_ROWS: int = 500
     INFER_DISTINCT_LIMIT: int = 20
 
-    model_config = SettingsConfigDict(env_file="../.env", case_sensitive=True)
+    model_config = SettingsConfigDict(env_file="../.env", case_sensitive=True, extra="ignore")
 
 
 settings = Settings(_env_file="../.env")

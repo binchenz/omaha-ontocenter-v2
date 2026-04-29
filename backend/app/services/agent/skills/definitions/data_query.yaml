@@ -61,4 +61,3 @@ allowed_tools:
   - save_asset
   - list_assets
   - get_lineage
-  - screen_stocks

@@ -1,7 +1,7 @@
 """Test Ontology Redesign Phase 2 - Backend Adaptation."""
 import pytest
 from app.services.semantic.service import semantic_service
-from app.services.legacy.financial.omaha import omaha_service
+from app.services.query.engine import omaha_service
 
 
 # Sample config with new ontology design features

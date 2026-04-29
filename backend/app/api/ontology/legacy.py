@@ -1,7 +1,7 @@
 """
 Ontology endpoints.
 """
-from typing import Dict, Any, Optional, Dict
+from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.auth.user import User
 from app.api.deps import get_current_user, get_db
 from app.schemas.ontology.ontology import GenerateYamlRequest, GenerateYamlResponse
-from app.services.legacy.financial.omaha import omaha_service
+from app.services.query.engine import query_engine
 from app.services.ontology.store import OntologyStore
 from app.services.ontology.importer import OntologyImporter
 
@@ -31,7 +31,7 @@ async def validate_config(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Validate Omaha configuration."""
-    result = omaha_service.parse_config(request.config_yaml)
+    result = query_engine.parse_config(request.config_yaml)
     return result
 
 @router.post("/build")
@@ -40,7 +40,7 @@ async def build_ontology(
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Build ontology from configuration."""
-    result = omaha_service.build_ontology(request.config_yaml)
+    result = query_engine.build_ontology(request.config_yaml)
     return result
 
 @router.post("/generate", response_model=GenerateYamlResponse)

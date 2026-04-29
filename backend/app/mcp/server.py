@@ -98,42 +98,6 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
-            name="screen_stocks",
-            description=(
-                "Screen A-share stocks by filtering across multiple ontology objects "
-                "(e.g. Stock, FinancialIndicator, ValuationMetric, TechnicalIndicator). "
-                "Use this when you need to find stocks that meet multi-dimensional criteria "
-                "such as 'ROE > 15% AND PE < 20 AND price above MA20'."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "stock_filters": {
-                        "type": "array",
-                        "items": {"type": "object"},
-                        "description": "Filters applied to the Stock object (e.g. industry='银行').",
-                    },
-                    "metric_objects": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "object": {"type": "string", "description": "Ontology object name, e.g. FinancialIndicator"},
-                                "columns": {"type": "array", "items": {"type": "string"}, "description": "Fields to fetch"},
-                                "filters": {"type": "array", "items": {"type": "object"}, "description": "Filters applied to this object after fetch"},
-                            },
-                            "required": ["object"],
-                        },
-                        "description": "List of metric objects to join and filter.",
-                    },
-                    "sort_by": {"type": "string", "description": "Field name to sort results by."},
-                    "sort_order": {"type": "string", "enum": ["asc", "desc"], "description": "Sort direction (default: desc)."},
-                    "limit": {"type": "integer", "description": "Max results to return (default 10, max 20)."},
-                },
-                "required": ["metric_objects"],
-            },
-        ),
-        types.Tool(
             name="list_assets",
             description="List all saved dataset assets for the project.",
             inputSchema={"type": "object", "properties": {}, "required": []},
@@ -170,15 +134,6 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
             filters=arguments.get("filters"),
             joins=arguments.get("joins"),
             limit=arguments.get("limit"),
-        )
-    elif name == "screen_stocks":
-        result = t.screen_stocks(
-            config_yaml=config_yaml,
-            stock_filters=arguments.get("stock_filters"),
-            metric_objects=arguments.get("metric_objects"),
-            sort_by=arguments.get("sort_by"),
-            sort_order=arguments.get("sort_order", "desc"),
-            limit=arguments.get("limit", 10),
         )
     elif name in ("save_asset", "list_assets", "get_lineage"):
         db = SessionLocal()

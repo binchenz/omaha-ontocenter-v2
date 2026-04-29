@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 
 from app.models.pipeline.pipeline import Pipeline
 from app.models.pipeline.pipeline_run import PipelineRun
-from app.services.legacy.financial.omaha import omaha_service
+from app.services.query.engine import query_engine
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 
@@ -22,7 +22,7 @@ def run_pipeline(pipeline: Pipeline, config_yaml: str, db: Session, triggered_by
     start_time = time.monotonic()
 
     try:
-        result = omaha_service.query_objects(
+        result = query_engine.query_objects(
             config_yaml=config_yaml,
             object_type=pipeline.object_type,
             selected_columns=None,

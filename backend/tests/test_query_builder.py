@@ -1,5 +1,5 @@
 import pytest
-from app.services.legacy.financial.query_builder import SemanticQueryBuilder
+from app.services.query.builder import SemanticQueryBuilder
 
 SAMPLE_CONFIG = """
 datasources:

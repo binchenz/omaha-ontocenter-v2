@@ -29,7 +29,6 @@ def create_project(
     project = Project(
         name=project_in.name,
         description=project_in.description,
-        datahub_dataset_urn=project_in.datahub_dataset_urn,
         omaha_config=project_in.omaha_config,
         owner_id=current_user.id,
     )

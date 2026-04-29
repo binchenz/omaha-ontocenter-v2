@@ -16,7 +16,6 @@ from app.middleware import RequestLoggingMiddleware
 from app.config import settings
 from app.api import api_router
 from app.api.auth import public_auth
-from app.api.legacy.financial import public_query
 from app import models as _models  # noqa: F401 — registers all ORM classes with Base.metadata
 from app.services.platform.scheduler import scheduler
 from app.schemas.error import ErrorResponse
@@ -66,7 +65,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(public_auth.router, prefix="/api/public/auth", tags=["public-auth"])
-app.include_router(public_query.router, prefix="/api/public/v1", tags=["public-query"])
 
 
 @app.get("/")
@@ -91,7 +89,6 @@ async def health(db: Session = Depends(get_db)):
         checks["database"] = "error"
 
     # Config presence checks
-    checks["tushare_configured"] = bool(settings.TUSHARE_TOKEN)
     checks["llm_configured"] = bool(settings.DEEPSEEK_API_KEY or settings.OPENAI_API_KEY)
 
     db_ok = checks["database"] == "ok"

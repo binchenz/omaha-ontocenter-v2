@@ -38,7 +38,6 @@ def test_current_active_surfaces_are_documented():
         "frontend/src/App.tsx",
         "frontend/src/components/layout/Sidebar.tsx",
         "deployment/README.md",
-        "configs/legacy/financial/financial_stock_analysis.yaml",
     ]
 
     for file_path in required_files:
@@ -217,7 +216,8 @@ def test_repository_root_contains_only_intentional_entrypoints():
         ".git",
         ".gitignore",
         ".mcp.json",
-        "CLAUDE.md",
+        "ASSISTANT.md",
+        "ASSISTANT.md",
         "LOCAL_SETUP.md",
         "README.md",
         "RUNNING.md",
@@ -243,7 +243,6 @@ def test_frontend_dead_surfaces_are_removed():
         "frontend/src/pages/Login.tsx",
         "frontend/src/pages/Register.tsx",
         "frontend/src/pages/ProjectList.tsx",
-        "frontend/src/pages/legacy/Explorer.tsx",
         "frontend/src/pages/ChatPage.tsx",
         "frontend/src/pages/Settings.tsx",
         "frontend/src/pages/legacy/ObjectExplorer.tsx",
@@ -266,6 +265,8 @@ def test_frontend_dead_surfaces_are_removed():
         "frontend/src/components/semantic/FormulaBuilder.tsx",
         "frontend/src/components/semantic/ObjectList.tsx",
         "frontend/src/components/semantic/PropertyEditor.tsx",
+        "frontend/src/pages/legacy/Explorer.tsx",
+        "frontend/src/pages/legacy/QueryHistory.tsx",
     ]
 
     for file_path in required_files:

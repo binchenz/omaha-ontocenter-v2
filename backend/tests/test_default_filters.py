@@ -3,7 +3,7 @@ Unit tests for default_filters functionality in SemanticQueryBuilder.
 """
 import pytest
 
-from app.services.legacy.financial.query_builder import SemanticQueryBuilder
+from app.services.query.builder import SemanticQueryBuilder
 
 
 def test_default_filters_in_where_clause():
@@ -59,7 +59,7 @@ ontology:
 
 def test_default_filters_combined_with_user_filters():
     """Test that default_filters are combined with user filters using AND."""
-    from app.services.legacy.financial.query_builder import SemanticQueryBuilder
+    from app.services.query.builder import SemanticQueryBuilder
 
     config_yaml = """
 ontology:
@@ -101,7 +101,7 @@ ontology:
 
 def test_no_default_filters():
     """Test that objects without default_filters work correctly."""
-    from app.services.legacy.financial.query_builder import SemanticQueryBuilder
+    from app.services.query.builder import SemanticQueryBuilder
 
     config_yaml = """
 ontology:
@@ -136,7 +136,7 @@ ontology:
 
 def test_default_filters_apply_to_active_query_builder():
     """Test that default filter and user filter both appear in query and params."""
-    from app.services.legacy.financial.query_builder import SemanticQueryBuilder
+    from app.services.query.builder import SemanticQueryBuilder
 
     config_yaml = """
 ontology:

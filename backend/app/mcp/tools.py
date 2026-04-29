@@ -1,16 +1,16 @@
-"""MCP Server tools — thin wrappers delegating to omaha_service and DB models."""
+"""MCP Server tools — thin wrappers delegating to query_engine and DB models."""
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
 from app.models.ontology.asset import DatasetAsset, DataLineage
-from app.services.legacy.financial.omaha import omaha_service
+from app.services.query.engine import query_engine
 from app.services.semantic.service import semantic_service
 
 
 def list_objects(config_yaml: str) -> Dict[str, Any]:
     """Return all ontology object types defined in the config."""
-    result = omaha_service.build_ontology(config_yaml)
+    result = query_engine.build_ontology(config_yaml)
     if not result.get("valid"):
         return {"success": False, "error": result.get("error", "Invalid configuration")}
     objects = result["ontology"].get("objects", [])
@@ -33,12 +33,12 @@ def get_schema(config_yaml: str, object_type: str) -> Dict[str, Any]:
     if result.get("success"):
         return result
     # Fallback to basic schema
-    return omaha_service.get_object_schema(config_yaml, object_type)
+    return query_engine.get_object_schema(config_yaml, object_type)
 
 
 def get_relationships(config_yaml: str, object_type: str) -> Dict[str, Any]:
     """Return available relationships for a given object type."""
-    rels = omaha_service.get_relationships(config_yaml, object_type)
+    rels = query_engine.get_relationships(config_yaml, object_type)
     return {"success": True, "relationships": rels}
 
 
@@ -51,7 +51,7 @@ def query_data(
     limit: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Query objects from the datasource defined in the config."""
-    return omaha_service.query_objects(
+    return query_engine.query_objects(
         config_yaml=config_yaml,
         object_type=object_type,
         selected_columns=selected_columns,
@@ -59,91 +59,6 @@ def query_data(
         joins=joins,
         limit=limit,
     )
-
-
-def screen_stocks(
-    config_yaml: str,
-    metric_objects: List[Dict[str, Any]],
-    stock_filters: Optional[List[Dict[str, Any]]] = None,
-    sort_by: Optional[str] = None,
-    sort_order: str = "desc",
-    limit: int = 10,
-) -> Dict[str, Any]:
-    """Screen A-share stocks across multiple ontology objects (financial + valuation + technical)."""
-    try:
-        limit = min(limit, 20)
-        stock_filters = stock_filters or []
-
-        # Step 1: Get candidate stock list (max 200)
-        stock_result = omaha_service.query_objects(
-            config_yaml, "Stock",
-            selected_columns=["Stock.ts_code", "Stock.name", "Stock.industry"],
-            filters=stock_filters,
-            limit=200,
-        )
-        if not stock_result.get("success"):
-            return {"error": f"获取股票列表失败: {stock_result.get('error')}"}
-
-        stocks = stock_result.get("data", [])
-        if not stocks:
-            return {"data": [], "count": 0, "message": "没有找到符合条件的股票"}
-
-        # Step 2: Fetch metric data for each stock and merge
-        results = []
-        for stock in stocks:
-            ts_code = stock.get("ts_code")
-            row = {"ts_code": ts_code, "name": stock.get("name"), "industry": stock.get("industry")}
-
-            for metric_obj in metric_objects:
-                obj_name = metric_obj.get("object")
-                columns = metric_obj.get("columns", [])
-                cols = [f"{obj_name}.{c}" for c in columns] if columns else None
-                r = omaha_service.query_objects(
-                    config_yaml, obj_name,
-                    selected_columns=cols,
-                    filters=[{"field": "ts_code", "operator": "=", "value": ts_code}],
-                    limit=1,
-                )
-                if r.get("success") and r.get("data"):
-                    row.update(r["data"][0])
-
-            if len(row) > 3:
-                results.append(row)
-
-        # Step 3: Apply metric filters client-side
-        for metric_obj in metric_objects:
-            for f in metric_obj.get("filters", []):
-                field, op, val = f.get("field"), f.get("operator", ">="), f.get("value")
-                filtered = []
-                for row in results:
-                    v = row.get(field)
-                    if v is None:
-                        continue
-                    try:
-                        v, val_f = float(v), float(val)
-                        if op in (">=", "=>") and v >= val_f:
-                            filtered.append(row)
-                        elif op == ">" and v > val_f:
-                            filtered.append(row)
-                        elif op in ("<=", "=<") and v <= val_f:
-                            filtered.append(row)
-                        elif op == "<" and v < val_f:
-                            filtered.append(row)
-                        elif op == "=" and v == val_f:
-                            filtered.append(row)
-                    except (TypeError, ValueError):
-                        pass
-                results = filtered
-
-        # Step 4: Sort and limit
-        if sort_by and results:
-            results.sort(key=lambda x: float(x.get(sort_by, 0) or 0), reverse=(sort_order == "desc"))
-        results = results[:limit]
-
-        return {"success": True, "data": results, "count": len(results), "total_screened": len(stocks)}
-
-    except Exception as e:
-        return {"error": str(e)}
 
 
 def save_asset(

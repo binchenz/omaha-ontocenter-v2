@@ -11,7 +11,7 @@ from app.services.ontology.importer import OntologyImporter
 from app.services.ontology.store import OntologyStore
 from app.services.agent.toolkit import AgentToolkit
 from app.services.agent.react import AgentService
-from app.services.legacy.financial.omaha import OmahaService
+from app.services.query.engine import OmahaService
 
 
 RETAIL_YAML = """
