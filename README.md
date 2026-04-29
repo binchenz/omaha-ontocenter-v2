@@ -1,6 +1,14 @@
 # Omaha OntoCenter
 
-Configuration-driven financial analysis platform with ontology management and object exploration for A-share markets.
+AI-native data platform for SMEs. Upload your business data, let AI build the ontology, then query it through natural language conversation.
+
+## What It Does
+
+1. **Upload** — CSV, Excel, or connect a database (MySQL, PostgreSQL, SQLite)
+2. **Model** — AI infers business objects, fields, and relationships from your data
+3. **Query** — Ask questions in natural language; the agent writes and executes queries for you
+
+No SQL knowledge required. No BI tool configuration. Just data and questions.
 
 ## Repository Layout
 
@@ -8,72 +16,80 @@ Configuration-driven financial analysis platform with ontology management and ob
 omaha_ontocenter/
 ├── backend/           # FastAPI application (Python)
 ├── frontend/          # React + TypeScript + Vite UI
-├── configs/           # YAML ontology configurations
+├── configs/           # YAML ontology templates
 ├── deployment/        # Server deployment scripts
 ├── docs/              # Operational documentation
 ├── LOCAL_SETUP.md     # Local dev startup guide
-├── RUNNING.md         # How to run and access the app
-└── CLAUDE.md          # AI assistant instructions
+└── RUNNING.md         # How to run and access the app
 ```
 
 ## Tech Stack
 
 - **Backend**: FastAPI + SQLAlchemy + SQLite (dev) / PostgreSQL (prod)
 - **Frontend**: React 18 + TypeScript + Ant Design + Vite
-- **Data**: Tushare Pro API, PostgreSQL, MySQL
+- **LLM**: DeepSeek / OpenAI / Anthropic (configurable)
+- **Connectors**: SQLite, MySQL, PostgreSQL, CSV/Excel
 - **Auth**: JWT-based authentication
-- **AI**: DeepSeek / OpenAI / Anthropic (configurable LLM provider)
 
-## Key Features
+## Key Capabilities
 
-- **Ontology Management**: YAML-based business object definitions with semantic types
-- **Link Type System**: Palantir Foundry-inspired object relationships (forward/reverse navigation, multi-hop paths)
-- **Per-Object Tools**: Dynamic tool generation (`search_*`, `count_*`, `aggregate_*`) per ontology object
-- **Multi-Datasource**: Cross-datasource queries (PostgreSQL, MySQL, SQLite, Excel, Tushare)
-- **AI Agent**: ReAct loop with DeepSeek thinking mode support
-- **Auto-Slug Generation**: ASCII-safe identifiers (with pinyin transliteration for Chinese names)
-
-## Active API Surfaces
-
-### Service status
-- `GET /` — service metadata and running status
-- `GET /health` — health check
-
-### Public auth (`/api/public/auth/*`)
-- `POST /api/public/auth/register` — register a user with an invite code
-- `POST /api/public/auth/api-key` — generate a public API key
-
-### Public data (`/api/public/v1/*`)
-- `GET /api/public/v1/objects` — list available object types
-- `GET /api/public/v1/schema/{object_type}` — fetch object schema
-- `POST /api/public/v1/query` — run public data queries
-- `POST /api/public/v1/aggregate` — run aggregate queries
-- `GET /api/public/v1/watchlist` — list public API watchlist items
-- `POST /api/public/v1/watchlist` — add a public API watchlist item
-- `DELETE /api/public/v1/watchlist/{item_id}` — remove a public API watchlist item
-
-### Authenticated API (`/api/v1/*`)
-- `POST /api/v1/auth/login` and `POST /api/v1/auth/register` — authentication
-- `GET/POST /api/v1/projects` plus project-specific detail/update/delete routes — project management
-- `GET /api/v1/datahub/search` and dataset schema/property routes under `/api/v1/datahub/datasets/*` — DataHub metadata access
-- `POST /api/v1/ontology/validate` and `POST /api/v1/ontology/build` — ontology validation and build
-- `GET /api/v1/query/{project_id}/objects`, `GET /api/v1/query/{project_id}/schema/{object_type}`, `GET /api/v1/query/{project_id}/relationships/{object_type}`, `POST /api/v1/query/{project_id}/query`, `GET /api/v1/query/{project_id}/history` — object querying
-- `POST /api/v1/assets/{project_id}/assets`, `GET /api/v1/assets/{project_id}/assets`, `GET /api/v1/assets/{project_id}/assets/{asset_id}`, `DELETE /api/v1/assets/{project_id}/assets/{asset_id}`, `GET /api/v1/assets/{project_id}/assets/{asset_id}/lineage` — asset management
-- `POST /api/v1/chat/{project_id}/sessions`, `GET /api/v1/chat/{project_id}/sessions`, `POST /api/v1/chat/{project_id}/sessions/{session_id}/message`, `DELETE /api/v1/chat/{project_id}/sessions/{session_id}` — chat sessions
-- `GET /api/v1/watchlist/`, `POST /api/v1/watchlist/`, `PATCH /api/v1/watchlist/{item_id}`, `DELETE /api/v1/watchlist/{item_id}` — watchlist management
+- **Conversational Modeling** — upload tables, AI infers ontology with data quality warnings
+- **Per-Object Tools** — dynamic `search_*`, `count_*`, `aggregate_*` tools generated per business object
+- **Link Type System** — object relationships with forward/reverse navigation and multi-hop paths
+- **Multi-Datasource** — query across different databases in a single ontology
+- **ReAct Agent** — multi-step reasoning with tool use, thinking mode, and context retention
+- **MCP Server** — Model Context Protocol integration for external AI tools
 
 ## Quick Start
 
-See [LOCAL_SETUP.md](LOCAL_SETUP.md) for local development setup.
+```bash
+# Backend
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python init_db.py
+uvicorn app.main:app --reload --port 8000
 
-For production deployment, see [deployment/README.md](deployment/README.md).
+# Frontend (separate terminal)
+cd frontend
+npm install && npm run dev
+```
+
+Access the app at http://localhost:5173
+
+See [LOCAL_SETUP.md](LOCAL_SETUP.md) for detailed setup. See [RUNNING.md](RUNNING.md) for running instructions.
 
 ## Configuration
 
-Ontology configs live in `configs/`. The primary config is `configs/financial_stock_analysis.yaml`.
+Environment variables (`.env` at project root):
 
-Environment variables (set in `backend/.env`):
-- `DATABASE_URL` — database connection string
-- `SECRET_KEY` — JWT signing key
-- `TUSHARE_TOKEN` — Tushare Pro API token
-- `DATAHUB_GMS_URL` / `DATAHUB_GMS_TOKEN` — optional DataHub integration
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | Database connection string |
+| `SECRET_KEY` | Yes | JWT signing key |
+| `DEEPSEEK_API_KEY` | One of three | DeepSeek API key |
+| `OPENAI_API_KEY` | One of three | OpenAI API key |
+| `ANTHROPIC_API_KEY` | One of three | Anthropic API key |
+
+At least one LLM API key must be configured.
+
+## API Overview
+
+| Endpoint Group | Purpose |
+|---------------|---------|
+| `POST /api/v1/auth/*` | Authentication (login, register) |
+| `/api/v1/projects/*` | Project CRUD, members, audit |
+| `/api/v1/ontology-store/*` | Ontology object management |
+| `/api/v1/chat/{project_id}/*` | Chat sessions and AI agent |
+| `/api/v1/assets/*` | Dataset asset management |
+| `GET /health` | Health check |
+
+Full API documentation available at `http://localhost:8000/docs` when running locally.
+
+## Deployment
+
+See [deployment/README.md](deployment/README.md) for production deployment instructions.
+
+## License
+
+Proprietary. All rights reserved.

@@ -1,6 +1,3 @@
-"""
-FastAPI application configuration.
-"""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
@@ -32,13 +29,10 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
 
     # Inference
-    INFER_LLM_PROVIDER: str = "deepseek"
     INFER_MAX_RETRIES: int = 1
     INFER_TIMEOUT: int = 30
-    INFER_SAMPLE_ROWS: int = 500
-    INFER_DISTINCT_LIMIT: int = 20
 
     model_config = SettingsConfigDict(env_file="../.env", case_sensitive=True, extra="ignore")
 
 
-settings = Settings(_env_file="../.env")
+settings = Settings()

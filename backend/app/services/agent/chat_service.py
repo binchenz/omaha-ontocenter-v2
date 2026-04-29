@@ -1,7 +1,6 @@
 """Thin ChatServiceV2 — delegates to ExecutorAgent via ConversationRuntime."""
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -16,6 +15,7 @@ import app.services.agent.tools.builtin.snapshot  # noqa: F401
 import app.services.agent.tools.builtin.navigate  # noqa: F401
 import app.services.agent.tools.builtin.reasoning  # noqa: F401
 
+from app.config import settings
 from app.services.agent.providers.base import ProviderAdapter
 from app.services.agent.providers.openai_compat import OpenAICompatAdapter
 from app.services.agent.providers.anthropic import AnthropicAdapter
@@ -30,26 +30,27 @@ from app.services.agent.runtime import session_store
 from app.services.agent.orchestrator.executor import ExecutorAgent
 from app.services.ontology.store import OntologyStore
 
+_skill_loader = SkillLoader()
+
 
 class ProviderFactory:
     @staticmethod
     def create() -> ProviderAdapter:
-        """Auto-detect provider from env vars."""
-        if key := os.getenv("DEEPSEEK_API_KEY"):
+        if settings.DEEPSEEK_API_KEY:
             return OpenAICompatAdapter(
-                model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
-                api_key=key,
-                base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
+                model=settings.DEEPSEEK_MODEL,
+                api_key=settings.DEEPSEEK_API_KEY,
+                base_url=settings.DEEPSEEK_BASE_URL + "/v1",
             )
-        if key := os.getenv("OPENAI_API_KEY"):
+        if settings.OPENAI_API_KEY:
             return OpenAICompatAdapter(
-                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-                api_key=key,
+                model="gpt-4o-mini",
+                api_key=settings.OPENAI_API_KEY,
             )
-        if key := os.getenv("ANTHROPIC_API_KEY"):
+        if settings.ANTHROPIC_API_KEY:
             return AnthropicAdapter(
-                model=os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-20241022"),
-                api_key=key,
+                model="claude-3-5-haiku-20241022",
+                api_key=settings.ANTHROPIC_API_KEY,
             )
         raise RuntimeError(
             "No LLM provider configured. Set DEEPSEEK_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY."
@@ -68,26 +69,17 @@ class ChatServiceV2:
         user_message: str,
         uploaded_tables: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        # 1. Resolve skill
         setup_stage: str = getattr(self.project, "setup_stage", None) or "idle"
-        loader = SkillLoader()
-        resolver = SkillResolver(loader)
+        resolver = SkillResolver(_skill_loader)
         skill = resolver.resolve(setup_stage, user_message)
 
-        # 2. Create provider
         provider = ProviderFactory.create()
-
-        # 3. Build ConversationRuntime
         runtime = ConversationRuntime(skill=skill)
 
-        # 4. Load ontology context
         store = OntologyStore(self.db)
         ontology_context = store.get_full_ontology(self.tenant_id)
-
-        # 5. Build system prompt (inserts into runtime.messages)
         runtime.build_system_prompt(ontology_context)
 
-        # 6. Load chat history and append to runtime
         history = SessionManager.load_history(self.db, session_id)
         for msg in history:
             if msg["role"] == "user":
@@ -95,16 +87,11 @@ class ChatServiceV2:
             elif msg["role"] == "assistant":
                 runtime.append_assistant_message(content=msg["content"], tool_calls=None)
 
-        # 7. Append current user message
         runtime.append_user_message(user_message)
 
-        # 8. Build derived tool specs from ontology
         derived_specs = ObjectTypeToolFactory().build(ontology_context)
-
-        # 9. Create ToolRegistryView
         tool_view = ToolRegistryView(builtin=global_registry, derived=derived_specs)
 
-        # 10. Build ToolContext with query_engine
         query_engine = self._build_query_engine()
         ctx = ToolContext(
             db=self.db,
@@ -117,11 +104,9 @@ class ChatServiceV2:
             session_store=session_store,
         )
 
-        # 11. Run ExecutorAgent with tool_view
         executor = ExecutorAgent(provider=provider, registry=tool_view, max_iterations=12)
         response = await executor.run(runtime, ctx)
 
-        # 12. Save messages
         SessionManager.save_messages(
             self.db,
             session_id,
@@ -130,7 +115,6 @@ class ChatServiceV2:
             chart_config=response.chart_config,
         )
 
-        # 13. Return response dict
         return {
             "message": response.message,
             "tool_calls": response.tool_calls,
@@ -142,7 +126,6 @@ class ChatServiceV2:
         }
 
     def _build_query_engine(self):
-        """Build QueryEngine from project.omaha_config if available."""
         config_yaml = getattr(self.project, "omaha_config", None)
         if not config_yaml:
             return None

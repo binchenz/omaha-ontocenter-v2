@@ -103,7 +103,6 @@ def test_docs_are_reduced_to_current_operational_materials():
         "docs/api/API_USAGE_GUIDE.md",
         "docs/guides/omaha-intro.md",
         "docs/guides/ONTOLOGY_DEMO.md",
-        "docs/guides/university-talk.md",
         "docs/design/repository-structure.md",
     ]
 
@@ -123,6 +122,9 @@ def test_docs_are_reduced_to_current_operational_materials():
         "docs/ONTOLOGY_VALUE_REPORT.md",
         "docs/university-talk.md",
         "docs/omaha-intro.md",
+        "docs/guides/university-talk.md",
+        "docs/market_analysis/lightweight_ontology_landscape.md",
+        "docs/market_analysis/omaha_ontocenter_positioning.md",
         "portfolio_design.md",
         "ontology_evaluation.md",
     ]
@@ -134,53 +136,9 @@ def test_docs_are_reduced_to_current_operational_materials():
         assert not _path_exists_in_head(root, file_path), f"File should have been removed: {file_path}"
 
 
-def test_only_current_design_references_remain_under_docs_superpowers():
+def test_docs_superpowers_is_removed():
     root = REPO_ROOT
-
-    required_files = [
-        "docs/superpowers/specs/2026-04-21-repo-cleanup-design.md",
-        "docs/superpowers/specs/2026-03-29-ontology-map-design.md",
-        "docs/superpowers/specs/2026-04-12-university-talk-design.md",
-        "docs/superpowers/plans/2026-03-29-ontology-map-plan.md",
-        "docs/superpowers/plans/2026-04-12-university-talk.md",
-    ]
-
-    removed_files = [
-        "docs/design/design_improvement_roadmap.md",
-        "docs/design/p0_implementation_plan.md",
-        "docs/design/phase3_semantic_enhancements.md",
-        "docs/implementation/p0_completion_report.md",
-        "docs/superpowers/plans/2026-03-15-phase3.1-mcp-server.md",
-        "docs/superpowers/plans/2026-03-15-phase3.2-chat-interface.md",
-        "docs/superpowers/plans/2026-03-16-ontology-redesign-audit.md",
-        "docs/superpowers/plans/2026-03-16-ontology-redesign.md",
-        "docs/superpowers/plans/2026-03-17-FINAL-IMPLEMENTATION-REPORT.md",
-        "docs/superpowers/plans/2026-03-17-ontology-redesign-phase2-completion.md",
-        "docs/superpowers/plans/2026-03-17-ontology-redesign-phase3-index.md",
-        "docs/superpowers/plans/2026-03-17-ontology-redesign-phase3-issues.md",
-        "docs/superpowers/plans/2026-03-17-ontology-redesign-phase3-summary.md",
-        "docs/superpowers/plans/2026-03-17-ontology-redesign-phase3-test-data.md",
-        "docs/superpowers/plans/2026-03-17-ontology-redesign-phase3-validation-report.md",
-        "docs/superpowers/plans/2026-03-17-phase3-fixes-summary.md",
-        "docs/superpowers/plans/2026-03-26-financial-data-objects-phase1.md",
-        "docs/superpowers/plans/2026-03-26-financial-data-objects-phase2.md",
-        "docs/superpowers/plans/2026-03-27-cloud-deployment.md",
-        "docs/superpowers/plans/2026-03-29-frontend-redesign-plan-a.md",
-        "docs/superpowers/plans/2026-03-29-frontend-redesign-plan-b.md",
-        "docs/superpowers/plans/test.md",
-        "docs/superpowers/specs/2026-03-15-phase3-design.md",
-        "docs/superpowers/specs/2026-03-16-phase4-semantic-layer.md",
-        "docs/superpowers/specs/2026-03-26-financial-data-objects-design.md",
-        "docs/superpowers/specs/2026-03-27-cloud-deployment-design.md",
-        "docs/superpowers/specs/2026-03-29-frontend-redesign-design.md",
-        "docs/.DS_Store",
-    ]
-
-    for file_path in required_files:
-        assert _path_exists_in_head(root, file_path), f"Required file not found: {file_path}"
-
-    for file_path in removed_files:
-        assert not _path_exists_in_head(root, file_path), f"File should have been removed: {file_path}"
+    assert not _path_exists_in_head(root, "docs/superpowers"), "docs/superpowers/ should be removed"
 
 
 def test_backend_and_deployment_leftovers_are_removed():
@@ -196,6 +154,9 @@ def test_backend_and_deployment_leftovers_are_removed():
         "backend/test_e2e_ontology.py",
         "backend/test_focused_e2e.py",
         "backend/test_phase3_validation.py",
+        "backend/test_chat_quick.py",
+        "backend/test_conversation_flow.py",
+        "backend/test_e2e_mock.py",
         "deployment/deploy_part1.sh",
         "deployment/deploy_to_69.5.23.70.sh",
         "deployment/web_terminal_deploy.sh",
