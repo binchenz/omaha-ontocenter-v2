@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/session";
 import { internalAuthHeaders } from "@/lib/internalAuth";
-import { forwardPythonResponse } from "@/lib/pythonResponse";
+import { forwardPythonResponse } from "./pythonResponse";
 
 /**
  * Proxy a multipart/form-data request to the Python API.

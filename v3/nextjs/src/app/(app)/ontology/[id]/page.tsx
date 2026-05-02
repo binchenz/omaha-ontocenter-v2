@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ontologyApi, mcpApi, pythonFetch } from "@/services/pythonApi";
-import { downloadJson } from "@/lib/download";
+import { downloadJson } from "@/utils/download";
 import type { OntologySchema } from "@/types/api";
 
 export default function OntologyDetailPage() {

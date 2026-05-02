@@ -1,6 +1,6 @@
 import { buildOntologyYaml } from "./yaml-builder";
 import { ontologyApi } from "@/services/pythonApi";
-import { DEFAULT_TENANT_ID } from "./constants";
+import { DEFAULT_TENANT_ID } from "@/lib/constants";
 
 export interface CreateOntologyFromColumnsArgs {
   source: string;

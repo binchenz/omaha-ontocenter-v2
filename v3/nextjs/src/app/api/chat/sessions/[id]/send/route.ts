@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { CoreMessage } from "ai";
 import { routeToSkill } from "@/app/agent/skill-router";
-import { loadSkillFull } from "@/app/agent/skill-loader";
-import { loadAllTools, buildIngestTools, type Tool } from "@/app/agent/tool-registry";
 import { executeReactStream } from "@/app/agent/react";
-import { DATA_SKILLS, SKILL_STATUS, SKILLS } from "@/app/agent/skills";
-import { ingestApi, ontologyApi } from "@/services/pythonApi";
-import type { OntologySchema } from "@/types/api";
+import { SKILL_STATUS, SKILLS } from "@/app/agent/skills";
 import { prisma } from "@/lib/prisma";
 import { getSessionContext, ownedSessionWhere } from "@/lib/session";
-import {
-  DEFAULT_SESSION_TITLE,
-  MAX_HISTORY_MESSAGES,
-  UPLOAD_MARKER,
-  UPLOAD_MARKER_PREFIX,
-} from "@/lib/constants";
+import { DEFAULT_SESSION_TITLE, MAX_HISTORY_MESSAGES } from "@/lib/constants";
+import { ingestUploadedFile } from "./ingestFile";
+import { applyStickyDataIngest } from "./resolveSkill";
+import { buildToolset } from "./buildToolset";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const ctx = await getSessionContext();
@@ -49,27 +43,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         let fileContext = "";
         if (file) {
           send("status", { text: SKILL_STATUS[SKILLS.DATA_INGEST] });
-          const fd = new FormData();
-          fd.append("type", file.name.endsWith(".csv") ? "csv" : "excel");
-          fd.append("file", file);
-          fd.append("tenant_id", tenantId);
           try {
-            const ingestResult = await ingestApi.ingest(fd);
-            const cols = ingestResult.columns
-              .map((c) => `${c.name}(${c.semantic_type})`)
-              .join(", ");
-            fileContext = `${UPLOAD_MARKER_PREFIX} 表名: ${ingestResult.table_name}, ${ingestResult.rows_count} 行, 列: ${cols}, dataset_id: ${ingestResult.dataset_id}`;
+            fileContext = await ingestUploadedFile(file, tenantId);
           } catch (err: any) {
             send("error", { message: `文件解析失败: ${err.message}` });
             controller.close();
             return;
           }
         }
-
         if (closed) return;
 
         const fullMessage = message + fileContext;
-        const [routeResult, historyRows] = await Promise.all([
+        const [routed, historyRows] = await Promise.all([
           routeToSkill(fullMessage, !!file),
           prisma.chatMessage.findMany({
             where: { sessionId },
@@ -81,47 +66,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             return [] as Array<{ role: string; content: string }>;
           }),
         ]);
-        let { skill, reasoning } = routeResult;
         const isFirstTurn = historyRows.length === 0;
 
-        // Sticky data-ingest: if the most-recent user message in history
-        // carries the `[文件已上传]` marker AND this turn has no new file,
-        // the user is confirming/correcting the freshly-ingested dataset
-        // (e.g. "对，就是订单数据" or "不对，改成..."). Force data-ingest so
-        // the LLM stays on the create_ontology path; otherwise the LLM router
-        // tends to pick data-query and hit a stale ontology, orphaning the
-        // just-uploaded dataset. The data-ingest skill body already handles
-        // both confirmation and correction flows.
-        // historyRows is desc-ordered (most recent first), so .find() on
-        // role==="user" yields the latest user message.
-        // When `file` is truthy the sticky branch is unreachable, so skip the
-        // scan entirely rather than paying the find() cost for a guaranteed-false.
-        const lastUserMessage = file ? undefined : historyRows.find((m) => m.role === "user");
-        const isPostUploadTurn = lastUserMessage?.content?.includes(UPLOAD_MARKER) === true;
-        if (isPostUploadTurn && skill.frontmatter.name !== SKILLS.DATA_INGEST) {
-          const ingestSkill = loadSkillFull(SKILLS.DATA_INGEST);
-          if (ingestSkill) {
-            skill = ingestSkill;
-            reasoning = "上一轮上传了文件，本轮继续完成数据接入";
-          }
-        }
-
+        const { skill, reasoning } = applyStickyDataIngest(routed, !!file, historyRows);
         send("skill", { name: skill.frontmatter.name, reasoning });
 
-        // listSchemas only matters for data-query/data-explore — general-chat
-        // and data-ingest never consume ontology search/aggregate tools.
-        // Skipping the fetch on ~80% of turns (greetings + ingest) saves a
-        // 40-80KB HTTP roundtrip. The sequential cost for data-* skills
-        // (~20-50ms) is a worthwhile trade for the dominant case.
-        let schemas: OntologySchema[] = [];
-        if (DATA_SKILLS.has(skill.frontmatter.name)) {
-          schemas = await ontologyApi
-            .listSchemas(tenantId, { limit: 500, order: "desc" })
-            .catch((e) => {
-              console.warn("[chat/send] listSchemas failed:", e);
-              return [] as OntologySchema[];
-            });
-        }
+        if (closed) return;
+        const tools = await buildToolset(tenantId, skill.frontmatter.name);
 
         // ai-sdk rejects roles other than user/assistant in CoreMessage[].
         const history: CoreMessage[] = [...historyRows]
@@ -131,19 +82,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           .map((m) => ({ role: m.role, content: m.content }));
 
         if (closed) return;
-
-        const tools: Record<string, Tool> = {
-          ...buildIngestTools(tenantId, {
-            includeCreate: skill.frontmatter.name === SKILLS.DATA_INGEST,
-          }),
-        };
-
-        if (DATA_SKILLS.has(skill.frontmatter.name) && schemas.length > 0) {
-          Object.assign(tools, loadAllTools(schemas, tenantId));
-        }
-
-        if (closed) return;
-
         send("status", { text: SKILL_STATUS[skill.frontmatter.name] || "处理中..." });
 
         await executeReactStream(
@@ -164,10 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         // Persist after stream — best-effort, never fail the response.
         // For upload turns, persist the FULL message (with the `[文件已上传]`
         // marker) so the next turn's router can detect "post-upload" state and
-        // keep the data-ingest skill sticky for one more turn — without this,
-        // a "对/确认" reply gets routed to data-query against a stale ontology
-        // and the freshly uploaded dataset is orphaned.
-        // For non-upload turns `fullMessage === message`, so this is a no-op.
+        // keep data-ingest sticky for one more turn.
         try {
           await prisma.chatMessage.createMany({
             data: [

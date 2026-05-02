@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { ChartView, detectChartable } from "@/components/chat/ChartView";
-import { downloadCsv, oagToCsvRows } from "@/lib/download";
+import { downloadCsv, oagToCsvRows } from "@/utils/download";
 
 type ToolCall = { toolName: string; args: any; result: any; status: "success" | "error" };
 type Message = {

@@ -1,5 +1,5 @@
 import { ontologyApi, datasourceApi } from "@/services/pythonApi";
-import { createOntologyFromColumns } from "@/lib/createOntologyFromColumns";
+import { createOntologyFromColumns } from "@/features/ontology/createOntologyFromColumns";
 import type { OntologySchema } from "@/types/api";
 
 export interface Tool {

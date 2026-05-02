@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { mcpApi } from "@/services/pythonApi";
-import { downloadJson } from "@/lib/download";
+import { downloadJson } from "@/utils/download";
 
 interface Skill {
   id: string;

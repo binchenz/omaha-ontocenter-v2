@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/session";
 import { internalAuthHeaders } from "@/lib/internalAuth";
-import { forwardPythonResponse } from "@/lib/pythonResponse";
+import { forwardPythonResponse } from "@/app/api/proxy/_lib/pythonResponse";
 
 const BASE_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
 

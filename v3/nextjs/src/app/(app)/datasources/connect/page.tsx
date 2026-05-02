@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createOntologyFromColumns } from "@/lib/createOntologyFromColumns";
+import { createOntologyFromColumns } from "@/features/ontology/createOntologyFromColumns";
 
 const PRESETS: Record<string, { port: number; user: string }> = {
   postgres: { port: 5432, user: "postgres" },
