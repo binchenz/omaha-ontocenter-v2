@@ -8,7 +8,20 @@ import type {
   OAGQueryResponse,
 } from "@/types/api";
 
-const BASE_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
+/**
+ * Dual-context base URL:
+ *   - Server (API routes, agent code, RSC): direct to Python API with
+ *     X-Internal-Auth header. `PYTHON_API_URL` is server-only env.
+ *   - Client (browser, "use client" pages): route through the Next.js
+ *     proxy at /api/proxy/python/[...path], which authenticates the
+ *     user via session and injects the shared secret on our behalf.
+ *     INTERNAL_API_SECRET must stay server-only (no NEXT_PUBLIC_ prefix),
+ *     so client components cannot sign requests themselves.
+ */
+const IS_SERVER = typeof window === "undefined";
+const BASE_URL = IS_SERVER
+  ? process.env.PYTHON_API_URL || "http://127.0.0.1:8000"
+  : "/api/proxy/python";
 
 /**
  * Generic typed fetch wrapper for the Python API.
@@ -28,7 +41,9 @@ export async function pythonFetch<T = unknown>(
 
   // Don't force Content-Type for FormData — fetch sets multipart boundary itself.
   const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
-  const authHeader = internalAuthHeaders();
+  // Only sign requests on the server; the browser proxy handles auth itself
+  // and INTERNAL_API_SECRET is not exposed to the client.
+  const authHeader = IS_SERVER ? internalAuthHeaders() : {};
   const headers: HeadersInit = isFormData
     ? { ...authHeader, ...init.headers }
     : { "Content-Type": "application/json", ...authHeader, ...init.headers };
