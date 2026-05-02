@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { CoreMessage } from "ai";
 import { routeToSkill } from "@/app/agent/skill-router";
+import { loadSkillFull } from "@/app/agent/skill-loader";
 import { loadAllTools, buildIngestTools, type Tool } from "@/app/agent/tool-registry";
 import { executeReactStream } from "@/app/agent/react";
 import { DATA_SKILLS, SKILL_STATUS, SKILLS } from "@/app/agent/skills";
@@ -75,8 +76,31 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             return [] as Array<{ role: string; content: string }>;
           }),
         ]);
-        const { skill, reasoning } = routeResult;
+        let { skill, reasoning } = routeResult;
         const isFirstTurn = historyRows.length === 0;
+
+        // Sticky data-ingest: if the most-recent user message in history
+        // carries the `[文件已上传]` marker AND this turn has no new file,
+        // the user is confirming/correcting the freshly-ingested dataset
+        // (e.g. "对，就是订单数据" or "不对，改成..."). Force data-ingest so
+        // the LLM stays on the create_ontology path; otherwise the LLM router
+        // tends to pick data-query and hit a stale ontology, orphaning the
+        // just-uploaded dataset. The data-ingest skill body already handles
+        // both confirmation and correction flows.
+        // historyRows is desc-ordered (most recent first), so .find() on
+        // role==="user" yields the latest user message.
+        const lastUserMessage = historyRows.find((m) => m.role === "user");
+        const isPostUploadTurn =
+          !file &&
+          lastUserMessage?.content?.includes("[文件已上传]") === true;
+        if (isPostUploadTurn && skill.frontmatter.name !== SKILLS.DATA_INGEST) {
+          const ingestSkill = loadSkillFull(SKILLS.DATA_INGEST);
+          if (ingestSkill) {
+            skill = ingestSkill;
+            reasoning = "上一轮上传了文件，本轮继续完成数据接入";
+          }
+        }
+
         send("skill", { name: skill.frontmatter.name, reasoning });
 
         // listSchemas only matters for data-query/data-explore — general-chat
@@ -133,14 +157,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         );
 
         // Persist after stream — best-effort, never fail the response.
-        // Store the CLEAN user message (not fullMessage); the "[文件已上传]…"
-        // context was only for the LLM's single-turn input, and persisting
-        // it would leak dataset_id / schema hints into the user bubble on
-        // page reload.
+        // For upload turns, persist the FULL message (with the `[文件已上传]`
+        // marker) so the next turn's router can detect "post-upload" state and
+        // keep the data-ingest skill sticky for one more turn — without this,
+        // a "对/确认" reply gets routed to data-query against a stale ontology
+        // and the freshly uploaded dataset is orphaned.
+        // For non-upload turns `fullMessage === message`, so this is a no-op.
         try {
           await prisma.chatMessage.createMany({
             data: [
-              { sessionId, role: "user", content: message },
+              { sessionId, role: "user", content: fullMessage },
               {
                 sessionId,
                 role: "assistant",
