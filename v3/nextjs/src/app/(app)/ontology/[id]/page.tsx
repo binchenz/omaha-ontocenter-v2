@@ -21,7 +21,7 @@ export default function OntologyDetailPage() {
     try {
       const s = await ontologyApi.getSchema(id);
       setSchema(s);
-      const y = await pythonFetch(`/ontology/${id}/yaml`);
+      const y = await pythonFetch<{ yaml: string }>(`/ontology/${id}/yaml`);
       setYaml(y.yaml);
     } finally {
       setLoading(false);
@@ -119,7 +119,7 @@ export default function OntologyDetailPage() {
           {schema.links.length > 0 && (
             <>
               <h2 className="text-lg font-semibold text-text-primary mb-3 mt-6">链接</h2>
-              {schema.links.map((link: any, i: number) => (
+              {schema.links.map((link, i) => (
                 <div key={i} className="text-sm bg-surface border border-gray-200 rounded p-3 mb-2">
                   <span className="font-medium">{link.from_object}</span>
                   <span className="text-cool mx-2">→</span>

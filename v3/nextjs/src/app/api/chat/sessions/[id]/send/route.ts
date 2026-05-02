@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           try {
             const ingestResult = await ingestApi.ingest(fd);
             const cols = ingestResult.columns
-              .map((c: { name: string; semantic_type: string }) => `${c.name}(${c.semantic_type})`)
+              .map((c) => `${c.name}(${c.semantic_type})`)
               .join(", ");
             fileContext = `\n\n[文件已上传] 表名: ${ingestResult.table_name}, ${ingestResult.rows_count} 行, 列: ${cols}, dataset_id: ${ingestResult.dataset_id}`;
           } catch (err: any) {
@@ -63,10 +63,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         if (closed) return;
 
         const fullMessage = message + fileContext;
-        const [routeResult, ontList, historyRows] = await Promise.all([
+        const [routeResult, schemas, historyRows] = await Promise.all([
           routeToSkill(fullMessage, !!file),
-          ontologyApi.list(tenantId, { limit: 500, order: "desc" }).catch((e) => {
-            console.warn("[chat/send] ontology list failed:", e);
+          // Batch endpoint: one HTTP call returns every ontology with its
+          // objects+properties inlined. Previously we did
+          //   list() → Promise.all(N × getSchema())
+          // which meant 1+N HTTP hops and O(N*objects) SELECTs per chat send.
+          ontologyApi.listSchemas(tenantId, { limit: 500, order: "desc" }).catch((e) => {
+            console.warn("[chat/send] listSchemas failed:", e);
             return [] as OntologySchema[];
           }),
           prisma.chatMessage.findMany({
@@ -98,16 +102,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           }),
         };
 
-        if (DATA_SKILLS.has(skill.frontmatter.name) && ontList.length > 0) {
-          const schemas = await Promise.all(
-            ontList.map((o: { id: string }) =>
-              ontologyApi.getSchema(o.id, tenantId).catch((e) => {
-                console.warn(`[chat/send] schema fetch failed for ${o.id}:`, e);
-                return null;
-              })
-            )
-          );
-          Object.assign(tools, loadAllTools(schemas.filter(Boolean) as OntologySchema[], tenantId));
+        if (DATA_SKILLS.has(skill.frontmatter.name) && schemas.length > 0) {
+          Object.assign(tools, loadAllTools(schemas, tenantId));
         }
 
         if (closed) return;

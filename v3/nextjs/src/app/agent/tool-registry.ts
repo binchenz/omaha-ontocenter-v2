@@ -85,10 +85,10 @@ export function buildIngestTools(
           datasourceApi.list(tenantId, { limit: 10, order: "desc" }).catch(() => []),
         ]);
         return {
-          ontologies: ontologies.map((o: OntologySchema) => ({ id: o.id, name: o.name, slug: o.slug })),
-          datasources: datasources.map((d: any) => ({
+          ontologies: ontologies.map((o) => ({ id: o.id, name: o.name, slug: o.slug })),
+          datasources: datasources.map((d) => ({
             id: d.id, name: d.name, type: d.type,
-            datasets: d.datasets?.map((ds: any) => ({ table: ds.table_name, rows: ds.rows_count })),
+            datasets: d.datasets?.map((ds) => ({ table: ds.table_name, rows: ds.rows_count })),
           })),
         };
       },

@@ -10,7 +10,8 @@ from app.schemas.query import OAGQueryRequest
 from app.services.ontology.parser import parse_ontology_string
 from app.services.ontology.store import (
     create_ontology, get_ontology, get_ontology_objects, get_object_properties,
-    get_ontology_links, get_ontology_functions, list_ontologies, delete_ontology,
+    get_ontology_links, get_ontology_functions, list_ontologies,
+    list_ontology_schemas_bulk, delete_ontology,
     rebuild_ontology_in_place,
 )
 from app.services.query.oag_service import oag_service
@@ -53,6 +54,67 @@ async def create(
         raise HTTPException(400, f"YAML 解析失败: {e}")
     ontology = await create_ontology(db, tenant_id, config, yaml)
     return {"id": ontology.id, "name": ontology.name, "status": ontology.status.value}
+
+
+@router.get("/schemas")
+async def list_schemas(
+    tenant_id: TenantId,
+    pg: Annotated[Pagination, Depends(pagination)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Batch variant of ``GET /ontology/{id}/schema`` — returns every ontology
+    in the tenant with its objects+properties+links+functions inlined.
+
+    Collapses the N+1 round-trip pattern the chat send-route used to need (one
+    GET /ontology plus one GET /ontology/{id}/schema per item) into a single
+    HTTP call backed by eager-loaded SQL.
+
+    The shape of each item matches the single-schema endpoint so the frontend
+    ``OntologySchema`` type applies unchanged.
+    """
+    ontologies = await list_ontology_schemas_bulk(
+        db, tenant_id, limit=pg.limit, order=pg.order
+    )
+    return [
+        {
+            "id": o.id,
+            "name": o.name,
+            "slug": o.slug,
+            "version": o.version,
+            "objects": [
+                {
+                    "id": obj.id,
+                    "name": obj.name,
+                    "slug": obj.slug,
+                    "description": obj.description,
+                    "table_name": obj.table_name,
+                    "datasource_id": obj.datasource_id,
+                    "properties": [
+                        {
+                            "name": p.name,
+                            "slug": p.slug,
+                            "semantic_type": p.semantic_type,
+                            "source_column": p.source_column,
+                            "is_computed": p.is_computed,
+                            "function_ref": p.function_ref,
+                            "unit": p.unit,
+                        }
+                        for p in obj.properties
+                    ],
+                }
+                for obj in o.objects
+            ],
+            "links": [
+                {"name": l.name, "from_object": l.from_object, "to_object": l.to_object, "type": l.type}
+                for l in o.links
+            ],
+            "functions": [
+                {"name": f.name, "handler": f.handler, "description": f.description}
+                for f in o.functions
+            ],
+        }
+        for o in ontologies
+    ]
 
 
 @router.get("/{ontology_id}/schema")

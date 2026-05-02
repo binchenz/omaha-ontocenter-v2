@@ -1,4 +1,11 @@
 import { DEFAULT_TENANT_ID } from "@/lib/constants";
+import type {
+  DatasourceListItem,
+  IngestResult,
+  OntologyListItem,
+  OntologySchema,
+  OAGQueryResponse,
+} from "@/types/api";
 
 const BASE_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
 
@@ -9,7 +16,17 @@ function withTenant(path: string, tenantId: string): string {
   return `${path}${sep}tenant_id=${encodeURIComponent(tenantId)}`;
 }
 
-export async function pythonFetch(path: string, init: RequestInit = {}): Promise<any> {
+/**
+ * Generic typed fetch wrapper for the Python API.
+ *
+ * Callers pass `T` so the JSON body returns with that shape rather than `any`,
+ * eliminating manual `as T` casts at every call site (and the `(x: any)`
+ * shaped patches that used to dot every consumer).
+ */
+export async function pythonFetch<T = unknown>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   const url = `${BASE_URL}${path}`;
 
   const controller = new AbortController();
@@ -33,7 +50,7 @@ export async function pythonFetch(path: string, init: RequestInit = {}): Promise
       throw new Error(err.detail || `API error: ${res.status}`);
     }
 
-    return res.json();
+    return (await res.json()) as T;
   } finally {
     clearTimeout(timeout);
   }
@@ -41,9 +58,9 @@ export async function pythonFetch(path: string, init: RequestInit = {}): Promise
 
 export const ingestApi = {
   discover: (formData: FormData) =>
-    pythonFetch("/ingest/discover", { method: "POST", body: formData }),
+    pythonFetch<IngestResult>("/ingest/discover", { method: "POST", body: formData }),
   ingest: (formData: FormData) =>
-    pythonFetch("/ingest", { method: "POST", body: formData }),
+    pythonFetch<IngestResult>("/ingest", { method: "POST", body: formData }),
 };
 
 export interface ListOpts {
@@ -60,40 +77,64 @@ function buildListQuery(tenantId: string, opts: ListOpts = {}): string {
 
 export const datasourceApi = {
   list: (tenantId: string = DEFAULT_TENANT_ID, opts: ListOpts = {}) =>
-    pythonFetch(`/datasources?${buildListQuery(tenantId, opts)}`),
+    pythonFetch<DatasourceListItem[]>(`/datasources?${buildListQuery(tenantId, opts)}`),
   delete: (id: string, tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(withTenant(`/datasources/${id}`, tenantId), { method: "DELETE" }),
+    pythonFetch<{ deleted: boolean }>(withTenant(`/datasources/${id}`, tenantId), {
+      method: "DELETE",
+    }),
 };
 
 export const ontologyApi = {
   list: (tenantId: string = DEFAULT_TENANT_ID, opts: ListOpts = {}) =>
-    pythonFetch(`/ontology?${buildListQuery(tenantId, opts)}`),
+    pythonFetch<OntologyListItem[]>(`/ontology?${buildListQuery(tenantId, opts)}`),
+  /**
+   * Bulk-fetch every ontology in the tenant with objects+properties+links+
+   * functions inlined. Backed by `GET /ontology/schemas`, which uses
+   * SQLAlchemy `selectinload` so we issue O(1) SELECTs server-side instead
+   * of the previous one-list + N-getSchema round trips.
+   */
+  listSchemas: (tenantId: string = DEFAULT_TENANT_ID, opts: ListOpts = {}) =>
+    pythonFetch<OntologySchema[]>(`/ontology/schemas?${buildListQuery(tenantId, opts)}`),
   create: (yamlSource: string, tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(`/ontology?tenant_id=${encodeURIComponent(tenantId)}`, {
-      method: "POST",
-      body: JSON.stringify({ yaml_source: yamlSource }),
-    }),
+    pythonFetch<{ id: string; name: string; status: string }>(
+      `/ontology?tenant_id=${encodeURIComponent(tenantId)}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ yaml_source: yamlSource }),
+      },
+    ),
   getSchema: (id: string, tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(withTenant(`/ontology/${id}/schema`, tenantId)),
+    pythonFetch<OntologySchema>(withTenant(`/ontology/${id}/schema`, tenantId)),
   query: (id: string, query: object, tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(withTenant(`/ontology/${id}/query`, tenantId), {
+    pythonFetch<OAGQueryResponse>(withTenant(`/ontology/${id}/query`, tenantId), {
       method: "POST",
       body: JSON.stringify(query),
     }),
   delete: (id: string, tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(withTenant(`/ontology/${id}`, tenantId), { method: "DELETE" }),
-  update: (id: string, yamlSource: string, tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(`/ontology/${id}?tenant_id=${encodeURIComponent(tenantId)}`, {
-      method: "PUT",
-      body: JSON.stringify({ yaml_source: yamlSource }),
+    pythonFetch<{ deleted: boolean }>(withTenant(`/ontology/${id}`, tenantId), {
+      method: "DELETE",
     }),
+  update: (id: string, yamlSource: string, tenantId: string = DEFAULT_TENANT_ID) =>
+    pythonFetch<{ id: string; name: string; status: string }>(
+      `/ontology/${id}?tenant_id=${encodeURIComponent(tenantId)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ yaml_source: yamlSource }),
+      },
+    ),
 };
 
 export const mcpApi = {
+  // The MCP endpoints return rich, evolving payloads (skill manifests, tool
+  // arrays, mcp_config blobs). Page-level components declare their own
+  // local types, so keep the API client permissive here.
   generate: (ontologyId: string, tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(withTenant(`/mcp/generate/${ontologyId}`, tenantId), { method: "POST" }),
+    pythonFetch<Record<string, any>>(
+      withTenant(`/mcp/generate/${ontologyId}`, tenantId),
+      { method: "POST" },
+    ),
   servers: (tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(withTenant("/mcp/servers", tenantId)),
+    pythonFetch<Record<string, any>>(withTenant("/mcp/servers", tenantId)),
   skills: (tenantId: string = DEFAULT_TENANT_ID) =>
-    pythonFetch(withTenant("/mcp/skills", tenantId)),
+    pythonFetch<{ skills?: any[] }>(withTenant("/mcp/skills", tenantId)),
 };

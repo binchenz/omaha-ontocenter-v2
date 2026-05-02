@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete as sa_delete
+from sqlalchemy.orm import selectinload
 from app.models.ontology import Ontology, OntologyObject, OntologyProperty, OntologyLink, OntologyFunction, OntologyStatus
 from app.schemas.ontology_config import OntologyConfig
 from app.services.ontology.slug import slugify
@@ -139,6 +140,39 @@ async def list_ontologies(
         stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+async def list_ontology_schemas_bulk(
+    db: AsyncSession,
+    tenant_id: str,
+    limit: int | None = None,
+    order: str = "desc",
+) -> list[Ontology]:
+    """Return ontologies with objects+properties+links+functions eagerly loaded.
+
+    Uses SQLAlchemy ``selectinload`` so the entire payload is fetched in
+    a bounded number of queries (1 for ontologies, 1 per eager-loaded
+    relationship collection) instead of N+1 per object/property.
+
+    The frontend calls this via ``GET /ontology/schemas`` and iterates the
+    result client-side, so per-call we go from 1 HTTP + O(ontologies*objects)
+    SELECTs down to 1 HTTP + O(1) SELECTs.
+    """
+    order_col = Ontology.updated_at.asc() if order == "asc" else Ontology.updated_at.desc()
+    stmt = (
+        select(Ontology)
+        .where(Ontology.tenant_id == tenant_id)
+        .options(
+            selectinload(Ontology.objects).selectinload(OntologyObject.properties),
+            selectinload(Ontology.links),
+            selectinload(Ontology.functions),
+        )
+        .order_by(order_col)
+    )
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().unique().all())
 
 
 async def delete_ontology(db: AsyncSession, ontology_id: str) -> bool:
