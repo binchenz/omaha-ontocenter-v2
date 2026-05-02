@@ -21,6 +21,16 @@ def _validate_production_secrets() -> None:
         raise RuntimeError(
             "SECRET_KEY is still set to a default value. Set a strong random secret via env."
         )
+    # H1 follow-up: an empty INTERNAL_API_SECRET silently disables the
+    # internal-auth middleware (see `internal_auth` below). That's fine for
+    # dev, catastrophic in prod — the Python API would become a public proxy
+    # for any tenant's data. Fail fast so the operator can't miss it.
+    if not settings.internal_api_secret:
+        raise RuntimeError(
+            "INTERNAL_API_SECRET must be non-empty in production. "
+            "Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))' "
+            "and set the same value in the Next.js server env."
+        )
 
 
 _validate_production_secrets()

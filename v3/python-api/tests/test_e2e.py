@@ -599,56 +599,49 @@ objects:
         assert cfg["password"] != "s3cret!@#"
         assert decrypt_str(cfg["password"]) == "s3cret!@#"
 
-    async def test_26_internal_auth_blocks_when_secret_set(self):
+    async def test_26_internal_auth_blocks_when_secret_set(self, monkeypatch):
         """Setting INTERNAL_API_SECRET should reject requests without the matching header.
 
         H1 fix: when the operator configures a shared secret (production
         posture), every endpoint except /health must demand the
         X-Internal-Auth header. We mutate the live settings object rather
-        than spinning up a second app to verify the *deployed* middleware,
-        and restore the prior value in `finally` so subsequent tests run
-        without auth (matching their unset-secret expectation).
+        than spinning up a second app to verify the *deployed* middleware.
+        `monkeypatch` auto-restores the original value even if the test
+        crashes mid-run, so subsequent tests run without auth (matching
+        their unset-secret expectation).
         """
         from app.config import settings
-        original = settings.internal_api_secret
-        settings.internal_api_secret = "test-secret-xyz"
-        try:
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
-                # No header → 401
-                r = await c.get("/ontology?tenant_id=anything")
-                assert r.status_code == 401, r.text
-                assert r.json()["detail"] == "Unauthorized"
+        monkeypatch.setattr(settings, "internal_api_secret", "test-secret-xyz")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            # No header → 401
+            r = await c.get("/ontology?tenant_id=anything")
+            assert r.status_code == 401, r.text
+            assert r.json()["detail"] == "Unauthorized"
 
-                # Wrong header → 401
-                r = await c.get(
-                    "/ontology?tenant_id=anything",
-                    headers={"X-Internal-Auth": "wrong"},
-                )
-                assert r.status_code == 401
+            # Wrong header → 401
+            r = await c.get(
+                "/ontology?tenant_id=anything",
+                headers={"X-Internal-Auth": "wrong"},
+            )
+            assert r.status_code == 401
 
-                # Correct header → 200
-                r = await c.get(
-                    "/ontology?tenant_id=anything",
-                    headers={"X-Internal-Auth": "test-secret-xyz"},
-                )
-                assert r.status_code == 200
+            # Correct header → 200
+            r = await c.get(
+                "/ontology?tenant_id=anything",
+                headers={"X-Internal-Auth": "test-secret-xyz"},
+            )
+            assert r.status_code == 200
 
-                # /health must always be reachable for k8s probes,
-                # even with no auth header.
-                r = await c.get("/health")
-                assert r.status_code == 200
-        finally:
-            settings.internal_api_secret = original
+            # /health must always be reachable for k8s probes,
+            # even with no auth header.
+            r = await c.get("/health")
+            assert r.status_code == 200
 
-    async def test_27_internal_auth_disabled_when_secret_empty(self):
+    async def test_27_internal_auth_disabled_when_secret_empty(self, monkeypatch):
         """Empty INTERNAL_API_SECRET must keep the API open (dev convenience)."""
         from app.config import settings
-        original = settings.internal_api_secret
-        settings.internal_api_secret = ""
-        try:
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
-                # No header but secret unset → request goes through
-                r = await c.get("/ontology?tenant_id=anything")
-                assert r.status_code == 200
-        finally:
-            settings.internal_api_secret = original
+        monkeypatch.setattr(settings, "internal_api_secret", "")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            # No header but secret unset → request goes through
+            r = await c.get("/ontology?tenant_id=anything")
+            assert r.status_code == 200
