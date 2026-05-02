@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-root: #fafaf7;
+  --bg-surface: #f3f2ed;
+  --bg-data: #f5f4ee;
+  --accent: #c8842a;
+  --accent-glow: rgba(200, 132, 42, 0.08);
+  --cool: #5b7a8c;
+  --text-primary: #1c1c1a;
+  --text-secondary: #6b6a63;
+  --text-data: #2a2820;
+}
+
+* {
+  font-feature-settings: 'tnum' 1;
+}
+
+@layer base {
+  body {
+    background-color: var(--bg-root);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Retro-futuristic: amber glow on link/button hover */
+@layer components {
+  .accent-glow {
+    transition: box-shadow 0.3s ease;
+  }
+  .accent-glow:hover {
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  /* Scan-line loading effect */
+  .scan-line::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(200, 132, 42, 0.03) 2px,
+      rgba(200, 132, 42, 0.03) 4px
+    );
+    pointer-events: none;
+  }
+}

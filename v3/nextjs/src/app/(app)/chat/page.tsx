@@ -8,7 +8,6 @@ type ToolCall = { toolName: string; args: any; result: any; status: "success" | 
 type Message = {
   role: "user" | "assistant";
   content: string;
-  plan?: any;           // legacy, kept for backward compat with stored sessions
   toolCalls?: ToolCall[];
   skill?: { name: string; reasoning: string };
   status?: string;
@@ -21,7 +20,6 @@ type Session = {
 };
 
 const STORAGE_KEY = "ontocenter-v3-sessions";
-const stepIcon: Record<string, string> = { pending: "○", running: "◐", done: "●", error: "✗" };
 
 export default function ChatPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -150,8 +148,7 @@ export default function ChatPage() {
               if (s.id !== sessionId) return s;
               const msgs = [...s.messages];
               const last = { ...msgs[msgs.length - 1] };
-              if (event === "plan") last.plan = payload;
-              else if (event === "skill") last.skill = payload;
+              if (event === "skill") last.skill = payload;
               else if (event === "status") last.status = payload.text;
               else if (event === "tool") last.toolCalls = [...(last.toolCalls || []), payload];
               else if (event === "token") last.content = (last.content || "") + (payload.text || "");
@@ -251,19 +248,6 @@ export default function ChatPage() {
                     <div className="text-xs text-text-secondary">
                       <span className="text-cool">▸</span> 技能: <code className="text-accent">{msg.skill.name}</code>
                       <span className="ml-2 text-text-secondary">{msg.skill.reasoning}</span>
-                    </div>
-                  )}
-                  {msg.plan && msg.plan.steps.length > 0 && (
-                    <div className="bg-data border border-gray-200 rounded-lg p-3">
-                      <p className="text-xs text-text-secondary mb-2">
-                        <span className="text-cool">▸</span> {msg.plan.reasoning}
-                      </p>
-                      {msg.plan.steps.map((s: any, j: number) => (
-                        <div key={j} className="text-xs text-text-primary py-0.5 flex gap-2">
-                          <span className="text-accent">{stepIcon[s.status] || "○"}</span>
-                          <span>{j + 1}. {s.description}</span>
-                        </div>
-                      ))}
                     </div>
                   )}
 

@@ -1,13 +1,7 @@
 import { streamText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import { Tool } from "./tool-registry";
-
-const llm = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
-});
-const model = llm(process.env.LLM_MODEL || "deepseek-chat");
+import { llmModel } from "./llm";
 
 export interface ToolCallEvent {
   toolName: string;
@@ -52,7 +46,7 @@ ${skillInstructions}
 
   try {
     const result = streamText({
-      model,
+      model: llmModel,
       system,
       prompt: question,
       maxSteps: 5,
@@ -99,12 +93,6 @@ function schemaForTool(name: string) {
     return z.object({
       function_name: z.string(),
       kwargs: z.record(z.any()).optional(),
-    });
-  }
-  if (name === "ingest_file") {
-    return z.object({
-      file_type: z.enum(["csv", "excel"]).describe("文件类型"),
-      file_path: z.string().optional().describe("服务端暂存的文件路径"),
     });
   }
   if (name === "create_ontology") {
