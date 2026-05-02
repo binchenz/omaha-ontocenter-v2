@@ -42,7 +42,7 @@ model ApiKey {
   id        String   @id @default(cuid())
   tenantId  String   @map("tenant_id")
   userId    String   @map("user_id")
-  keyHash   String   @map("key_hash")
+  keyHash   String   @unique @map("key_hash")
   label     String
   scopes    String   @default("read")
   expiresAt DateTime? @map("expires_at")

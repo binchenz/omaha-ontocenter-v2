@@ -8,14 +8,12 @@ export async function getBearerContext(req: Request): Promise<SessionContext | n
   if (!m) return null;
 
   const hash = hashApiKey(m[1]);
-  const key = await prisma.apiKey.findFirst({
-    where: {
-      keyHash: hash,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
-    select: { userId: true, tenantId: true, scopes: true, user: { select: { email: true } } },
+  const key = await prisma.apiKey.findUnique({
+    where: { keyHash: hash },
+    select: { userId: true, tenantId: true, scopes: true, expiresAt: true, user: { select: { email: true } } },
   });
   if (!key) return null;
+  if (key.expiresAt && key.expiresAt <= new Date()) return null;
 
   return {
     userId: key.userId,
