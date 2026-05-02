@@ -84,3 +84,7 @@ test_tushare_config.yaml
 # Phase 1 cleanup
 111.pem
 backend/app/api/data/
+
+# v3 python-api local state (SQLite meta DB + Delta tables)
+v3/python-api/data/
+v3/python-api/omaha.db
