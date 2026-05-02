@@ -31,8 +31,40 @@ export default function ChatPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const loadedSessionsRef = useRef<Set<string>>(new Set());
 
+  // Streaming buffers — kept out of `sessions` to avoid O(sessions * messages)
+  // object clones per token. Merged into `sessions` once on `done`.
+  const [streamingSessionId, setStreamingSessionId] = useState<string>("");
+  const [streamingContent, setStreamingContent] = useState<string>("");
+  const [streamingToolCalls, setStreamingToolCalls] = useState<ToolCall[]>([]);
+  const [streamingSkill, setStreamingSkill] = useState<{ name: string; reasoning: string } | null>(null);
+  const [streamingStatus, setStreamingStatus] = useState<string>("");
+
   const active = sessions.find((s) => s.id === activeId);
   const messages = active?.messages || [];
+
+  // While streaming for the *active* session, render a synthetic ghost
+  // assistant bubble at the tail. On `done` it gets persisted into `sessions`
+  // and we clear the buffers, so the ghost is replaced by the real message
+  // in the same render cycle (no flicker).
+  const showGhost =
+    streaming &&
+    streamingSessionId === activeId &&
+    (streamingContent.length > 0 ||
+      streamingToolCalls.length > 0 ||
+      streamingSkill !== null ||
+      streamingStatus.length > 0);
+  const displayMessages: Message[] = showGhost
+    ? [
+        ...messages,
+        {
+          role: "assistant",
+          content: streamingContent,
+          toolCalls: streamingToolCalls,
+          skill: streamingSkill ?? undefined,
+          status: streamingStatus || undefined,
+        },
+      ]
+    : messages;
 
   // Initial sessions load — fetch from server once authenticated.
   useEffect(() => {
@@ -91,7 +123,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamingContent, streamingToolCalls.length, streamingStatus]);
 
   // Auth guard — declared after hooks to respect rules-of-hooks.
   if (status === "unauthenticated") redirect("/login");
@@ -162,18 +194,53 @@ export default function ChatPage() {
     }
 
     const userMsg: Message = { role: "user", content: text };
-    const assistantMsg: Message = { role: "assistant", content: "", toolCalls: [] };
 
+    // Push only the user message synchronously. Assistant bubble is rendered
+    // from streaming buffers (ghost) until `done`, at which point we commit.
     setSessions((prev) => prev.map((s) =>
       s.id === sessionId ? {
         ...s,
         title: s.messages.length === 0 ? text.slice(0, 20) : s.title,
-        messages: [...s.messages, userMsg, assistantMsg],
+        messages: [...s.messages, userMsg],
       } : s
     ));
 
     setInput("");
+    // Reset streaming buffers for this turn.
+    setStreamingSessionId(sessionId);
+    setStreamingContent("");
+    setStreamingToolCalls([]);
+    setStreamingSkill(null);
+    setStreamingStatus("");
     setStreaming(true);
+
+    // Locally-accumulated state — we need final values at `done` time
+    // without depending on React state flushes.
+    let accContent = "";
+    let accToolCalls: ToolCall[] = [];
+    let accSkill: { name: string; reasoning: string } | null = null;
+    let committed = false;
+
+    const commitAssistant = (overrideContent?: string) => {
+      if (committed) return;
+      committed = true;
+      const finalContent = overrideContent !== undefined ? overrideContent : accContent;
+      const assistantMsg: Message = {
+        role: "assistant",
+        content: finalContent,
+        toolCalls: accToolCalls,
+        ...(accSkill ? { skill: accSkill } : {}),
+      };
+      setSessions((prev) => prev.map((s) =>
+        s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
+      ));
+      // Clear buffers — ghost disappears in the same render as the real bubble appears.
+      setStreamingContent("");
+      setStreamingToolCalls([]);
+      setStreamingSkill(null);
+      setStreamingStatus("");
+      setStreamingSessionId("");
+    };
 
     try {
       const fd = new FormData();
@@ -211,35 +278,59 @@ export default function ChatPage() {
 
           try {
             const payload = JSON.parse(data);
-            setSessions((prev) => prev.map((s) => {
-              if (s.id !== sessionId) return s;
-              const msgs = [...s.messages];
-              const last = { ...msgs[msgs.length - 1] };
-              if (event === "skill") last.skill = payload;
-              else if (event === "status") last.status = payload.text;
-              else if (event === "tool") last.toolCalls = [...(last.toolCalls || []), payload];
-              else if (event === "token") last.content = (last.content || "") + (payload.text || "");
-              else if (event === "done" && payload.message) last.content = payload.message;
-              else if (event === "error") last.content = `错误: ${payload.message}`;
-              msgs[msgs.length - 1] = last;
-              return { ...s, messages: msgs };
-            }));
+            if (event === "skill") {
+              accSkill = payload;
+              setStreamingSkill(payload);
+            } else if (event === "status") {
+              setStreamingStatus(payload.text || "");
+            } else if (event === "tool") {
+              accToolCalls = [...accToolCalls, payload];
+              setStreamingToolCalls(accToolCalls);
+            } else if (event === "token") {
+              accContent += payload.text || "";
+              setStreamingContent(accContent);
+            } else if (event === "done") {
+              // Server may hand back an authoritative final message; prefer it.
+              const finalContent = payload.message ?? accContent;
+              accContent = finalContent;
+              commitAssistant(finalContent);
+            } else if (event === "error") {
+              const errText = `错误: ${payload.message}`;
+              accContent = errText;
+              commitAssistant(errText);
+            }
           } catch (e) {
             console.warn("[chat] SSE parse failed", { event, data, error: e });
           }
         }
       }
+      // Stream ended without an explicit `done` — commit whatever we have.
+      if (!committed) {
+        if (accContent || accToolCalls.length || accSkill) {
+          commitAssistant();
+        } else {
+          // Nothing to persist — just clear transient state.
+          setStreamingContent("");
+          setStreamingToolCalls([]);
+          setStreamingSkill(null);
+          setStreamingStatus("");
+          setStreamingSessionId("");
+        }
+      }
     } catch (err: any) {
-      setSessions((prev) => prev.map((s) => {
-        if (s.id !== sessionId) return s;
-        const msgs = [...s.messages];
-        const last = { ...msgs[msgs.length - 1] };
-        // Append error rather than replace — preserves streamed tokens + tool calls
-        const suffix = `\n\n[连接中断: ${err.message}]`;
-        last.content = (last.content || "") + suffix;
-        msgs[msgs.length - 1] = last;
-        return { ...s, messages: msgs };
-      }));
+      const suffix = `\n\n[连接中断: ${err.message}]`;
+      const finalContent = (accContent || "") + suffix;
+      accContent = finalContent;
+      // In case `done`/`error` was already handled, force a second commit by
+      // resetting the flag and appending a new assistant message.
+      if (committed) {
+        const assistantMsg: Message = { role: "assistant", content: finalContent, toolCalls: [] };
+        setSessions((prev) => prev.map((s) =>
+          s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
+        ));
+      } else {
+        commitAssistant(finalContent);
+      }
     } finally {
       setStreaming(false);
     }
@@ -282,7 +373,7 @@ export default function ChatPage() {
 
       <div className="flex-1 flex flex-col">
         <div className="flex-1 overflow-auto p-6">
-          {messages.length === 0 && (
+          {messages.length === 0 && !showGhost && (
             <div className="text-center mt-24 text-text-secondary max-w-md mx-auto">
               <h2 className="text-2xl font-bold text-text-primary mb-3">有什么可以帮你的？</h2>
               <p className="text-sm mb-6">关于你的业务数据，问我任何问题</p>
@@ -303,7 +394,9 @@ export default function ChatPage() {
             </div>
           )}
 
-          {messages.map((msg, i) => (
+          {displayMessages.map((msg, i) => {
+            const isStreamingTail = streaming && i === displayMessages.length - 1 && msg.role === "assistant";
+            return (
             <div key={i} className="mb-6">
               {msg.role === "user" ? (
                 <div className="flex justify-end">
@@ -357,7 +450,7 @@ export default function ChatPage() {
                     );
                   })}
 
-                  {streaming && i === messages.length - 1 && msg.status && (
+                  {isStreamingTail && msg.status && (
                     <div className="text-xs text-text-secondary italic animate-pulse">
                       {msg.status}
                     </div>
@@ -366,13 +459,14 @@ export default function ChatPage() {
                   {msg.content && (
                     <div className="bg-surface border border-gray-200 rounded-lg px-4 py-3 text-sm whitespace-pre-wrap text-text-primary">
                       {msg.content}
-                      {streaming && i === messages.length - 1 && <span className="inline-block w-2 h-4 bg-accent ml-1 animate-pulse" />}
+                      {isStreamingTail && <span className="inline-block w-2 h-4 bg-accent ml-1 animate-pulse" />}
                     </div>
                   )}
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
           <div ref={bottomRef} />
         </div>
 
