@@ -1,3 +1,5 @@
+import { DEFAULT_TENANT_ID } from "@/lib/constants";
+
 const BASE_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
 
 /** Append tenant_id to a URL path if not already present. */
@@ -57,30 +59,30 @@ function buildListQuery(tenantId: string, opts: ListOpts = {}): string {
 }
 
 export const datasourceApi = {
-  list: (tenantId = "default", opts: ListOpts = {}) =>
+  list: (tenantId: string = DEFAULT_TENANT_ID, opts: ListOpts = {}) =>
     pythonFetch(`/datasources?${buildListQuery(tenantId, opts)}`),
-  delete: (id: string, tenantId = "default") =>
+  delete: (id: string, tenantId: string = DEFAULT_TENANT_ID) =>
     pythonFetch(withTenant(`/datasources/${id}`, tenantId), { method: "DELETE" }),
 };
 
 export const ontologyApi = {
-  list: (tenantId = "default", opts: ListOpts = {}) =>
+  list: (tenantId: string = DEFAULT_TENANT_ID, opts: ListOpts = {}) =>
     pythonFetch(`/ontology?${buildListQuery(tenantId, opts)}`),
-  create: (yamlSource: string, tenantId = "default") =>
+  create: (yamlSource: string, tenantId: string = DEFAULT_TENANT_ID) =>
     pythonFetch(`/ontology?tenant_id=${encodeURIComponent(tenantId)}`, {
       method: "POST",
       body: JSON.stringify({ yaml_source: yamlSource }),
     }),
-  getSchema: (id: string, tenantId = "default") =>
+  getSchema: (id: string, tenantId: string = DEFAULT_TENANT_ID) =>
     pythonFetch(withTenant(`/ontology/${id}/schema`, tenantId)),
-  query: (id: string, query: object, tenantId = "default") =>
+  query: (id: string, query: object, tenantId: string = DEFAULT_TENANT_ID) =>
     pythonFetch(withTenant(`/ontology/${id}/query`, tenantId), {
       method: "POST",
       body: JSON.stringify(query),
     }),
-  delete: (id: string, tenantId = "default") =>
+  delete: (id: string, tenantId: string = DEFAULT_TENANT_ID) =>
     pythonFetch(withTenant(`/ontology/${id}`, tenantId), { method: "DELETE" }),
-  update: (id: string, yamlSource: string, tenantId = "default") =>
+  update: (id: string, yamlSource: string, tenantId: string = DEFAULT_TENANT_ID) =>
     pythonFetch(`/ontology/${id}?tenant_id=${encodeURIComponent(tenantId)}`, {
       method: "PUT",
       body: JSON.stringify({ yaml_source: yamlSource }),
@@ -88,8 +90,10 @@ export const ontologyApi = {
 };
 
 export const mcpApi = {
-  generate: (ontologyId: string, tenantId = "default") =>
+  generate: (ontologyId: string, tenantId: string = DEFAULT_TENANT_ID) =>
     pythonFetch(withTenant(`/mcp/generate/${ontologyId}`, tenantId), { method: "POST" }),
-  servers: (tenantId = "default") => pythonFetch(withTenant("/mcp/servers", tenantId)),
-  skills: (tenantId = "default") => pythonFetch(withTenant("/mcp/skills", tenantId)),
+  servers: (tenantId: string = DEFAULT_TENANT_ID) =>
+    pythonFetch(withTenant("/mcp/servers", tenantId)),
+  skills: (tenantId: string = DEFAULT_TENANT_ID) =>
+    pythonFetch(withTenant("/mcp/skills", tenantId)),
 };

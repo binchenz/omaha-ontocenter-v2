@@ -82,5 +82,6 @@ model ChatMessage {
 
   session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  @@index([sessionId, createdAt(sort: Desc)])
   @@map("chat_messages")
 }

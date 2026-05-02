@@ -1,14 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ontologyApi } from "@/services/pythonApi";
-import { buildOntologyYaml } from "@/lib/yaml-builder";
+import { createOntologyFromColumns } from "@/lib/createOntologyFromColumns";
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [step, setStep] = useState<"upload" | "preview" | "creating">("upload");
   const [ingestResult, setIngestResult] = useState<any>(null);
-  const [yamlDraft, setYamlDraft] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -24,11 +22,6 @@ export default function UploadPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "上传失败");
       setIngestResult(data);
-      setYamlDraft(buildOntologyYaml({
-        source: file.name,
-        tableName: data.table_name,
-        columns: data.columns,
-      }));
       setStep("preview");
     } catch (e: any) {
       setError(e.message);
@@ -38,9 +31,14 @@ export default function UploadPage() {
   };
 
   const handleCreate = async () => {
+    if (!ingestResult || !file) return;
     setLoading(true); setError("");
     try {
-      const result = await ontologyApi.create(yamlDraft);
+      const result = await createOntologyFromColumns({
+        source: file.name,
+        tableName: ingestResult.table_name,
+        columns: ingestResult.columns,
+      });
       router.push(`/ontology/${result.id}`);
     } catch (e: any) {
       setError(e.message);
@@ -89,16 +87,7 @@ export default function UploadPage() {
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="bg-surface border border-gray-200 rounded-lg p-4">
-            <h2 className="font-medium text-text-primary mb-2">建议的本体 YAML（可编辑）</h2>
-            <textarea
-              value={yamlDraft}
-              onChange={(e) => setYamlDraft(e.target.value)}
-              className="w-full h-72 p-3 bg-data border border-gray-200 rounded text-xs font-mono text-text-data resize-none focus:outline-none focus:border-accent"
-            />
-            <div className="flex gap-2 mt-3">
+            <div className="flex gap-2 mt-4">
               <button onClick={handleCreate} disabled={loading} className="px-4 py-2 bg-accent text-white rounded text-sm hover:bg-accent-hover disabled:opacity-50">
                 {loading ? "创建中..." : "创建本体"}
               </button>

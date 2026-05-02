@@ -1,5 +1,5 @@
 import { ontologyApi, datasourceApi } from "@/services/pythonApi";
-import { buildOntologyYaml } from "@/lib/yaml-builder";
+import { createOntologyFromColumns } from "@/lib/createOntologyFromColumns";
 import type { OntologySchema } from "@/types/api";
 
 export interface Tool {
@@ -102,8 +102,13 @@ export function buildIngestTools(
         const columns = params.columns as Array<{ name: string; semantic_type: string }>;
         const tableName = params.table_name || "data";
         const displayName = params.display_name?.trim() || undefined;
-        const yaml = buildOntologyYaml({ source: "upload", tableName, columns, displayName });
-        return ontologyApi.create(yaml, tenantId);
+        return createOntologyFromColumns({
+          source: "upload",
+          tableName,
+          columns,
+          displayName,
+          tenantId,
+        });
       },
     };
   }

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionContext, ownedSessionWhere } from "@/lib/session";
-
-const MAX_MESSAGES = 500;
+import { MAX_MESSAGES_PER_SESSION_FETCH } from "@/lib/constants";
 
 function safeParseToolCalls(s: string | null): unknown[] {
   if (!s) return [];
@@ -28,7 +27,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     prisma.chatMessage.findMany({
       where: { sessionId: params.id },
       orderBy: { createdAt: "asc" },
-      take: MAX_MESSAGES,
+      take: MAX_MESSAGES_PER_SESSION_FETCH,
       select: { id: true, role: true, content: true, toolCalls: true, createdAt: true },
     }),
   ]);

@@ -15,6 +15,13 @@ export interface Skill {
 
 const SKILLS_DIR = path.join(process.cwd(), "src", "skills");
 
+/**
+ * Cache is prod-only so that editing SKILL.md during `next dev` hot-reloads.
+ * In prod, skills are immutable for the lifetime of the process — safe to
+ * memoise both the lightweight index and the fully-parsed skill bodies.
+ */
+const SKILL_CACHE_ENABLED = process.env.NODE_ENV === "production";
+
 let _indexCache: SkillFrontmatter[] | null = null;
 const _fullCache = new Map<string, Skill>();
 
@@ -47,7 +54,7 @@ function parseSkillMatter(raw: string, name: string): { data: any; content: stri
 }
 
 export function loadSkillIndex(): SkillFrontmatter[] {
-  if (_indexCache) return _indexCache;
+  if (SKILL_CACHE_ENABLED && _indexCache) return _indexCache;
 
   const entries = fs.readdirSync(SKILLS_DIR, { withFileTypes: true });
   const index: SkillFrontmatter[] = [];
@@ -59,13 +66,15 @@ export function loadSkillIndex(): SkillFrontmatter[] {
     index.push(parseFrontmatter(parseSkillMatter(raw, entry.name).data, entry.name));
   }
 
-  _indexCache = index;
+  if (SKILL_CACHE_ENABLED) _indexCache = index;
   return index;
 }
 
 export function loadSkillFull(skillName: string): Skill | null {
-  const cached = _fullCache.get(skillName);
-  if (cached) return cached;
+  if (SKILL_CACHE_ENABLED) {
+    const cached = _fullCache.get(skillName);
+    if (cached) return cached;
+  }
 
   const raw = readSkillFile(path.join(SKILLS_DIR, skillName, "SKILL.md"));
   if (raw === null) return null;
@@ -75,7 +84,7 @@ export function loadSkillFull(skillName: string): Skill | null {
     frontmatter: parseFrontmatter(data, skillName),
     body: content.trim(),
   };
-  _fullCache.set(skillName, skill);
+  if (SKILL_CACHE_ENABLED) _fullCache.set(skillName, skill);
   return skill;
 }
 

@@ -1,8 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ontologyApi } from "@/services/pythonApi";
-import { buildOntologyYaml } from "@/lib/yaml-builder";
+import { createOntologyFromColumns } from "@/lib/createOntologyFromColumns";
 
 const PRESETS: Record<string, { port: number; user: string }> = {
   postgres: { port: 5432, user: "postgres" },
@@ -19,10 +18,10 @@ export default function ConnectPage() {
   const [user, setUser] = useState("postgres");
   const [password, setPassword] = useState("");
   const [path, setPath] = useState("");
-  const [step, setStep] = useState<"connect" | "preview" | "creating">("connect");
+  const [step, setStep] = useState<"connect" | "preview" | "done">("connect");
   const [discoverResult, setDiscoverResult] = useState<any>(null);
   const [selectedTable, setSelectedTable] = useState<string>("");
-  const [yamlDraft, setYamlDraft] = useState("");
+  const [ingestResult, setIngestResult] = useState<any>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -67,32 +66,25 @@ export default function ConnectPage() {
     }
   };
 
-  const handleIngest = async () => {
+  const handleIngestAndCreate = async () => {
+    if (!selectedTable) return;
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/python/ingest", {
-        method: "POST",
-        body: buildFormData(),
-      });
+      const fd = buildFormData();
+      // Tell the Python ingest which specific table to pull from the datasource.
+      // Forwards-compatible: if the backend Pydantic schema hasn't added this
+      // field yet, the unknown form key is dropped without raising.
+      fd.append("selected_table", selectedTable);
+      const res = await fetch("/api/python/ingest", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "导入失败");
+      setIngestResult(data);
 
-      setYamlDraft(buildOntologyYaml({
+      const result = await createOntologyFromColumns({
         source: `${type} 数据源`,
         tableName: data.table_name,
         columns: data.columns,
-      }));
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreate = async () => {
-    setLoading(true);
-    try {
-      const result = await ontologyApi.create(yamlDraft);
+      });
       router.push(`/ontology/${result.id}`);
     } catch (e: any) {
       setError(e.message);
@@ -167,7 +159,7 @@ export default function ConnectPage() {
         </div>
       )}
 
-      {step === "preview" && discoverResult && !yamlDraft && (
+      {step === "preview" && discoverResult && (
         <div className="bg-surface border border-gray-200 rounded-lg p-4 space-y-3">
           <h2 className="font-medium text-text-primary">发现 {discoverResult.tables.length} 个表</h2>
           <div className="space-y-2">
@@ -182,29 +174,14 @@ export default function ConnectPage() {
             ))}
           </div>
           <div className="flex gap-2 mt-3">
-            <button onClick={handleIngest} disabled={!selectedTable || loading} className="px-4 py-2 bg-accent text-white rounded text-sm hover:bg-accent-hover disabled:opacity-50">
-              {loading ? "导入中..." : "导入并生成本体"}
+            <button onClick={handleIngestAndCreate} disabled={!selectedTable || loading} className="px-4 py-2 bg-accent text-white rounded text-sm hover:bg-accent-hover disabled:opacity-50">
+              {loading ? "导入中..." : "导入并创建本体"}
             </button>
             <button onClick={() => setStep("connect")} className="px-4 py-2 border border-gray-200 rounded text-sm text-text-secondary">
               返回
             </button>
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
-        </div>
-      )}
-
-      {yamlDraft && (
-        <div className="bg-surface border border-gray-200 rounded-lg p-4">
-          <h2 className="font-medium text-text-primary mb-2">建议的本体 YAML</h2>
-          <textarea
-            value={yamlDraft}
-            onChange={(e) => setYamlDraft(e.target.value)}
-            className="w-full h-72 p-3 bg-data border border-gray-200 rounded text-xs font-mono text-text-data resize-none"
-          />
-          <button onClick={handleCreate} disabled={loading} className="mt-3 px-4 py-2 bg-accent text-white rounded text-sm hover:bg-accent-hover disabled:opacity-50">
-            {loading ? "创建中..." : "创建本体"}
-          </button>
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
         </div>
       )}
     </div>

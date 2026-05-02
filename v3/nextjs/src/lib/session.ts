@@ -30,17 +30,20 @@ export function ownedSessionWhere(ctx: SessionContext, sessionId?: string) {
   return sessionId ? { ...base, id: sessionId } : base;
 }
 
-let _demoReady: Promise<void> | null = null;
+const _demoReady = new Map<string, Promise<void>>();
 
 /**
  * Idempotently ensure the demo tenant+user exist so ChatSession FKs resolve.
- * Dev-only. Cached per-process so repeated logins don't re-upsert.
+ * Dev-only. Cached per-userId so the first-login promise can't shadow a
+ * different user's upsert (which previously left B with no row → FK violation
+ * on B's first ChatSession insert).
  * Replaced by real auth-bound user lookup in P6.
  */
 export async function ensureDemoIdentity(ctx: SessionContext): Promise<void> {
   if (process.env.NODE_ENV === "production") return;
-  if (_demoReady) return _demoReady;
-  _demoReady = (async () => {
+  const cached = _demoReady.get(ctx.userId);
+  if (cached) return cached;
+  const promise = (async () => {
     await prisma.tenant.upsert({
       where: { id: ctx.tenantId },
       update: {},
@@ -58,5 +61,6 @@ export async function ensureDemoIdentity(ctx: SessionContext): Promise<void> {
       },
     });
   })();
-  return _demoReady;
+  _demoReady.set(ctx.userId, promise);
+  return promise;
 }
