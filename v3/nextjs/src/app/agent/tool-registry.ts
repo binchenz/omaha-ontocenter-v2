@@ -48,6 +48,21 @@ function buildToolsFromSchema(
           tenantId,
         ),
     };
+
+    tools[`count_${qualifier}`] = {
+      name: `count_${qualifier}`,
+      description: `统计 ${obj.name} 数量（本体: ${schema.name}）。比 search_* 更轻量 — 只返回行数，不返回行数据`,
+      execute: async (params) =>
+        ontologyApi.query(
+          ontologyId,
+          {
+            operation: "count",
+            object: obj.slug,
+            filters: params.filters,
+          },
+          tenantId,
+        ),
+    };
   }
   return tools;
 }
