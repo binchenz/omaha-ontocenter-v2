@@ -122,6 +122,22 @@ async def get_ontology_objects(db: AsyncSession, ontology_id: str) -> list[Ontol
     return list(result.scalars().all())
 
 
+async def get_object_by_slug(
+    db: AsyncSession, ontology_id: str, slug_or_name: str,
+) -> OntologyObject | None:
+    """Single-row lookup for the query path (replaces O(N) client-side scan).
+
+    Accepts slug OR name — the query API has historically accepted either,
+    so we keep that ergonomic surface.
+    """
+    stmt = select(OntologyObject).where(
+        OntologyObject.ontology_id == ontology_id,
+        (OntologyObject.slug == slug_or_name) | (OntologyObject.name == slug_or_name),
+    ).limit(1)
+    result = await db.execute(stmt)
+    return result.scalars().first()
+
+
 async def get_object_properties(db: AsyncSession, object_id: str) -> list[OntologyProperty]:
     result = await db.execute(select(OntologyProperty).where(OntologyProperty.object_id == object_id))
     return list(result.scalars().all())

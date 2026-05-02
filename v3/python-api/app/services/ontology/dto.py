@@ -1,9 +1,9 @@
 """Shared DTO helpers for ontology metadata.
 
 These flatten ORM rows to plain dicts that downstream consumers
-(`mcp.tool_generator.generate_tools`, `oag_service`, skill packagers) accept
-without depending on SQLAlchemy types. Keeping the projection in one place
-means the call sites stay short and any new field flows through once.
+(`oag_service`, future skill packagers) accept without depending on
+SQLAlchemy types. Keeping the projection in one place means call sites
+stay short and any new field flows through once.
 """
 
 from __future__ import annotations
@@ -12,12 +12,40 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.ontology import OntologyObject, OntologyProperty
 from app.services.ontology.store import (
     get_object_properties,
     get_ontology_functions,
     get_ontology_links,
     get_ontology_objects,
 )
+
+
+def serialize_property(p: OntologyProperty) -> dict:
+    """Flatten one property row to the shape OAG execute() expects."""
+    return {
+        "name": p.name,
+        "semantic_type": p.semantic_type,
+        "source_column": p.source_column,
+        "unit": p.unit,
+    }
+
+
+def build_oag_context(
+    obj: OntologyObject, view_name: str, properties: list[OntologyProperty],
+) -> tuple[dict, list[dict]]:
+    """Build the (object_def, properties_def) pair that OAGQueryService.execute
+    consumes. `view_name` is the DuckDB view already registered by
+    view_registry; delta_path is empty because the view holds the mapping.
+    """
+    object_def = {
+        "name": obj.name,
+        "slug": obj.slug,
+        "table_name": view_name,
+        "delta_path": "",
+    }
+    properties_def = [serialize_property(p) for p in properties]
+    return object_def, properties_def
 
 
 async def collect_ontology_for_tools(
@@ -27,18 +55,9 @@ async def collect_ontology_for_tools(
     include_properties: bool = False,
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """Fetch objects, links, and functions for an ontology and flatten to
-    dict triples consumable by ``generate_tools`` and skill packagers.
-
-    Three independent DB roundtrips are run concurrently via ``asyncio.gather``.
-    When ``include_properties`` is True, an additional N roundtrips (one per
-    object) populate each object's ``properties`` list — this is opt-in because
-    the MCP tool generator itself doesn't read properties; it's only useful for
-    callers that go on to execute queries (e.g. the ontology query endpoint,
-    which uses its own narrower one-object path).
-
-    The returned dicts are the **union** of fields the existing call sites
-    (api/mcp.py and api/mcp_runtime.py tools/list) projected, so consolidating
-    here is behavior-preserving for both.
+    dict triples. Three independent DB roundtrips run concurrently via
+    ``asyncio.gather``. When ``include_properties`` is True, N additional
+    roundtrips (one per object) populate each object's ``properties`` list.
     """
     objects, links, funcs = await asyncio.gather(
         get_ontology_objects(db, ontology_id),
@@ -57,14 +76,7 @@ async def collect_ontology_for_tools(
         if include_properties:
             props = await get_object_properties(db, o.id)
             entry["properties"] = [
-                {
-                    "name": p.name,
-                    "slug": p.slug,
-                    "semantic_type": p.semantic_type,
-                    "source_column": p.source_column,
-                    "unit": p.unit,
-                }
-                for p in props
+                {**serialize_property(p), "slug": p.slug} for p in props
             ]
         obj_dicts.append(entry)
 

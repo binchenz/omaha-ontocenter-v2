@@ -7,9 +7,11 @@ from app.api._duckdb_errors import map_duckdb_errors
 from app.api.deps import Pagination, TenantId, get_db, pagination
 from app.core.locks import ontology_update_lock
 from app.schemas.query import OAGQueryRequest
+from app.services.ontology.dto import build_oag_context
 from app.services.ontology.parser import parse_ontology_string
 from app.services.ontology.store import (
     create_ontology, get_ontology, get_ontology_objects, get_object_properties,
+    get_object_by_slug,
     get_ontology_links, get_ontology_functions, list_ontologies,
     list_ontology_schemas_bulk, get_ontology_schema_full, delete_ontology,
     rebuild_ontology_in_place,
@@ -153,30 +155,16 @@ async def query_ontology(
     tenant_id: TenantId, db: AsyncSession = Depends(get_db),
 ):
     ontology = await _require_ontology(db, ontology_id, tenant_id)
-    objects = await get_ontology_objects(db, ontology_id)
-    obj_def = None
-    props = []
-    for o in objects:
-        if o.slug == request.object or o.name == request.object:
-            obj_def = o
-            props = await get_object_properties(db, o.id)
-            break
-
+    obj_def = await get_object_by_slug(db, ontology_id, request.object)
     if not obj_def:
         raise HTTPException(404, f"Object '{request.object}' not found in ontology")
 
+    props = await get_object_properties(db, obj_def.id)
     view_name = await ensure_view_registered(db, obj_def.table_name, ontology.tenant_id)
-
-    obj_dict = {
-        "name": obj_def.name,
-        "slug": obj_def.slug,
-        "table_name": view_name,
-        "delta_path": "",
-    }
-    props_list = [{"name": p.name, "semantic_type": p.semantic_type, "source_column": p.source_column, "unit": p.unit} for p in props]
+    object_def, properties_def = build_oag_context(obj_def, view_name, props)
 
     with map_duckdb_errors():
-        return await oag_service.execute(request, obj_dict, props_list)
+        return await oag_service.execute(request, object_def, properties_def)
 
 
 @router.get("/{ontology_id}/yaml")
