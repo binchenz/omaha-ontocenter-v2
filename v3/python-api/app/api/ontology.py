@@ -1,10 +1,10 @@
 import json
-from typing import Literal
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api._duckdb_errors import map_duckdb_errors
-from app.api.deps import get_db
+from app.api.deps import Pagination, TenantId, get_db, pagination
 from app.core.locks import ontology_update_lock
 from app.schemas.query import OAGQueryRequest
 from app.services.ontology.parser import parse_ontology_string
@@ -28,18 +28,17 @@ async def _require_ontology(db: AsyncSession, ontology_id: str, tenant_id: str):
 
 @router.get("")
 async def list_all(
-    tenant_id: str = "default",
-    limit: int = Query(100, ge=1, le=500, description="Max ontologies to return"),
-    order: Literal["asc", "desc"] = Query("desc", description="Sort by updated_at"),
+    tenant_id: TenantId,
+    pg: Annotated[Pagination, Depends(pagination)],
     db: AsyncSession = Depends(get_db),
 ):
-    ontologies = await list_ontologies(db, tenant_id, limit=limit, order=order)
+    ontologies = await list_ontologies(db, tenant_id, limit=pg.limit, order=pg.order)
     return [{"id": o.id, "name": o.name, "slug": o.slug, "version": o.version, "status": o.status.value} for o in ontologies]
 
 
 @router.post("")
 async def create(
-    tenant_id: str = "default",
+    tenant_id: TenantId,
     yaml_source: str = "",
     body: dict | None = Body(default=None),
     db: AsyncSession = Depends(get_db),
@@ -57,7 +56,7 @@ async def create(
 
 
 @router.get("/{ontology_id}/schema")
-async def get_schema(ontology_id: str, tenant_id: str = "default", db: AsyncSession = Depends(get_db)):
+async def get_schema(ontology_id: str, tenant_id: TenantId, db: AsyncSession = Depends(get_db)):
     ontology = await _require_ontology(db, ontology_id, tenant_id)
     objects = await get_ontology_objects(db, ontology_id)
     result_objects = []
@@ -90,7 +89,7 @@ async def get_schema(ontology_id: str, tenant_id: str = "default", db: AsyncSess
 @router.post("/{ontology_id}/query")
 async def query_ontology(
     ontology_id: str, request: OAGQueryRequest,
-    tenant_id: str = "default", db: AsyncSession = Depends(get_db),
+    tenant_id: TenantId, db: AsyncSession = Depends(get_db),
 ):
     ontology = await _require_ontology(db, ontology_id, tenant_id)
     objects = await get_ontology_objects(db, ontology_id)
@@ -120,7 +119,7 @@ async def query_ontology(
 
 
 @router.get("/{ontology_id}/yaml")
-async def export_yaml(ontology_id: str, tenant_id: str = "default", db: AsyncSession = Depends(get_db)):
+async def export_yaml(ontology_id: str, tenant_id: TenantId, db: AsyncSession = Depends(get_db)):
     ontology = await _require_ontology(db, ontology_id, tenant_id)
     return {"yaml": ontology.yaml_source}
 
@@ -128,8 +127,8 @@ async def export_yaml(ontology_id: str, tenant_id: str = "default", db: AsyncSes
 @router.put("/{ontology_id}")
 async def update(
     ontology_id: str,
+    tenant_id: TenantId,
     yaml_source: str = "",
-    tenant_id: str = "default",
     body: dict | None = Body(default=None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -153,7 +152,7 @@ async def update(
 
 
 @router.delete("/{ontology_id}")
-async def delete(ontology_id: str, tenant_id: str = "default", db: AsyncSession = Depends(get_db)):
+async def delete(ontology_id: str, tenant_id: TenantId, db: AsyncSession = Depends(get_db)):
     await _require_ontology(db, ontology_id, tenant_id)
     deleted = await delete_ontology(db, ontology_id)
     if not deleted:
@@ -163,8 +162,10 @@ async def delete(ontology_id: str, tenant_id: str = "default", db: AsyncSession 
 
 @router.post("/{ontology_id}/function/{func_name}")
 async def call_func(
-    ontology_id: str, func_name: str, kwargs: str = "{}",
-    tenant_id: str = "default", db: AsyncSession = Depends(get_db),
+    ontology_id: str, func_name: str,
+    tenant_id: TenantId,
+    kwargs: str = "{}",
+    db: AsyncSession = Depends(get_db),
 ):
     """Invoke a function registered on this ontology.
 

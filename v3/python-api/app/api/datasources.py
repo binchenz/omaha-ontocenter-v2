@@ -1,11 +1,11 @@
 import shutil
 from pathlib import Path
-from typing import Literal
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 
-from app.api.deps import get_db
+from app.api.deps import Pagination, TenantId, get_db, pagination
 from app.models.datasource import DataSource, Dataset
 
 router = APIRouter(prefix="/datasources", tags=["datasources"])
@@ -13,19 +13,18 @@ router = APIRouter(prefix="/datasources", tags=["datasources"])
 
 @router.get("")
 async def list_datasources(
-    tenant_id: str = "default",
-    limit: int = Query(100, ge=1, le=500, description="Max datasources to return"),
-    order: Literal["asc", "desc"] = Query("desc", description="Sort by created_at"),
+    tenant_id: TenantId,
+    pg: Annotated[Pagination, Depends(pagination)],
     db: AsyncSession = Depends(get_db),
 ):
     order_col = (
-        DataSource.created_at.asc() if order == "asc" else DataSource.created_at.desc()
+        DataSource.created_at.asc() if pg.order == "asc" else DataSource.created_at.desc()
     )
     ds_result = await db.execute(
         select(DataSource)
         .where(DataSource.tenant_id == tenant_id)
         .order_by(order_col)
-        .limit(limit)
+        .limit(pg.limit)
     )
     datasources = list(ds_result.scalars().all())
     if not datasources:
@@ -68,7 +67,7 @@ async def list_datasources(
 
 @router.delete("/{datasource_id}")
 async def delete_datasource(
-    datasource_id: str, tenant_id: str = "default", db: AsyncSession = Depends(get_db)
+    datasource_id: str, tenant_id: TenantId, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
         select(DataSource).where(
@@ -109,7 +108,7 @@ async def delete_datasource(
 
 
 @router.post("/cleanup-orphans")
-async def cleanup_orphan_delta_files(tenant_id: str = "default", db: AsyncSession = Depends(get_db)):
+async def cleanup_orphan_delta_files(tenant_id: TenantId, db: AsyncSession = Depends(get_db)):
     """Remove Delta directories whose dataset row no longer exists.
 
     Matches by exact delta_path against any tenant's Dataset records. A directory

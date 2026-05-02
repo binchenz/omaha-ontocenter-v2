@@ -6,7 +6,6 @@ Implements a minimal subset of the MCP protocol over HTTP:
   - tools/call → invokes a tool with arguments
 """
 
-import asyncio
 import json
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -14,11 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.api._duckdb_errors import map_duckdb_errors
-from app.api.deps import get_db
+from app.api.deps import TenantId, get_db
 from app.models.ontology import Ontology
+from app.services.ontology.dto import collect_ontology_for_tools
 from app.services.ontology.store import (
     get_ontology_objects, get_object_properties,
-    get_ontology_links, get_ontology_functions,
+    get_ontology_links,
 )
 from app.services.mcp.tool_generator import generate_tools
 from app.services.query.oag_service import oag_service
@@ -42,7 +42,7 @@ async def _resolve_ontology_by_slug(db: AsyncSession, slug: str, tenant_id: str 
 
 @router.post("/{ontology_slug}")
 async def mcp_dispatch(
-    ontology_slug: str, request: dict, tenant_id: str = "default", db: AsyncSession = Depends(get_db)
+    ontology_slug: str, request: dict, tenant_id: TenantId, db: AsyncSession = Depends(get_db)
 ):
     """JSON-RPC style dispatcher for MCP protocol."""
     ontology = await _resolve_ontology_by_slug(db, ontology_slug, tenant_id)
@@ -54,15 +54,8 @@ async def mcp_dispatch(
     rpc_id = request.get("id", 1)
 
     if method == "tools/list":
-        # These three fetches have no data dependency on each other — run in parallel.
-        objects, links, funcs = await asyncio.gather(
-            get_ontology_objects(db, ontology.id),
-            get_ontology_links(db, ontology.id),
-            get_ontology_functions(db, ontology.id),
-        )
-        obj_dicts = [{"name": o.name, "slug": o.slug, "description": o.description} for o in objects]
-        link_dicts = [{"from_object": l.from_object, "to_object": l.to_object} for l in links]
-        func_dicts = [{"name": f.name} for f in funcs]
+        # Shared DTO helper runs the three fetches concurrently.
+        obj_dicts, link_dicts, func_dicts = await collect_ontology_for_tools(db, ontology.id)
         tools = generate_tools(ontology.id, obj_dicts, link_dicts, func_dicts)
         return {"jsonrpc": "2.0", "id": rpc_id, "result": {"tools": tools}}
 
