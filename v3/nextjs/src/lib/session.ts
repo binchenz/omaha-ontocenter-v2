@@ -20,6 +20,16 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   };
 }
 
+/**
+ * Scope predicate for querying/mutating a chat session owned by the current
+ * user in the current tenant. Centralises the owner-scoped `where` clause
+ * so route handlers can't accidentally omit `tenantId` and leak cross-tenant.
+ */
+export function ownedSessionWhere(ctx: SessionContext, sessionId?: string) {
+  const base = { userId: ctx.userId, tenantId: ctx.tenantId };
+  return sessionId ? { ...base, id: sessionId } : base;
+}
+
 let _demoReady: Promise<void> | null = null;
 
 /**

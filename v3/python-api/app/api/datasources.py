@@ -116,7 +116,12 @@ async def cleanup_orphan_delta_files(tenant_id: str = "default", db: AsyncSessio
     result = await db.execute(select(Dataset))
     all_valid_paths = {Path(d.delta_path).resolve() for d in result.scalars().all() if d.delta_path}
 
+    # Anchor relative delta_storage at python-api root so the resolved paths line
+    # up regardless of the uvicorn launch CWD (otherwise valid dirs can be
+    # mis-classified as orphans → silent data loss).
     delta_root = Path(settings.delta_storage)
+    if not delta_root.is_absolute():
+        delta_root = (Path(__file__).resolve().parents[2] / delta_root).resolve()
     if not delta_root.exists():
         return {"removed": 0, "kept": 0}
 

@@ -34,6 +34,8 @@ class Settings(BaseSettings):
             return v.replace("postgres://", "postgresql+asyncpg://", 1)
         if v.startswith("postgresql://") and "+" not in v.split("://", 1)[0]:
             return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if v.startswith("mysql://") and "+" not in v.split("://", 1)[0]:
+            return v.replace("mysql://", "mysql+aiomysql://", 1)
         return v
 
 

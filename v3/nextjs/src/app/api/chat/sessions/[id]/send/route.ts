@@ -7,7 +7,7 @@ import { DATA_SKILLS, SKILL_STATUS, SKILLS } from "@/app/agent/skills";
 import { ingestApi, ontologyApi } from "@/services/pythonApi";
 import type { OntologySchema } from "@/types/api";
 import { prisma } from "@/lib/prisma";
-import { getSessionContext } from "@/lib/session";
+import { getSessionContext, ownedSessionWhere } from "@/lib/session";
 import { DEFAULT_SESSION_TITLE, MAX_HISTORY_MESSAGES } from "@/lib/constants";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -144,9 +144,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           });
           const trimmed = message.trim();
           // Auto-rename only on the first turn to preserve user-edited titles.
+          // Scope by tenant+user so one user cannot rename another's session
+          // if the session id is guessed.
           if (isFirstTurn && trimmed) {
             await prisma.chatSession.updateMany({
-              where: { id: sessionId, title: DEFAULT_SESSION_TITLE },
+              where: { ...ownedSessionWhere(ctx, sessionId), title: DEFAULT_SESSION_TITLE },
               data: { title: trimmed.slice(0, 30) },
             });
           }

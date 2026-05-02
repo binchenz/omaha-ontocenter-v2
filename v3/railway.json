@@ -1,0 +1,22 @@
+{
+  "services": {
+    "python-api": {
+      "build": { "dockerfilePath": "./python-api/Dockerfile" },
+      "port": 8000,
+      "env": {
+        "SECRET_KEY": "${{SECRET_KEY}}",
+        "LLM_PROVIDER": "${{LLM_PROVIDER}}",
+        "LLM_API_KEY": "${{LLM_API_KEY}}"
+      }
+    },
+    "nextjs": {
+      "build": { "dockerfilePath": "./nextjs/Dockerfile" },
+      "port": 3000,
+      "env": {
+        "PYTHON_API_URL": "http://python-api:8000",
+        "NEXTAUTH_SECRET": "${{NEXTAUTH_SECRET}}",
+        "NEXTAUTH_URL": "${{NEXTAUTH_URL}}"
+      }
+    }
+  }
+}

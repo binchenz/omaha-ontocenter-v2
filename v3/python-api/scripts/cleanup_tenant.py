@@ -138,6 +138,11 @@ def main() -> int:
             print("Dry-run only. Re-run with --confirm to delete.")
             return 0
 
+        print(
+            f"*** --confirm set: deleting tenant '{args.tenant}' state now ***",
+            file=sys.stderr,
+        )
+
         # --- Delete in child-first order to satisfy FK constraints. ---
         if object_ids:
             db.execute(

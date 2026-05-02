@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ontocenter
+      POSTGRES_PASSWORD: ontocenter
+      POSTGRES_DB: ontocenter_v3
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ontocenter"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  python-api:
+    build: ./python-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://ontocenter:ontocenter@postgres:5432/ontocenter_v3
+      - SECRET_KEY=dev-secret-key
+      - LLM_PROVIDER=openai
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - DELTA_STORAGE=/data/delta
+    volumes:
+      - ./python-api/app:/app/app
+      - delta-data:/data/delta
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nextjs:
+    build: ./nextjs
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://ontocenter:ontocenter@postgres:5432/ontocenter_v3
+      - PYTHON_API_URL=http://python-api:8000
+      - NEXTAUTH_SECRET=dev-nextauth-secret
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on:
+      - python-api
+
+volumes:
+  pgdata:
+  delta-data:

@@ -52,7 +52,7 @@ export default function ChatPage() {
         );
         if (rows.length > 0) setActiveId(rows[0].id);
       })
-      .catch(() => {});
+      .catch((err) => console.warn("[chat] failed to load sessions list:", err));
     return () => {
       cancelled = true;
     };
@@ -224,7 +224,9 @@ export default function ChatPage() {
               msgs[msgs.length - 1] = last;
               return { ...s, messages: msgs };
             }));
-          } catch {}
+          } catch (e) {
+            console.warn("[chat] SSE parse failed", { event, data, error: e });
+          }
         }
       }
     } catch (err: any) {

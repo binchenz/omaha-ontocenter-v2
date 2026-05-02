@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${DB_USER:?DB_USER required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
+      POSTGRES_DB: ${DB_NAME:-ontocenter_v3}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  python-api:
+    build:
+      context: ./python-api
+      dockerfile: Dockerfile
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-ontocenter_v3}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY required (strong random value)}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - LLM_API_KEY=${LLM_API_KEY:?LLM_API_KEY required}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - DELTA_STORAGE=/data/delta
+      - CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS required (e.g. https://your-domain.com)}
+    volumes:
+      - delta-data:/data/delta
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nextjs:
+    build:
+      context: ./nextjs
+      dockerfile: Dockerfile
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-ontocenter_v3}
+      - PYTHON_API_URL=http://python-api:8000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET required}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:?NEXTAUTH_URL required}
+      - OPENAI_API_KEY=${LLM_API_KEY}
+      - OPENAI_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+    depends_on:
+      - python-api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  delta-data:

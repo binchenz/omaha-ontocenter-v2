@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+.venv/
+data/delta/
+*.db
+.DS_Store
+
+# Next.js
+.next/
+node_modules/
+
+# Env
+.env

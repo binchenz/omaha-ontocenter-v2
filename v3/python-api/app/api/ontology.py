@@ -1,9 +1,9 @@
 import json
 from typing import Literal
-import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api._duckdb_errors import map_duckdb_errors
 from app.api.deps import get_db
 from app.core.locks import ontology_update_lock
 from app.schemas.query import OAGQueryRequest
@@ -115,37 +115,8 @@ async def query_ontology(
     }
     props_list = [{"name": p.name, "semantic_type": p.semantic_type, "source_column": p.source_column, "unit": p.unit} for p in props]
 
-    try:
+    with map_duckdb_errors():
         return await oag_service.execute(request, obj_dict, props_list)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    except duckdb.CatalogException as e:
-        # DuckDB raises CatalogException for missing tables/views and missing columns.
-        # Map both to 4xx so the LLM can self-recover instead of retrying a 5xx blindly.
-        msg = str(e)
-        lowered = msg.lower()
-        if "table" in lowered and "does not exist" in lowered:
-            raise HTTPException(
-                status_code=404,
-                detail=f"数据表不存在或尚未导入: {msg}",
-            )
-        if "column" in lowered or "referenced column" in lowered:
-            raise HTTPException(
-                status_code=422,
-                detail=f"查询字段不存在: {msg}",
-            )
-        # Generic catalog miss (function, schema, etc.) — treat as 404
-        raise HTTPException(
-            status_code=404,
-            detail=f"目录对象不存在: {msg}",
-        )
-    except duckdb.BinderException as e:
-        # Type mismatch, ambiguous reference, unknown column in expression context
-        raise HTTPException(status_code=422, detail=f"查询绑定错误: {e}")
-    except (duckdb.ParserException, duckdb.SyntaxException) as e:
-        raise HTTPException(status_code=400, detail=f"查询语法错误: {e}")
-    except duckdb.InvalidInputException as e:
-        raise HTTPException(status_code=400, detail=f"查询输入无效: {e}")
 
 
 @router.get("/{ontology_id}/yaml")
