@@ -21,40 +21,73 @@ type Session = {
   createdAt: number;
 };
 
-const STORAGE_KEY = "ontocenter-v3-sessions";
-
 export default function ChatPage() {
   const { status } = useSession();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const loadedSessionsRef = useRef<Set<string>>(new Set());
 
   const active = sessions.find((s) => s.id === activeId);
   const messages = active?.messages || [];
 
+  // Initial sessions load — fetch from server once authenticated.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as Session[];
-        setSessions(parsed);
-        if (parsed.length > 0) setActiveId(parsed[0].id);
-      }
-    } catch {}
-    setHydrated(true);
-  }, []);
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    fetch("/api/chat/sessions")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: Array<{ id: string; title: string | null; createdAt: string }>) => {
+        if (cancelled) return;
+        setSessions(
+          rows.map((s) => ({
+            id: s.id,
+            title: s.title || "新对话",
+            messages: [],
+            createdAt: new Date(s.createdAt).getTime(),
+          }))
+        );
+        if (rows.length > 0) setActiveId(rows[0].id);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
+  // Lazy-load messages when a session becomes active.
   useEffect(() => {
-    if (!hydrated) return;
-    if (streaming) return; // skip persistence during token-rate updates
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-    } catch {}
-  }, [sessions, hydrated, streaming]);
+    if (!activeId) return;
+    if (loadedSessionsRef.current.has(activeId)) return;
+    loadedSessionsRef.current.add(activeId);
+    fetch(`/api/chat/sessions/${activeId}/messages`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((msgs: Array<{ role: string; content: string; toolCalls: ToolCall[] }>) => {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === activeId
+              ? {
+                  ...s,
+                  messages: msgs
+                    .filter((m) => m.role === "user" || m.role === "assistant")
+                    .map((m) => ({
+                      role: m.role as "user" | "assistant",
+                      content: m.content,
+                      toolCalls: m.toolCalls || [],
+                    })),
+                }
+              : s
+          )
+        );
+      })
+      .catch(() => {
+        // Permit retry on transient failure.
+        loadedSessionsRef.current.delete(activeId);
+      });
+  }, [activeId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,40 +97,68 @@ export default function ChatPage() {
   if (status === "unauthenticated") redirect("/login");
   if (status === "loading") return <div className="flex h-full items-center justify-center text-text-secondary">加载中...</div>;
 
-  const createSession = () => {
-    const newSession: Session = {
-      id: `s-${Date.now()}`,
-      title: "新对话",
-      messages: [],
-      createdAt: Date.now(),
-    };
-    setSessions((prev) => [newSession, ...prev]);
-    setActiveId(newSession.id);
-  };
-
-  const deleteSession = (id: string) => {
-    if (!confirm("删除此对话？")) return;
-    setSessions((prev) => prev.filter((s) => s.id !== id));
-    if (activeId === id) {
-      const remaining = sessions.filter((s) => s.id !== id);
-      setActiveId(remaining[0]?.id || "");
+  const createSession = async () => {
+    try {
+      const created: { id: string; title: string | null; createdAt: string } = await fetch("/api/chat/sessions", {
+        method: "POST",
+      }).then((r) => r.json());
+      const newSession: Session = {
+        id: created.id,
+        title: created.title || "新对话",
+        messages: [],
+        createdAt: new Date(created.createdAt).getTime(),
+      };
+      loadedSessionsRef.current.add(created.id); // nothing to fetch for brand-new session
+      setSessions((prev) => [newSession, ...prev]);
+      setActiveId(created.id);
+    } catch (err) {
+      console.error("Failed to create session:", err);
     }
   };
 
-  const updateActive = (updater: (s: Session) => Session) => {
-    setSessions((prev) => prev.map((s) => (s.id === activeId ? updater(s) : s)));
+  const deleteSession = async (id: string) => {
+    if (!confirm("删除此对话？")) return;
+    try {
+      const res = await fetch(`/api/chat/sessions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+      loadedSessionsRef.current.delete(id);
+      setSessions((prev) => {
+        const remaining = prev.filter((s) => s.id !== id);
+        if (activeId === id) setActiveId(remaining[0]?.id || "");
+        return remaining;
+      });
+    } catch (err) {
+      console.error("Failed to delete session:", err);
+    }
   };
 
   const handleSend = async () => {
     const text = input.trim();
     if (!text || streaming) return;
 
+    // Ensure we have a real server-backed session before sending.
     let sessionId = activeId;
-    if (!active) {
-      const newSession: Session = { id: `s-${Date.now()}`, title: text.slice(0, 20), messages: [], createdAt: Date.now() };
-      sessionId = newSession.id;
-      setSessions((prev) => [newSession, ...prev]);
-      setActiveId(newSession.id);
+    if (!sessionId) {
+      try {
+        const created: { id: string; title: string | null; createdAt: string } = await fetch("/api/chat/sessions", {
+          method: "POST",
+        }).then((r) => r.json());
+        sessionId = created.id;
+        loadedSessionsRef.current.add(created.id);
+        setSessions((prev) => [
+          {
+            id: created.id,
+            title: text.slice(0, 20),
+            messages: [],
+            createdAt: new Date(created.createdAt).getTime(),
+          },
+          ...prev,
+        ]);
+        setActiveId(created.id);
+      } catch (err: any) {
+        console.error("Failed to create session:", err);
+        return;
+      }
     }
 
     const userMsg: Message = { role: "user", content: text };
@@ -115,14 +176,13 @@ export default function ChatPage() {
     setStreaming(true);
 
     try {
-      const sess = await fetch("/api/chat/sessions", { method: "POST" }).then((r) => r.json());
       const fd = new FormData();
       fd.append("message", text);
       if (pendingFile) {
         fd.append("file", pendingFile);
         setPendingFile(null);
       }
-      const res = await fetch(`/api/chat/sessions/${sess.id}/send`, {
+      const res = await fetch(`/api/chat/sessions/${sessionId}/send`, {
         method: "POST",
         body: fd,
         // No Content-Type header — browser sets multipart boundary
