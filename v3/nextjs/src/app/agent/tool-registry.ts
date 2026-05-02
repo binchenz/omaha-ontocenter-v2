@@ -77,17 +77,16 @@ export function buildIngestTools(
       name: "list_my_data",
       description: "列出用户最近的数据集和本体（按创建时间倒序），用于判断用户问的数据是否已存在",
       execute: async () => {
+        // Backend already returns the 10 most-recent in desc order — no
+        // client-side slice/reverse needed. Result stays ~2KB instead of 20KB
+        // on tenants with thousands of items.
         const [ontologies, datasources] = await Promise.all([
-          ontologyApi.list(tenantId).catch(() => []),
-          datasourceApi.list(tenantId).catch(() => []),
+          ontologyApi.list(tenantId, { limit: 10, order: "desc" }).catch(() => []),
+          datasourceApi.list(tenantId, { limit: 10, order: "desc" }).catch(() => []),
         ]);
-        // Backend returns oldest-first; cap to 10 most-recent so the LLM
-        // sees recent items and the result stays ~2KB instead of 20KB.
-        const recentOnt = ontologies.slice(-10).reverse();
-        const recentDs = datasources.slice(-10).reverse();
         return {
-          ontologies: recentOnt.map((o: OntologySchema) => ({ id: o.id, name: o.name, slug: o.slug })),
-          datasources: recentDs.map((d: any) => ({
+          ontologies: ontologies.map((o: OntologySchema) => ({ id: o.id, name: o.name, slug: o.slug })),
+          datasources: datasources.map((d: any) => ({
             id: d.id, name: d.name, type: d.type,
             datasets: d.datasets?.map((ds: any) => ({ table: ds.table_name, rows: ds.rows_count })),
           })),

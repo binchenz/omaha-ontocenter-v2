@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         const fullMessage = message + fileContext;
         const [routeResult, ontList, historyRows] = await Promise.all([
           routeToSkill(fullMessage, !!file),
-          ontologyApi.list(tenantId).catch((e) => {
+          ontologyApi.list(tenantId, { limit: 500, order: "desc" }).catch((e) => {
             console.warn("[chat/send] ontology list failed:", e);
             return [] as OntologySchema[];
           }),

@@ -44,14 +44,28 @@ export const ingestApi = {
     pythonFetch("/ingest", { method: "POST", body: formData }),
 };
 
+export interface ListOpts {
+  limit?: number;
+  order?: "asc" | "desc";
+}
+
+function buildListQuery(tenantId: string, opts: ListOpts = {}): string {
+  const params = new URLSearchParams({ tenant_id: tenantId });
+  if (opts.limit != null) params.set("limit", String(opts.limit));
+  if (opts.order) params.set("order", opts.order);
+  return params.toString();
+}
+
 export const datasourceApi = {
-  list: (tenantId = "default") => pythonFetch(withTenant("/datasources", tenantId)),
+  list: (tenantId = "default", opts: ListOpts = {}) =>
+    pythonFetch(`/datasources?${buildListQuery(tenantId, opts)}`),
   delete: (id: string, tenantId = "default") =>
     pythonFetch(withTenant(`/datasources/${id}`, tenantId), { method: "DELETE" }),
 };
 
 export const ontologyApi = {
-  list: (tenantId = "default") => pythonFetch(withTenant("/ontology", tenantId)),
+  list: (tenantId = "default", opts: ListOpts = {}) =>
+    pythonFetch(`/ontology?${buildListQuery(tenantId, opts)}`),
   create: (yamlSource: string, tenantId = "default") =>
     pythonFetch(`/ontology?tenant_id=${encodeURIComponent(tenantId)}`, {
       method: "POST",
