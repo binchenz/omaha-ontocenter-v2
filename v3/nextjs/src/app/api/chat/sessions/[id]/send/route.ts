@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { CoreMessage } from "ai";
 import { authOptions } from "@/lib/auth";
 import { routeToSkill } from "@/app/agent/skill-router";
 import { loadAllTools, buildIngestTools, type Tool } from "@/app/agent/tool-registry";
@@ -8,6 +9,9 @@ import { DATA_SKILLS, SKILL_STATUS } from "@/app/agent/skills";
 import { ingestApi, ontologyApi } from "@/services/pythonApi";
 import type { OntologySchema } from "@/types/api";
 import { prisma } from "@/lib/prisma";
+
+// Cap prior-turn history sent to the LLM. Too long → cost + context pollution.
+const MAX_HISTORY_TURNS = 12;
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -60,21 +64,38 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
         if (closed) return;
 
-        // Route + ontology fetch run concurrently — they have no data dependency.
+        // Route + ontology fetch + chat history run concurrently — no data dependency.
         const fullMessage = message + fileContext;
-        const [routeResult, ontList] = await Promise.all([
+        const [routeResult, ontList, historyRows] = await Promise.all([
           routeToSkill(fullMessage, !!file),
           ontologyApi.list(tenantId).catch((e) => {
             console.warn("[chat/send] ontology list failed:", e);
             return [] as OntologySchema[];
           }),
+          prisma.chatMessage.findMany({
+            where: { sessionId },
+            orderBy: { createdAt: "desc" },
+            take: MAX_HISTORY_TURNS,
+            select: { role: true, content: true },
+          }).catch((e) => {
+            console.warn("[chat/send] history fetch failed:", e);
+            return [] as Array<{ role: string; content: string }>;
+          }),
         ]);
         const { skill, reasoning } = routeResult;
         send("skill", { name: skill.frontmatter.name, reasoning });
 
+        // Oldest-first, filter to user/assistant only (ai-sdk rejects other roles).
+        const history: CoreMessage[] = historyRows
+          .reverse()
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
         if (closed) return;
 
-        const tools: Record<string, Tool> = { ...buildIngestTools(tenantId) };
+        const tools: Record<string, Tool> = {
+          ...buildIngestTools(tenantId, { includeCreate: skill.frontmatter.name === "data-ingest" }),
+        };
 
         // Only load ontology-derived tools when the active skill needs them.
         if (DATA_SKILLS.has(skill.frontmatter.name) && ontList.length > 0) {
@@ -105,6 +126,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             fullResponse += token;
             send("token", { text: token });
           },
+          history,
         );
 
         // Persist messages after stream completes — best-effort, never fail the response.

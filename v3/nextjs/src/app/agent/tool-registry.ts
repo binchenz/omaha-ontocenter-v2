@@ -75,9 +75,33 @@ export async function loadAllTools(
   return merged;
 }
 
-export function buildIngestTools(tenantId = "default"): Record<string, Tool> {
-  return {
-    create_ontology: {
+export function buildIngestTools(tenantId = "default", options: { includeCreate?: boolean } = {}): Record<string, Tool> {
+  const { includeCreate = true } = options;
+  const tools: Record<string, Tool> = {
+    list_my_data: {
+      name: "list_my_data",
+      description: "列出用户最近的数据集和本体（按创建时间倒序），用于判断用户问的数据是否已存在",
+      execute: async () => {
+        const [ontologies, datasources] = await Promise.all([
+          ontologyApi.list(tenantId).catch(() => []),
+          datasourceApi.list(tenantId).catch(() => []),
+        ]);
+        // Backend returns oldest-first; reverse + cap so the LLM sees recent items
+        // and the tool result stays small (~2KB instead of 20KB).
+        const recentOnt = [...ontologies].reverse().slice(0, 10);
+        const recentDs = [...datasources].reverse().slice(0, 10);
+        return {
+          ontologies: recentOnt.map((o: any) => ({ id: o.id, name: o.name, slug: o.slug })),
+          datasources: recentDs.map((d: any) => ({
+            id: d.id, name: d.name, type: d.type,
+            datasets: d.datasets?.map((ds: any) => ({ table: ds.table_name, rows: ds.rows_count })),
+          })),
+        };
+      },
+    },
+  };
+  if (includeCreate) {
+    tools.create_ontology = {
       name: "create_ontology",
       description: "根据数据 schema 自动生成本体并注册，用户不需要看到 YAML。必须传 display_name（业务名，如'订单''客户'），LLM 从列名推断",
       execute: async (params: Record<string, any>) => {
@@ -87,23 +111,7 @@ export function buildIngestTools(tenantId = "default"): Record<string, Tool> {
         const yaml = buildOntologyYaml({ source: "upload", tableName, columns, displayName });
         return ontologyApi.create(yaml, tenantId);
       },
-    },
-    list_my_data: {
-      name: "list_my_data",
-      description: "列出用户已有的所有数据集和本体，用于判断用户问的数据是否已存在",
-      execute: async () => {
-        const [ontologies, datasources] = await Promise.all([
-          ontologyApi.list(tenantId).catch(() => []),
-          datasourceApi.list(tenantId).catch(() => []),
-        ]);
-        return {
-          ontologies: ontologies.map((o: any) => ({ id: o.id, name: o.name, slug: o.slug })),
-          datasources: datasources.map((d: any) => ({
-            id: d.id, name: d.name, type: d.type,
-            datasets: d.datasets?.map((ds: any) => ({ table: ds.table_name, rows: ds.rows_count })),
-          })),
-        };
-      },
-    },
-  };
+    };
+  }
+  return tools;
 }

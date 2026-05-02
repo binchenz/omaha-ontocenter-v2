@@ -1,4 +1,4 @@
-import { streamText } from "ai";
+import { streamText, type CoreMessage } from "ai";
 import { z } from "zod";
 import { Tool } from "./tool-registry";
 import { llmModel } from "./llm";
@@ -16,6 +16,7 @@ export async function executeReactStream(
   tools: Record<string, Tool>,
   onToolCall: (call: ToolCallEvent) => void,
   onToken: (token: string) => void,
+  history: CoreMessage[] = [],
 ): Promise<void> {
   const system = `你是中小企业数据分析助手。
 
@@ -23,7 +24,8 @@ ${skillInstructions}
 
 用中文清晰回答用户问题。
 - 数据用具体数字说话
-- 给出业务洞察，不仅是数字`;
+- 给出业务洞察，不仅是数字
+- 严格基于对话历史中的真实信息回答，绝不编造表名/列名/数值`;
 
   const aiTools: Record<string, any> = {};
   for (const [name, t] of Object.entries(tools)) {
@@ -44,11 +46,16 @@ ${skillInstructions}
     };
   }
 
+  const messages: CoreMessage[] = [
+    ...history,
+    { role: "user", content: question },
+  ];
+
   try {
     const result = streamText({
       model: llmModel,
       system,
-      prompt: question,
+      messages,
       maxSteps: 5,
       tools: aiTools,
     });
