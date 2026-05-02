@@ -35,6 +35,17 @@ function readSkillFile(mdPath: string): string | null {
   }
 }
 
+function parseSkillMatter(raw: string, name: string): { data: any; content: string } {
+  try {
+    return matter(raw);
+  } catch (e: any) {
+    // A malformed SKILL.md shouldn't take the whole chat request down. Log and
+    // fall back to an empty frontmatter so the router can still list siblings.
+    console.error(`[skill-loader] ${name}/SKILL.md frontmatter parse failed: ${e?.message}`);
+    return { data: {}, content: raw };
+  }
+}
+
 export function loadSkillIndex(): SkillFrontmatter[] {
   if (_indexCache) return _indexCache;
 
@@ -45,7 +56,7 @@ export function loadSkillIndex(): SkillFrontmatter[] {
     if (!entry.isDirectory()) continue;
     const raw = readSkillFile(path.join(SKILLS_DIR, entry.name, "SKILL.md"));
     if (raw === null) continue;
-    index.push(parseFrontmatter(matter(raw).data, entry.name));
+    index.push(parseFrontmatter(parseSkillMatter(raw, entry.name).data, entry.name));
   }
 
   _indexCache = index;
@@ -59,7 +70,7 @@ export function loadSkillFull(skillName: string): Skill | null {
   const raw = readSkillFile(path.join(SKILLS_DIR, skillName, "SKILL.md"));
   if (raw === null) return null;
 
-  const { data, content } = matter(raw);
+  const { data, content } = parseSkillMatter(raw, skillName);
   const skill: Skill = {
     frontmatter: parseFrontmatter(data, skillName),
     body: content.trim(),
