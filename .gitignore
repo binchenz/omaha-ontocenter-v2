@@ -13,6 +13,8 @@ eggs/
 lib/
 !frontend/src/lib/
 !frontend/src/lib/**
+!v3/nextjs/src/lib/
+!v3/nextjs/src/lib/**
 lib64/
 parts/
 sdist/

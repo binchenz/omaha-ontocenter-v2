@@ -1,4 +1,4 @@
-import { pythonFetch, ontologyApi, datasourceApi } from "@/services/pythonApi";
+import { ontologyApi, datasourceApi } from "@/services/pythonApi";
 import { buildOntologyYaml } from "@/lib/yaml-builder";
 import type { OntologySchema } from "@/types/api";
 
@@ -8,16 +8,20 @@ export interface Tool {
   execute: (params: Record<string, any>) => Promise<any>;
 }
 
-export async function loadTools(ontologyId: string): Promise<Record<string, Tool>> {
+export async function loadTools(ontologyId: string, tenantId = "default"): Promise<Record<string, Tool>> {
   try {
-    const schema: OntologySchema = await pythonFetch(`/ontology/${ontologyId}/schema`);
-    return buildToolsFromSchema(ontologyId, schema);
+    const schema: OntologySchema = await ontologyApi.getSchema(ontologyId, tenantId);
+    return buildToolsFromSchema(ontologyId, schema, tenantId);
   } catch {
     return {};
   }
 }
 
-export function buildToolsFromSchema(ontologyId: string, schema: OntologySchema): Record<string, Tool> {
+export function buildToolsFromSchema(
+  ontologyId: string,
+  schema: OntologySchema,
+  tenantId = "default",
+): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
   for (const obj of schema.objects) {
     const qualifier = `${obj.slug}_${schema.slug}`;
@@ -25,30 +29,32 @@ export function buildToolsFromSchema(ontologyId: string, schema: OntologySchema)
       name: `search_${qualifier}`,
       description: `搜索 ${obj.name}（本体: ${schema.name}）。${obj.description || ""}`,
       execute: async (params: Record<string, any>) =>
-        pythonFetch(`/ontology/${ontologyId}/query`, {
-          method: "POST",
-          body: JSON.stringify({
+        ontologyApi.query(
+          ontologyId,
+          {
             operation: "search",
             object: obj.slug,
             filters: params.filters,
             limit: params.limit || 10,
-          }),
-        }),
+          },
+          tenantId,
+        ),
     };
 
     tools[`aggregate_${qualifier}`] = {
       name: `aggregate_${qualifier}`,
       description: `按维度聚合统计 ${obj.name}（本体: ${schema.name}）`,
       execute: async (params: Record<string, any>) =>
-        pythonFetch(`/ontology/${ontologyId}/query`, {
-          method: "POST",
-          body: JSON.stringify({
+        ontologyApi.query(
+          ontologyId,
+          {
             operation: "aggregate",
             object: obj.slug,
             measures: params.measures || ["COUNT(*)"],
             group_by: params.group_by || [],
-          }),
-        }),
+          },
+          tenantId,
+        ),
     };
   }
   return tools;
@@ -58,15 +64,18 @@ export function buildToolsFromSchema(ontologyId: string, schema: OntologySchema)
  * Load tools from multiple ontologies — all names qualified by ontology slug
  * so the LLM can never confuse cross-ontology objects with the same name.
  */
-export async function loadAllTools(ontologies: OntologySchema[]): Promise<Record<string, Tool>> {
+export async function loadAllTools(
+  ontologies: OntologySchema[],
+  tenantId = "default",
+): Promise<Record<string, Tool>> {
   const merged: Record<string, Tool> = {};
   for (const schema of ontologies) {
-    Object.assign(merged, buildToolsFromSchema(schema.id, schema));
+    Object.assign(merged, buildToolsFromSchema(schema.id, schema, tenantId));
   }
   return merged;
 }
 
-export function buildIngestTools(): Record<string, Tool> {
+export function buildIngestTools(tenantId = "default"): Record<string, Tool> {
   return {
     create_ontology: {
       name: "create_ontology",
@@ -76,7 +85,7 @@ export function buildIngestTools(): Record<string, Tool> {
         const tableName = params.table_name || "data";
         const displayName = params.display_name?.trim() || undefined;
         const yaml = buildOntologyYaml({ source: "upload", tableName, columns, displayName });
-        return ontologyApi.create(yaml);
+        return ontologyApi.create(yaml, tenantId);
       },
     },
     list_my_data: {
@@ -84,8 +93,8 @@ export function buildIngestTools(): Record<string, Tool> {
       description: "列出用户已有的所有数据集和本体，用于判断用户问的数据是否已存在",
       execute: async () => {
         const [ontologies, datasources] = await Promise.all([
-          ontologyApi.list().catch(() => []),
-          datasourceApi.list().catch(() => []),
+          ontologyApi.list(tenantId).catch(() => []),
+          datasourceApi.list(tenantId).catch(() => []),
         ]);
         return {
           ontologies: ontologies.map((o: any) => ({ id: o.id, name: o.name, slug: o.slug })),

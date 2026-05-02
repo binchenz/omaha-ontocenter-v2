@@ -1,5 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { ChartView, detectChartable } from "@/components/chat/ChartView";
 import { downloadCsv, oagToCsvRows } from "@/lib/download";
@@ -22,6 +24,7 @@ type Session = {
 const STORAGE_KEY = "ontocenter-v3-sessions";
 
 export default function ChatPage() {
+  const { status } = useSession();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [input, setInput] = useState("");
@@ -56,6 +59,10 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auth guard — declared after hooks to respect rules-of-hooks.
+  if (status === "unauthenticated") redirect("/login");
+  if (status === "loading") return <div className="flex h-full items-center justify-center text-text-secondary">加载中...</div>;
 
   const createSession = () => {
     const newSession: Session = {
