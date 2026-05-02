@@ -9,7 +9,12 @@ import { ingestApi, ontologyApi } from "@/services/pythonApi";
 import type { OntologySchema } from "@/types/api";
 import { prisma } from "@/lib/prisma";
 import { getSessionContext, ownedSessionWhere } from "@/lib/session";
-import { DEFAULT_SESSION_TITLE, MAX_HISTORY_MESSAGES } from "@/lib/constants";
+import {
+  DEFAULT_SESSION_TITLE,
+  MAX_HISTORY_MESSAGES,
+  UPLOAD_MARKER,
+  UPLOAD_MARKER_PREFIX,
+} from "@/lib/constants";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const ctx = await getSessionContext();
@@ -53,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             const cols = ingestResult.columns
               .map((c) => `${c.name}(${c.semantic_type})`)
               .join(", ");
-            fileContext = `\n\n[文件已上传] 表名: ${ingestResult.table_name}, ${ingestResult.rows_count} 行, 列: ${cols}, dataset_id: ${ingestResult.dataset_id}`;
+            fileContext = `${UPLOAD_MARKER_PREFIX} 表名: ${ingestResult.table_name}, ${ingestResult.rows_count} 行, 列: ${cols}, dataset_id: ${ingestResult.dataset_id}`;
           } catch (err: any) {
             send("error", { message: `文件解析失败: ${err.message}` });
             controller.close();
@@ -89,10 +94,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         // both confirmation and correction flows.
         // historyRows is desc-ordered (most recent first), so .find() on
         // role==="user" yields the latest user message.
-        const lastUserMessage = historyRows.find((m) => m.role === "user");
-        const isPostUploadTurn =
-          !file &&
-          lastUserMessage?.content?.includes("[文件已上传]") === true;
+        // When `file` is truthy the sticky branch is unreachable, so skip the
+        // scan entirely rather than paying the find() cost for a guaranteed-false.
+        const lastUserMessage = file ? undefined : historyRows.find((m) => m.role === "user");
+        const isPostUploadTurn = lastUserMessage?.content?.includes(UPLOAD_MARKER) === true;
         if (isPostUploadTurn && skill.frontmatter.name !== SKILLS.DATA_INGEST) {
           const ingestSkill = loadSkillFull(SKILLS.DATA_INGEST);
           if (ingestSkill) {

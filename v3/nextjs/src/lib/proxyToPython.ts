@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/session";
-
-// Shared secret with the Python API (see services/pythonApi.ts for the
-// companion JSON-body path). Server-only — this file runs in API route
-// handlers. Empty → header omitted, Python middleware disabled in dev.
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || "";
+import { internalAuthHeaders } from "@/lib/internalAuth";
 
 /**
  * Proxy a multipart/form-data request to the Python API.
@@ -32,7 +28,7 @@ export async function proxyMultipartToPython(
   const resp = await fetch(`${baseUrl}${pythonPath}`, {
     method: "POST",
     body: form,
-    headers: INTERNAL_SECRET ? { "X-Internal-Auth": INTERNAL_SECRET } : {},
+    headers: internalAuthHeaders(),
   });
 
   const data = await resp.json().catch(() => ({}));

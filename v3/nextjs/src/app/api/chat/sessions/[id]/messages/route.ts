@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionContext, ownedSessionWhere } from "@/lib/session";
-import { MAX_MESSAGES_PER_SESSION_FETCH } from "@/lib/constants";
+import {
+  MAX_MESSAGES_PER_SESSION_FETCH,
+  UPLOAD_MARKER,
+  UPLOAD_MARKER_RE,
+} from "@/lib/constants";
 
 function safeParseToolCalls(s: string | null): unknown[] {
   if (!s) return [];
@@ -18,9 +22,15 @@ function safeParseToolCalls(s: string | null): unknown[] {
 // appended so subsequent turns can detect post-upload context (see
 // send/route.ts sticky-ingest). Strip it here so the UI shows the clean
 // original text.
-const UPLOAD_MARKER_RE = /\n\n\[文件已上传\][^]*$/;
+//
+// Substring fast-path: regex on every row of up to MAX_MESSAGES_PER_SESSION_FETCH
+// (=500) is wasted work since ≤1 user message per session ever carries the
+// marker. `includes()` is a cheap O(n) Boyer-Moore-ish scan that lets the
+// expensive regex run only on the (rare) marker-bearing row.
 function stripUserContextMarker(role: string, content: string): string {
-  return role === "user" ? content.replace(UPLOAD_MARKER_RE, "") : content;
+  return role === "user" && content.includes(UPLOAD_MARKER)
+    ? content.replace(UPLOAD_MARKER_RE, "")
+    : content;
 }
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {

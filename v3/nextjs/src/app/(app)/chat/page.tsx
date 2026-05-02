@@ -146,9 +146,12 @@ export default function ChatPage() {
 
   // Unmount cleanup — abort any in-flight SSE so navigating away doesn't leak
   // the reader loop or leave the server burning tokens for an orphan reply.
+  // Null the ref afterward so a stale controller reference can't be reused
+  // (defensive — handleSend already overwrites the ref on each new send).
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      abortRef.current = null;
     };
   }, []);
 
@@ -186,7 +189,7 @@ export default function ChatPage() {
     // Clear streaming buffers so the ghost bubble doesn't bleed into another
     // session if the user immediately switches.
     if (streamingSessionId === id) {
-      setStreaming(false);
+      setStreaming(false);  // unlock send button immediately; finally will also set this after fetch unwinds
       setStreamingSessionId("");
       setStreamingContent("");
       setStreamingToolCalls([]);
@@ -372,7 +375,10 @@ export default function ChatPage() {
       // AbortError = user deleted the streaming session or navigated away.
       // Swallow silently: no error bubble, no partial commit — deleteSession /
       // unmount cleanup has already cleared the buffers.
-      if (err?.name === "AbortError") {
+      // Prefer `ctrl.signal.aborted` as the authoritative signal: some
+      // runtimes surface abort as a non-standard error (or with the wrong
+      // `name`), and the signal flag is the spec's source of truth.
+      if (ctrl.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
         console.log("[chat] stream aborted");
         return;
       }

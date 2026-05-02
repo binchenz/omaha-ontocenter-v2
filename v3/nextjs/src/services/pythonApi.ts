@@ -1,4 +1,5 @@
 import { DEFAULT_TENANT_ID } from "@/lib/constants";
+import { internalAuthHeaders } from "@/lib/internalAuth";
 import type {
   DatasourceListItem,
   IngestResult,
@@ -8,18 +9,6 @@ import type {
 } from "@/types/api";
 
 const BASE_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
-
-// Shared secret with the Python API. Read at module load time — server-side
-// only (see warning below). Empty string → header omitted, which matches the
-// Python middleware's "disabled in dev" mode. Production sets a non-empty
-// value on both sides so the header is required.
-//
-// SECURITY: this module must not be imported by client components. All
-// consumers today are inside `app/api/**` route handlers and `app/agent/**`
-// server code. If a client component pulls this in, `process.env` would be
-// `undefined` at runtime → header omitted → Python rejects with 401, which
-// fails closed (annoying, but safe).
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || "";
 
 /**
  * Generic typed fetch wrapper for the Python API.
@@ -39,9 +28,7 @@ export async function pythonFetch<T = unknown>(
 
   // Don't force Content-Type for FormData — fetch sets multipart boundary itself.
   const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
-  const authHeader: HeadersInit = INTERNAL_SECRET
-    ? { "X-Internal-Auth": INTERNAL_SECRET }
-    : {};
+  const authHeader = internalAuthHeaders();
   const headers: HeadersInit = isFormData
     ? { ...authHeader, ...init.headers }
     : { "Content-Type": "application/json", ...authHeader, ...init.headers };
