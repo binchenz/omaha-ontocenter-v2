@@ -97,7 +97,8 @@ function schemaForTool(name: string) {
   }
   if (name === "create_ontology") {
     return z.object({
-      table_name: z.string().describe("数据表名"),
+      table_name: z.string().describe("数据表名（英文，来自 [文件已上传] 段）"),
+      display_name: z.string().describe("业务名（中文，从列名推断，如 '订单''客户''商品'，绝不能是 'Data' 或 '数据'）"),
       columns: z.array(z.object({
         name: z.string(),
         semantic_type: z.string(),

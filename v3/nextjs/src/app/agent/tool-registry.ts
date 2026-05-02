@@ -70,11 +70,12 @@ export function buildIngestTools(): Record<string, Tool> {
   return {
     create_ontology: {
       name: "create_ontology",
-      description: "根据数据 schema 自动生成本体并注册，用户不需要看到 YAML",
+      description: "根据数据 schema 自动生成本体并注册，用户不需要看到 YAML。必须传 display_name（业务名，如'订单''客户'），LLM 从列名推断",
       execute: async (params: Record<string, any>) => {
         const columns = params.columns as Array<{ name: string; semantic_type: string }>;
         const tableName = params.table_name || "data";
-        const yaml = buildOntologyYaml({ source: "upload", tableName, columns });
+        const displayName = params.display_name?.trim() || undefined;
+        const yaml = buildOntologyYaml({ source: "upload", tableName, columns, displayName });
         return ontologyApi.create(yaml);
       },
     },
