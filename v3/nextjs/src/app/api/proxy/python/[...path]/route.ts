@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/session";
 import { internalAuthHeaders } from "@/lib/internalAuth";
+import { forwardPythonResponse } from "@/lib/pythonResponse";
 
 const BASE_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
 
@@ -14,6 +15,11 @@ const BASE_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
  *
  * Tenant safety: `tenant_id` is ALWAYS overwritten with the session's tenant —
  * a client cannot spoof another tenant by passing `?tenant_id=imposter`.
+ *
+ * NOTE: not stream-safe. Buffers full request/response bodies via arrayBuffer
+ * + text. Streaming endpoints (SSE, chunked) need a dedicated handler that
+ * pipes the body — today only /api/chat/sessions/[id]/send streams, and it
+ * has its own route, not this catch-all.
  */
 async function proxy(
   req: NextRequest,
@@ -28,9 +34,11 @@ async function proxy(
   const url = new URL(`${BASE_URL}/${subpath}`);
 
   // Forward query params from the client request, BUT force tenant_id from session.
+  // `append` (not `set`) preserves repeat keys like `?ids=a&ids=b` for endpoints
+  // that may grow multi-valued params.
   for (const [k, v] of req.nextUrl.searchParams.entries()) {
     if (k === "tenant_id") continue; // never trust client-provided tenant
-    url.searchParams.set(k, v);
+    url.searchParams.append(k, v);
   }
   url.searchParams.set("tenant_id", ctx.tenantId);
 
@@ -53,22 +61,7 @@ async function proxy(
     body,
   });
 
-  // Forward response — try JSON passthrough, fall back to wrapped text so the
-  // client always gets JSON it can parse (non-JSON 5xx HTML traces, etc.).
-  const text = await resp.text();
-  const respCt = resp.headers.get("content-type") || "";
-  const init = {
-    status: resp.status,
-    headers: { "content-type": respCt || "application/json" },
-  };
-
-  if (respCt.includes("application/json")) {
-    return new NextResponse(text, init);
-  }
-  return NextResponse.json(
-    { detail: text.slice(0, 500) || resp.statusText },
-    { status: resp.status },
-  );
+  return forwardPythonResponse(resp);
 }
 
 export const GET = proxy;

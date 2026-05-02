@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/session";
 import { internalAuthHeaders } from "@/lib/internalAuth";
+import { forwardPythonResponse } from "@/lib/pythonResponse";
 
 /**
  * Proxy a multipart/form-data request to the Python API.
@@ -31,16 +32,5 @@ export async function proxyMultipartToPython(
     headers: internalAuthHeaders(),
   });
 
-  const text = await resp.text();
-  let data: unknown;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    // Non-JSON response (e.g. HTML stack trace from a Python 500 or plain-text
-    // "Internal Server Error"). Wrap it so the client gets a useful diagnostic
-    // instead of an empty `{}` body. Cap at 500 chars to avoid echoing a full
-    // stack trace back to the browser.
-    data = { detail: text.slice(0, 500) || resp.statusText || `HTTP ${resp.status}` };
-  }
-  return NextResponse.json(data, { status: resp.status });
+  return forwardPythonResponse(resp);
 }
