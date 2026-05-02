@@ -31,7 +31,7 @@ export interface OntologySchema {
 }
 
 export interface OntologyObjectSchema {
-  id: string; name: string; slug: string; description: string;
+  id: string; name: string; slug: string; description: string | null;
   table_name: string; datasource_id: string;
   properties: OntologyPropertySchema[];
 }
@@ -39,7 +39,7 @@ export interface OntologyObjectSchema {
 export interface OntologyPropertySchema {
   name: string; slug: string; semantic_type: string;
   source_column: string; is_computed: boolean;
-  function_ref?: string | null; unit: string;
+  function_ref?: string | null; unit: string | null;
 }
 
 export interface OntologyLinkSchema {

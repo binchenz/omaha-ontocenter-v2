@@ -121,9 +121,26 @@ export default function ChatPage() {
       });
   }, [activeId]);
 
+  // Scroll-to-bottom is split into two effects to avoid 60+ smooth-scrolls/sec:
+  //
+  //   1. messages.length / streaming → smooth when idle, "auto" when streaming.
+  //      Triggers exactly once per appended turn (or transition into/out of
+  //      streaming), so smooth animation runs at conversational, not token, pace.
+  //   2. streaming-buffer changes → "auto" only, gated by requestAnimationFrame.
+  //      The rAF gate collapses any number of token events arriving inside one
+  //      browser frame into a single scroll, eliminating jank.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent, streamingToolCalls.length, streamingStatus]);
+    if (!bottomRef.current) return;
+    bottomRef.current.scrollIntoView({ behavior: streaming ? "auto" : "smooth" });
+  }, [messages.length, streaming]);
+
+  useEffect(() => {
+    if (!streaming) return;
+    const id = requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [streaming, streamingContent, streamingToolCalls.length, streamingStatus, streamingSkill]);
 
   // Auth guard — declared after hooks to respect rules-of-hooks.
   if (status === "unauthenticated") redirect("/login");

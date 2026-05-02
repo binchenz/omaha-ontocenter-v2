@@ -63,16 +63,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         if (closed) return;
 
         const fullMessage = message + fileContext;
-        const [routeResult, schemas, historyRows] = await Promise.all([
+        const [routeResult, historyRows] = await Promise.all([
           routeToSkill(fullMessage, !!file),
-          // Batch endpoint: one HTTP call returns every ontology with its
-          // objects+properties inlined. Previously we did
-          //   list() → Promise.all(N × getSchema())
-          // which meant 1+N HTTP hops and O(N*objects) SELECTs per chat send.
-          ontologyApi.listSchemas(tenantId, { limit: 500, order: "desc" }).catch((e) => {
-            console.warn("[chat/send] listSchemas failed:", e);
-            return [] as OntologySchema[];
-          }),
           prisma.chatMessage.findMany({
             where: { sessionId },
             orderBy: { createdAt: "desc" },
@@ -86,6 +78,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         const { skill, reasoning } = routeResult;
         const isFirstTurn = historyRows.length === 0;
         send("skill", { name: skill.frontmatter.name, reasoning });
+
+        // listSchemas only matters for data-query/data-explore — general-chat
+        // and data-ingest never consume ontology search/aggregate tools.
+        // Skipping the fetch on ~80% of turns (greetings + ingest) saves a
+        // 40-80KB HTTP roundtrip. The sequential cost for data-* skills
+        // (~20-50ms) is a worthwhile trade for the dominant case.
+        let schemas: OntologySchema[] = [];
+        if (DATA_SKILLS.has(skill.frontmatter.name)) {
+          schemas = await ontologyApi
+            .listSchemas(tenantId, { limit: 500, order: "desc" })
+            .catch((e) => {
+              console.warn("[chat/send] listSchemas failed:", e);
+              return [] as OntologySchema[];
+            });
+        }
 
         // ai-sdk rejects roles other than user/assistant in CoreMessage[].
         const history: CoreMessage[] = [...historyRows]
@@ -126,10 +133,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         );
 
         // Persist after stream — best-effort, never fail the response.
+        // Store the CLEAN user message (not fullMessage); the "[文件已上传]…"
+        // context was only for the LLM's single-turn input, and persisting
+        // it would leak dataset_id / schema hints into the user bubble on
+        // page reload.
         try {
           await prisma.chatMessage.createMany({
             data: [
-              { sessionId, role: "user", content: fullMessage },
+              { sessionId, role: "user", content: message },
               {
                 sessionId,
                 role: "assistant",
