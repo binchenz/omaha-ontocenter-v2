@@ -1,0 +1,53 @@
+{
+  "name": "ontocenter-v3",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^1.0",
+    "@ai-sdk/openai": "^1.0",
+    "@prisma/client": "^5.22",
+    "@radix-ui/react-dialog": "^1.1",
+    "@radix-ui/react-dropdown-menu": "^2.1",
+    "@radix-ui/react-select": "^2.1",
+    "@radix-ui/react-separator": "^1.1",
+    "@radix-ui/react-slot": "^1.1",
+    "@radix-ui/react-tabs": "^1.1",
+    "@radix-ui/react-tooltip": "^1.1",
+    "ai": "^4.0",
+    "class-variance-authority": "^0.7",
+    "clsx": "^2.1",
+    "gray-matter": "^4.0.3",
+    "lucide-react": "^0.460",
+    "next": "^14.2",
+    "next-auth": "^4.24",
+    "react": "^18.3",
+    "react-dom": "^18.3",
+    "tailwind-merge": "^2.6",
+    "zod": "^3.23"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.0",
+    "@types/node": "^22.9",
+    "@types/react": "^18.3",
+    "@types/react-dom": "^18.3",
+    "autoprefixer": "^10.4",
+    "eslint": "^8.57",
+    "eslint-config-next": "^14.2",
+    "postcss": "^8.4",
+    "prettier": "^3.4",
+    "prisma": "^5.22",
+    "tailwindcss": "^3.4",
+    "typescript": "^5.6",
+    "vitest": "^2.1"
+  }
+}
