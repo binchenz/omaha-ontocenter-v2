@@ -2,10 +2,10 @@
 
 AI 原生的中小企业数据分析平台 — "面向中国 SME 的 Palantir"。
 
-- **Python FastAPI** — 数据摄入、本体引擎、OAG 查询、MCP Server
-- **Next.js 14** — BFF + UI + LLM Agent (Vercel AI SDK)
+- **Next.js 14** — chat UI + LLM Agent (Vercel AI SDK) + MCP server (JSON-RPC) + BFF
+- **Python FastAPI** — 纯数据层：ingest / 本体 CRUD / OAG 查询 / datasources
 - **Delta Lake + DuckDB** — 数据版本化 + 列式查询
-- **PostgreSQL / SQLite** — 元数据存储
+- **PostgreSQL** — chat 会话 + 用户 + API keys（生产）/ SQLite（dev）
 
 ## 快速开始
 
@@ -68,7 +68,7 @@ NO_PROXY=localhost,127.0.0.1 npm run dev
 
 ```bash
 cd v3/python-api && source .venv/bin/activate && pytest
-# 17 passed
+# 40 passed
 
 cd v3/nextjs && npx tsc --noEmit
 # TS: PASS
@@ -89,26 +89,29 @@ railway up
 ## 架构
 
 ```
-用户 → Next.js BFF → LLM (Planner + ReAct) → Python API → DuckDB + Delta Lake
-                                              ↓
-                                        MCP Runtime (HTTP JSON-RPC)
-                                              ↑
-                                        Claude Code / 其他 Agent
+用户 (boss) → Next.js BFF → LLM (Skill router + ReAct) → Python API → DuckDB + Delta Lake
+                              ↓
+the assistant Desktop / Cursor → /api/mcp (JSON-RPC, Bearer auth) ─┘
+                              ↓
+                        tool-registry.ts (single source of truth)
 ```
+
+A1 之后：MCP server 在 Next.js 端，Python 退回纯数据层。
 
 ## 项目结构
 
 ```
 v3/
-├── python-api/        # FastAPI + SQLAlchemy + Delta Lake
-│   ├── app/api/       # 端点：ingest/ontology/mcp/datasources
-│   ├── app/services/  # 本体引擎/查询/MCP 工厂
+├── python-api/        # FastAPI + SQLAlchemy + Delta Lake (data layer only)
+│   ├── app/api/       # 端点：ingest/ontology/datasources（无 LLM、无 MCP）
+│   ├── app/services/  # 本体引擎/查询/连接器
 │   ├── app/connectors/  # CSV/SQLite/MySQL/PostgreSQL
-│   └── tests/         # 17 个 E2E 测试
+│   └── tests/         # 40 个测试
 └── nextjs/            # Next.js App Router + Tailwind + shadcn/ui
-    ├── src/app/       # 路由 + agent + API routes
-    ├── src/components/  # Chat UI + ChartView
-    └── src/services/  # pythonApi 客户端
+    ├── src/app/agent/    # tool-registry, skill-router, react.ts (Vercel AI SDK)
+    ├── src/app/api/mcp/  # JSON-RPC handler (替代旧 Python MCP server)
+    ├── src/skills/       # SKILL.md (data-ingest / data-query / data-explore / general-chat)
+    └── src/services/     # pythonApi 客户端 (双 context: server-side 直连，client-side 走 proxy)
 ```
 
 ## License

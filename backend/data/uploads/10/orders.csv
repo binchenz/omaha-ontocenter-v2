@@ -1,4 +1,0 @@
-order_id,customer_id,amount,status
-O001,C01,100,paid
-O002,C01,200,shipped
-O003,C02,150,paid

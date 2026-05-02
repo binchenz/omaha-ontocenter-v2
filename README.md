@@ -1,95 +1,35 @@
-# Omaha OntoCenter
+# OntoCenter
 
-AI-native data platform for SMEs. Upload your business data, let AI build the ontology, then query it through natural language conversation.
+AI-native data platform for Chinese SMEs. Upload business data, let AI build the ontology, then query it through natural language.
 
-## What It Does
-
-1. **Upload** — CSV, Excel, or connect a database (MySQL, PostgreSQL, SQLite)
-2. **Model** — AI infers business objects, fields, and relationships from your data
-3. **Query** — Ask questions in natural language; the agent writes and executes queries for you
-
-No SQL knowledge required. No BI tool configuration. Just data and questions.
-
-## Repository Layout
+**Source lives in [`v3/`](./v3).** See [v3/README.md](./v3/README.md) for setup, architecture, and commands.
 
 ```
 omaha_ontocenter/
-├── backend/           # FastAPI application (Python)
-├── frontend/          # React + TypeScript + Vite UI
-├── configs/           # YAML ontology templates
-├── deployment/        # Server deployment scripts
-├── docs/              # Operational documentation
-├── LOCAL_SETUP.md     # Local dev startup guide
-└── RUNNING.md         # How to run and access the app
+├── v3/                 # The application
+│   ├── python-api/     # FastAPI + Delta Lake + DuckDB — data layer
+│   ├── nextjs/         # Next.js 14 + Vercel AI SDK — chat + MCP server + UI
+│   ├── docker-compose.yml
+│   └── README.md       # ← start here
+└── docs/superpowers/   # Design specs + implementation plans
 ```
 
-## Tech Stack
-
-- **Backend**: FastAPI + SQLAlchemy + SQLite (dev) / PostgreSQL (prod)
-- **Frontend**: React 18 + TypeScript + Ant Design + Vite
-- **LLM**: DeepSeek / OpenAI / Anthropic (configurable)
-- **Connectors**: SQLite, MySQL, PostgreSQL, CSV/Excel
-- **Auth**: JWT-based authentication
-
-## Key Capabilities
-
-- **Conversational Modeling** — upload tables, AI infers ontology with data quality warnings
-- **Per-Object Tools** — dynamic `search_*`, `count_*`, `aggregate_*` tools generated per business object
-- **Link Type System** — object relationships with forward/reverse navigation and multi-hop paths
-- **Multi-Datasource** — query across different databases in a single ontology
-- **ReAct Agent** — multi-step reasoning with tool use, thinking mode, and context retention
-- **MCP Server** — Model Context Protocol integration for external AI tools
-
-## Quick Start
+## Quick start
 
 ```bash
-# Backend
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python init_db.py
-uvicorn app.main:app --reload --port 8000
-
-# Frontend (separate terminal)
-cd frontend
-npm install && npm run dev
+cd v3
+docker compose up -d            # postgres + python-api + nextjs
+open http://localhost:3000      # demo@ontocenter.dev / demo123
 ```
 
-Access the app at http://localhost:5173
+Or local dev (no Docker): follow [v3/README.md](./v3/README.md#快速开始).
 
-See [LOCAL_SETUP.md](LOCAL_SETUP.md) for detailed setup. See [RUNNING.md](RUNNING.md) for running instructions.
+## What it does
 
-## Configuration
+1. Upload CSV/Excel or connect MySQL/PostgreSQL → AI infers schema and semantic types
+2. Ask questions in Chinese or English → Agent routes to the right tool, queries, summarizes
+3. Generate API key → connect the assistant Desktop / Cursor / any MCP client via the built-in MCP server
 
-Environment variables (`.env` at project root):
+## Status
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | Database connection string |
-| `SECRET_KEY` | Yes | JWT signing key |
-| `DEEPSEEK_API_KEY` | One of three | DeepSeek API key |
-| `OPENAI_API_KEY` | One of three | OpenAI API key |
-| `ANTHROPIC_API_KEY` | One of three | Anthropic API key |
-
-At least one LLM API key must be configured.
-
-## API Overview
-
-| Endpoint Group | Purpose |
-|---------------|---------|
-| `POST /api/v1/auth/*` | Authentication (login, register) |
-| `/api/v1/projects/*` | Project CRUD, members, audit |
-| `/api/v1/ontology-store/*` | Ontology object management |
-| `/api/v1/chat/{project_id}/*` | Chat sessions and AI agent |
-| `/api/v1/assets/*` | Dataset asset management |
-| `GET /health` | Health check |
-
-Full API documentation available at `http://localhost:8000/docs` when running locally.
-
-## Deployment
-
-See [deployment/README.md](deployment/README.md) for production deployment instructions.
-
-## License
-
-Proprietary. All rights reserved.
+Actively developed. v1 (`backend/` + `frontend/`) was removed in favor of v3. In-flight work and design specs live in [docs/superpowers/plans/](./docs/superpowers/plans/).
