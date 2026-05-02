@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     mcp_host: str = "0.0.0.0"
     mcp_port_start: int = 9000
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    # Shared secret with the Next.js server. When non-empty, every inbound
+    # request (except /health) must carry a matching `X-Internal-Auth` header.
+    # Empty (default) → middleware is a no-op so dev/test setups work without
+    # configuration. Production deployments MUST set a strong random value.
+    internal_api_secret: str = ""
 
     model_config = {"env_file": str(_ENV_FILE), "extra": "ignore"}
 

@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.api.health import router as health_router
@@ -38,6 +39,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def internal_auth(request: Request, call_next):
+    """Reject requests that don't carry the shared internal-auth header.
+
+    H1 (HIGH) fix: Python API endpoints accept `tenant_id` from the query
+    string with no auth. Anyone with HTTP access could read/delete other
+    tenants' data. The Next.js server (which already authenticates the user
+    via NextAuth/JWT) injects `X-Internal-Auth: <secret>` on every Python
+    call; Python verifies it here before any endpoint runs.
+
+    /health is exempted so k8s liveness/readiness probes still work.
+    Empty secret → middleware is a no-op (dev/test convenience). Production
+    deployments must set a non-empty `INTERNAL_API_SECRET`.
+
+    This is NOT full multi-tenant auth (P6 territory) — `tenant_id` is still
+    trusted from the query string. It just stops Python from being a public
+    proxy for tenant data.
+    """
+    # k8s probes hit /health unauthenticated — keep that path open.
+    if request.url.path == "/health":
+        return await call_next(request)
+
+    expected = settings.internal_api_secret
+    if not expected:
+        # Disabled in dev — caller didn't configure a secret.
+        return await call_next(request)
+
+    got = request.headers.get("x-internal-auth")
+    if got != expected:
+        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+
+    return await call_next(request)
+
 
 app.include_router(health_router)
 app.include_router(ingest_router)
