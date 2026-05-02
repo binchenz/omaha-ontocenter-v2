@@ -30,6 +30,8 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const loadedSessionsRef = useRef<Set<string>>(new Set());
+  // Aborts in-flight SSE fetch on delete-streaming-session or component unmount.
+  const abortRef = useRef<AbortController | null>(null);
 
   // Streaming buffers — kept out of `sessions` to avoid O(sessions * messages)
   // object clones per token. Merged into `sessions` once on `done`.
@@ -142,6 +144,14 @@ export default function ChatPage() {
     return () => cancelAnimationFrame(id);
   }, [streaming, streamingContent, streamingToolCalls.length, streamingStatus, streamingSkill]);
 
+  // Unmount cleanup — abort any in-flight SSE so navigating away doesn't leak
+  // the reader loop or leave the server burning tokens for an orphan reply.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   // Auth guard — declared after hooks to respect rules-of-hooks.
   if (status === "unauthenticated") redirect("/login");
   if (status === "loading") return <div className="flex h-full items-center justify-center text-text-secondary">加载中...</div>;
@@ -167,6 +177,22 @@ export default function ChatPage() {
 
   const deleteSession = async (id: string) => {
     if (!confirm("删除此对话？")) return;
+    // If the user is deleting the very session we're streaming into, abort the
+    // SSE fetch first. This frees the server (LLM stops generating an orphan
+    // reply) and unblocks the send button (finally{} clears `streaming`).
+    if (streamingSessionId === id && abortRef.current) {
+      abortRef.current.abort();
+    }
+    // Clear streaming buffers so the ghost bubble doesn't bleed into another
+    // session if the user immediately switches.
+    if (streamingSessionId === id) {
+      setStreaming(false);
+      setStreamingSessionId("");
+      setStreamingContent("");
+      setStreamingToolCalls([]);
+      setStreamingSkill(null);
+      setStreamingStatus("");
+    }
     try {
       const res = await fetch(`/api/chat/sessions/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete failed");
@@ -231,6 +257,12 @@ export default function ChatPage() {
     setStreamingStatus("");
     setStreaming(true);
 
+    // Defensive: abort any leftover controller (shouldn't happen — `streaming`
+    // gate above prevents overlapping sends — but cheap insurance).
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
     // Locally-accumulated state — we need final values at `done` time
     // without depending on React state flushes.
     let accContent = "";
@@ -269,6 +301,7 @@ export default function ChatPage() {
       const res = await fetch(`/api/chat/sessions/${sessionId}/send`, {
         method: "POST",
         body: fd,
+        signal: ctrl.signal,
         // No Content-Type header — browser sets multipart boundary
       });
 
@@ -278,6 +311,7 @@ export default function ChatPage() {
       let buffer = "";
 
       while (true) {
+        if (ctrl.signal.aborted) break;
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
@@ -335,6 +369,13 @@ export default function ChatPage() {
         }
       }
     } catch (err: any) {
+      // AbortError = user deleted the streaming session or navigated away.
+      // Swallow silently: no error bubble, no partial commit — deleteSession /
+      // unmount cleanup has already cleared the buffers.
+      if (err?.name === "AbortError") {
+        console.log("[chat] stream aborted");
+        return;
+      }
       const suffix = `\n\n[连接中断: ${err.message}]`;
       const finalContent = (accContent || "") + suffix;
       accContent = finalContent;
@@ -349,6 +390,10 @@ export default function ChatPage() {
         commitAssistant(finalContent);
       }
     } finally {
+      // Only clear the ref if it still points at *this* controller — a later
+      // handleSend may have replaced it (shouldn't happen given the `streaming`
+      // gate, but guards against future refactors).
+      if (abortRef.current === ctrl) abortRef.current = null;
       setStreaming(false);
     }
   };
