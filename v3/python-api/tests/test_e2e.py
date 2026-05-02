@@ -141,15 +141,6 @@ class TestE2EFullFlow:
                 })
                 assert r.status_code == 200
 
-                # MCP generate
-                r = await c.post(f"/mcp/generate/{oid}")
-                assert r.status_code == 200
-                mcp = r.json()
-                assert mcp["tools_count"] >= 3
-                assert "search_order" in str(mcp["tools"])
-                assert "skill" in mcp
-                assert "skill_markdown" in mcp
-
                 # Function call (now requires ontology_id and registered handler)
                 r = await c.post(
                     f"/ontology/{oid}/function/growth_rate",
@@ -171,10 +162,6 @@ class TestE2EFullFlow:
             # Missing YAML source — form-based endpoint, returns 400
             r = await c.post("/ontology", data={})
             assert r.status_code == 400
-
-            # MCP for non-existent ontology
-            r = await c.post("/mcp/generate/nonexistent")
-            assert r.status_code == 404
 
     async def test_06_ingest_unsupported_type(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
@@ -200,16 +187,6 @@ class TestE2EFullFlow:
             r = await c.get(f"/ontology/{oid}/schema")
             assert r.status_code == 404
 
-    async def test_09_skills_list(self):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
-            r = await c.post("/ontology?yaml_source=" + quote(YAML_ONTOLOGY))
-            oid = r.json()["id"]
-            r = await c.get("/mcp/skills")
-            assert r.status_code == 200
-            skills = r.json()["skills"]
-            assert any(s["ontology_id"] == oid for s in skills)
-            await c.delete(f"/ontology/{oid}")
-
     async def test_10_update_ontology(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
             r = await c.post("/ontology?yaml_source=" + quote(YAML_ONTOLOGY))
@@ -220,50 +197,6 @@ class TestE2EFullFlow:
             assert r.json()["name"] == "Updated Name"
             new_oid = r.json()["id"]
             await c.delete(f"/ontology/{new_oid}")
-
-    async def test_11_mcp_runtime_endpoint(self):
-        """Verify MCP HTTP endpoint actually responds to JSON-RPC."""
-        dbpath = await _setup_db()
-        try:
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
-                # Setup
-                await c.post("/ingest", data={"type": "sqlite", "path": dbpath})
-                r = await c.post("/ontology?yaml_source=" + quote(YAML_ONTOLOGY))
-                slug = "test-e2e"
-
-                # tools/list via MCP runtime
-                r = await c.post(f"/mcp/{slug}", json={
-                    "jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}
-                })
-                assert r.status_code == 200
-                resp = r.json()
-                assert "result" in resp
-                tools = resp["result"]["tools"]
-                assert len(tools) > 0
-                assert any(t["name"].startswith("search_") for t in tools)
-
-                # tools/call via MCP runtime
-                r = await c.post(f"/mcp/{slug}", json={
-                    "jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                    "params": {"name": "search_order", "arguments": {"limit": 5}}
-                })
-                assert r.status_code == 200
-                resp = r.json()
-                assert "result" in resp
-
-                # Unknown ontology slug
-                r = await c.post("/mcp/nonexistent", json={
-                    "jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}
-                })
-                assert r.status_code == 404
-        finally:
-            os.unlink(dbpath)
-            # Cleanup ontology
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
-                onts = (await c.get("/ontology")).json()
-                for o in onts:
-                    if o["slug"] == "test-e2e":
-                        await c.delete(f"/ontology/{o['id']}")
 
     async def test_12_datasources_list(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
@@ -309,21 +242,6 @@ class TestE2EFullFlow:
             data = r.json()
             assert "removed" in data
             assert "kept" in data
-
-    async def test_15_mcp_servers_list(self):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
-            r = await c.post("/ontology?yaml_source=" + quote(YAML_ONTOLOGY))
-            oid = r.json()["id"]
-
-            r = await c.get("/mcp/servers")
-            assert r.status_code == 200
-            servers = r.json()["servers"]
-            assert any(s["ontology_slug"] == "test-e2e" for s in servers)
-            target = next(s for s in servers if s["ontology_slug"] == "test-e2e")
-            assert target["endpoint"].endswith("/mcp/test-e2e")
-            assert target["status"] == "running"
-
-            await c.delete(f"/ontology/{oid}")
 
     async def test_16_friendly_input_errors(self):
         """Bad user input should return 400, not 500."""

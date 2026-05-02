@@ -6,8 +6,6 @@ from app.config import settings
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.ontology import router as ontology_router
-from app.api.mcp import router as mcp_router
-from app.api.mcp_runtime import router as mcp_runtime_router
 from app.api.datasources import router as datasources_router
 
 
@@ -88,6 +86,4 @@ async def internal_auth(request: Request, call_next):
 app.include_router(health_router)
 app.include_router(ingest_router)
 app.include_router(ontology_router)
-app.include_router(mcp_router)
-app.include_router(mcp_runtime_router)
 app.include_router(datasources_router)
