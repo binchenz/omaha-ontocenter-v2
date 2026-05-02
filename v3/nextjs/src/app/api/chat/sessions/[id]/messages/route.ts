@@ -14,6 +14,15 @@ function safeParseToolCalls(s: string | null): unknown[] {
   }
 }
 
+// User messages are persisted with the LLM-facing `[文件已上传] ...` marker
+// appended so subsequent turns can detect post-upload context (see
+// send/route.ts sticky-ingest). Strip it here so the UI shows the clean
+// original text.
+const UPLOAD_MARKER_RE = /\n\n\[文件已上传\][^]*$/;
+function stripUserContextMarker(role: string, content: string): string {
+  return role === "user" ? content.replace(UPLOAD_MARKER_RE, "") : content;
+}
+
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const ctx = await getSessionContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -35,6 +44,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (!session) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json(
-    messages.map((m) => ({ ...m, toolCalls: safeParseToolCalls(m.toolCalls) }))
+    messages.map((m) => ({
+      ...m,
+      content: stripUserContextMarker(m.role, m.content),
+      toolCalls: safeParseToolCalls(m.toolCalls),
+    }))
   );
 }
+
