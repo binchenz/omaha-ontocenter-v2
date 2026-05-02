@@ -385,13 +385,22 @@ export default function ChatPage() {
       const suffix = `\n\n[连接中断: ${err.message}]`;
       const finalContent = (accContent || "") + suffix;
       accContent = finalContent;
-      // In case `done`/`error` was already handled, force a second commit by
-      // resetting the flag and appending a new assistant message.
       if (committed) {
-        const assistantMsg: Message = { role: "assistant", content: finalContent, toolCalls: [] };
-        setSessions((prev) => prev.map((s) =>
-          s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
-        ));
+        // Already committed the assistant message; append the error suffix
+        // to the existing last assistant bubble instead of pushing a new one.
+        // Server only persisted ONE assistant message via createMany — pushing
+        // a second bubble would drift from DB state on refresh. Defensive
+        // role check prevents crash if (somehow) the last message isn't
+        // assistant; in that case we no-op.
+        setSessions((prev) => prev.map((s) => {
+          if (s.id !== sessionId) return s;
+          const msgs = [...s.messages];
+          const last = msgs[msgs.length - 1];
+          if (last?.role === "assistant") {
+            msgs[msgs.length - 1] = { ...last, content: last.content + suffix };
+          }
+          return { ...s, messages: msgs };
+        }));
       } else {
         commitAssistant(finalContent);
       }
