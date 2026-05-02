@@ -84,6 +84,13 @@ async def delete_datasource(
     datasets = list(ds_result.scalars().all())
     delta_paths = [d.delta_path for d in datasets if d.delta_path]
 
+    # Drop view-registry cache entries so subsequent queries re-register
+    # (or fail cleanly) instead of returning a stale view reference.
+    from app.services.query.view_registry import invalidate_view_cache
+    for d in datasets:
+        if d.table_name:
+            invalidate_view_cache(d.tenant_id, d.table_name)
+
     await db.execute(delete(Dataset).where(Dataset.datasource_id == datasource_id))
     await db.execute(delete(DataSource).where(
         DataSource.id == datasource_id,

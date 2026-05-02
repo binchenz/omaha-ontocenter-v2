@@ -1,9 +1,13 @@
 import pandas as pd
 
 
+# Map column-name hints → semantic type. ASCII hints match on _-separated
+# tokens (so "id" doesn't fire on "valid"/"hide_amount"); CJK / unicode hints
+# fall back to substring match because Chinese column names don't tokenize
+# on underscores.
 SEMANTIC_HINTS = {
     "金额": "currency", "价格": "currency", "收入": "currency", "成本": "currency",
-    "收入": "currency", "利润": "currency", "amount": "currency", "price": "currency",
+    "利润": "currency", "amount": "currency", "price": "currency",
     "revenue": "currency", "cost": "currency", "毛利率": "percentage", "rate": "percentage",
     "日期": "date", "时间": "datetime", "date": "date", "time": "datetime",
     "created_at": "datetime", "updated_at": "datetime",
@@ -13,11 +17,19 @@ SEMANTIC_HINTS = {
 }
 
 
+def _matches_hint(col_lower: str, hint: str) -> bool:
+    """ASCII hints → token match against `_`-split parts (or whole equality);
+    non-ASCII hints → substring match (Chinese doesn't tokenize on `_`)."""
+    if all(ord(c) < 128 for c in hint):
+        return hint == col_lower or hint in col_lower.split("_")
+    return hint in col_lower
+
+
 def infer_semantic_type(col_name: str, dtype: str, sample_values: list) -> str:
     """Infer semantic type from column name, pandas dtype, and sample values."""
     col_lower = col_name.lower()
     for hint, sem_type in SEMANTIC_HINTS.items():
-        if hint in col_lower:
+        if _matches_hint(col_lower, hint):
             return sem_type
 
     dtype_str = str(dtype).lower()

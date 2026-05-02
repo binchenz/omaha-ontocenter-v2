@@ -48,17 +48,27 @@ async def run_ingest(
         if not tables:
             raise ValueError("No tables found in data source")
 
-        table = tables[0]
+        # Honor user's table selection from the connect-page UI; fall back to first.
+        if request.selected_table:
+            if request.selected_table not in tables:
+                raise ValueError(
+                    f"Selected table '{request.selected_table}' not found in source. "
+                    f"Available: {tables}"
+                )
+            table = request.selected_table
+        else:
+            table = tables[0]
         # Serialize concurrent ingests of the same (tenant, table) to avoid
         # racing on dataset_id allocation and Delta writes.
         async with ingest_lock.for_key(f"{tenant_id}::{table}"):
-            sample_data = await connector.sample_data(table, rows=1000)
-            df_sample = pd.DataFrame(sample_data)
-            columns = infer_columns(df_sample)
-
+            # Read the source once: rows=0 means "all rows" across every
+            # connector. Re-reading for a 1k-row sample doubled the I/O for
+            # CSV/Excel and issued a duplicate SELECT * for SQL connectors.
             full_data = await connector.sample_data(table, rows=0)
             df_full = pd.DataFrame(full_data)
             rows_count = len(df_full) if not df_full.empty else 0
+            df_sample = df_full.head(1000)
+            columns = infer_columns(df_sample)
 
             # Reuse existing dataset for the same (tenant, table) to avoid orphan Delta dirs.
             existing_dataset = None

@@ -15,6 +15,10 @@ class IngestRequest(BaseModel):
     type: str = Field(..., description="csv | excel | mysql | postgres | sqlite")
     connection: ConnectionConfig | None = None
     options: dict[str, Any] | None = None
+    selected_table: str | None = Field(
+        default=None,
+        description="Specific table to ingest (from discover step). When None, the first discovered table is used.",
+    )
 
 
 class ColumnInfo(BaseModel):

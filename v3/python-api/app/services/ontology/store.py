@@ -142,7 +142,7 @@ async def list_ontologies(
 
 
 async def delete_ontology(db: AsyncSession, ontology_id: str) -> bool:
-    from app.services.query.view_registry import _safe_view_name
+    from app.services.query.view_registry import safe_view_name, invalidate_view_cache
     from app.services.query.duckdb_service import duckdb_service
 
     ontology = await get_ontology(db, ontology_id)
@@ -153,9 +153,12 @@ async def delete_ontology(db: AsyncSession, ontology_id: str) -> bool:
     for obj in objects:
         if obj.table_name:
             try:
-                duckdb_service.drop_view(_safe_view_name(ontology.tenant_id, obj.table_name))
+                duckdb_service.drop_view(safe_view_name(ontology.tenant_id, obj.table_name))
             except Exception:
                 pass
+            # Drop the process-level cache entry too so the next query
+            # re-registers instead of trusting the stale cache.
+            invalidate_view_cache(ontology.tenant_id, obj.table_name)
 
     await _delete_child_rows(db, ontology_id)
     result = await db.execute(sa_delete(Ontology).where(Ontology.id == ontology_id))

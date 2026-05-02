@@ -6,6 +6,9 @@ Implements a minimal subset of the MCP protocol over HTTP:
   - tools/call → invokes a tool with arguments
 """
 
+import asyncio
+import json
+
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -51,10 +54,13 @@ async def mcp_dispatch(
     rpc_id = request.get("id", 1)
 
     if method == "tools/list":
-        objects = await get_ontology_objects(db, ontology.id)
+        # These three fetches have no data dependency on each other — run in parallel.
+        objects, links, funcs = await asyncio.gather(
+            get_ontology_objects(db, ontology.id),
+            get_ontology_links(db, ontology.id),
+            get_ontology_functions(db, ontology.id),
+        )
         obj_dicts = [{"name": o.name, "slug": o.slug, "description": o.description} for o in objects]
-        links = await get_ontology_links(db, ontology.id)
-        funcs = await get_ontology_functions(db, ontology.id)
         link_dicts = [{"from_object": l.from_object, "to_object": l.to_object} for l in links]
         func_dicts = [{"name": f.name} for f in funcs]
         tools = generate_tools(ontology.id, obj_dicts, link_dicts, func_dicts)
@@ -67,7 +73,9 @@ async def mcp_dispatch(
             result = await _execute_tool(db, ontology.id, ontology.tenant_id, tool_name, args)
         except ValueError as e:
             return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32602, "message": str(e)}}
-        return {"jsonrpc": "2.0", "id": rpc_id, "result": {"content": [{"type": "text", "text": str(result)}]}}
+        # JSON-encode properly so clients see JSON, not Python repr (which uses single quotes).
+        text = json.dumps(result, ensure_ascii=False, default=str)
+        return {"jsonrpc": "2.0", "id": rpc_id, "result": {"content": [{"type": "text", "text": text}]}}
 
     raise HTTPException(400, f"Unknown method: {method}")
 
@@ -81,12 +89,12 @@ async def _execute_tool(db: AsyncSession, ontology_id: str, tenant_id: str, tool
 
     operation, object_slug = _parse_tool_name(tool_name)
     if not operation or not object_slug:
-        return {"error": f"Invalid tool name: {tool_name}"}
+        raise ValueError(f"Invalid tool name: {tool_name}")
 
     objects = await get_ontology_objects(db, ontology_id)
     obj = next((o for o in objects if o.slug == object_slug), None)
     if not obj:
-        return {"error": f"Object '{object_slug}' not found"}
+        raise ValueError(f"Object '{object_slug}' not found")
     props = await get_object_properties(db, obj.id)
 
     view_name = await ensure_view_registered(db, obj.table_name, tenant_id)
@@ -116,7 +124,7 @@ async def _execute_navigate(db: AsyncSession, ontology_id: str, tenant_id: str, 
     start_id = args.get("start_id")
     path = args.get("path", [])
     if not start_object or not start_id or not path:
-        return {"error": "navigate_path 需要 start_object, start_id, path"}
+        raise ValueError("navigate_path 需要 start_object, start_id, path")
 
     objects = await get_ontology_objects(db, ontology_id)
     links = await get_ontology_links(db, ontology_id)
@@ -129,10 +137,10 @@ async def _execute_navigate(db: AsyncSession, ontology_id: str, tenant_id: str, 
     for next_slug in path:
         link = next((l for l in links if l.from_object == current_slug and l.to_object == next_slug), None)
         if not link:
-            return {"error": f"未找到从 {current_slug} 到 {next_slug} 的链接"}
+            raise ValueError(f"未找到从 {current_slug} 到 {next_slug} 的链接")
         target_obj = obj_map.get(next_slug)
         if not target_obj:
-            return {"error": f"对象 {next_slug} 不存在"}
+            raise ValueError(f"对象 {next_slug} 不存在")
 
         view_name = await ensure_view_registered(db, target_obj.table_name, tenant_id)
         target_col = link.to_column or "id"
@@ -141,7 +149,11 @@ async def _execute_navigate(db: AsyncSession, ontology_id: str, tenant_id: str, 
         sql = f'SELECT * FROM "{view_name}" WHERE "{target_col}" = \'{safe_id}\' LIMIT 10'
         rows = duckdb_service.query(sql)
         if not rows:
-            return {"error": f"在 {next_slug} 中未找到 id={current_id}", "steps": steps}
+            # Partial-path failure: surface the walked steps in the error payload
+            # so the caller can see how far we got.
+            raise ValueError(
+                f"在 {next_slug} 中未找到 id={current_id}; walked {len(steps)} step(s)"
+            )
 
         steps.append({"object": next_slug, "result": rows[0]})
         current_slug = next_slug
@@ -161,7 +173,7 @@ async def _execute_call_function(db: AsyncSession, ontology_id: str, args: dict)
     func_name = args.get("function_name")
     kwargs = args.get("kwargs", {})
     if not func_name:
-        return {"error": "call_function 需要 function_name"}
+        raise ValueError("call_function 需要 function_name")
 
     fn_result = await db.execute(
         select(OntologyFunction).where(
@@ -171,12 +183,11 @@ async def _execute_call_function(db: AsyncSession, ontology_id: str, args: dict)
     )
     fn = fn_result.scalar_one_or_none()
     if not fn:
-        return {"error": f"函数 {func_name} 未在本体中注册"}
+        raise ValueError(f"函数 {func_name} 未在本体中注册")
 
-    try:
-        return await call_function(fn.handler, fn.caching_ttl, **kwargs)
-    except ValueError as e:
-        return {"error": str(e)}
+    # call_function may raise ValueError itself — let it propagate so the
+    # dispatcher converts it to a JSON-RPC error.
+    return await call_function(fn.handler, fn.caching_ttl, **kwargs)
 
 
 def _parse_tool_name(tool_name: str) -> tuple[str, str]:
