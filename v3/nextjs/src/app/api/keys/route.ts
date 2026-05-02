@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionContext } from "@/lib/session";
+import { getSessionContext, ownedSessionWhere } from "@/lib/session";
 import { generateApiKey, keyDisplaySuffix } from "@/lib/apiKey";
 
 export async function GET() {
@@ -8,7 +8,7 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const keys = await prisma.apiKey.findMany({
-    where: { userId: ctx.userId, tenantId: ctx.tenantId },
+    where: ownedSessionWhere(ctx),
     orderBy: { createdAt: "desc" },
     select: { id: true, label: true, scopes: true, createdAt: true, expiresAt: true },
   });

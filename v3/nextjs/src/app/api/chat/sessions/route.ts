@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ensureDemoIdentity, getSessionContext } from "@/lib/session";
+import { ensureDemoIdentity, getSessionContext, ownedSessionWhere } from "@/lib/session";
 import { DEFAULT_SESSION_TITLE } from "@/lib/constants";
 
 export async function GET() {
@@ -8,7 +8,7 @@ export async function GET() {
   if (!ctx) return NextResponse.json([], { status: 401 });
 
   const sessions = await prisma.chatSession.findMany({
-    where: { userId: ctx.userId, tenantId: ctx.tenantId },
+    where: ownedSessionWhere(ctx),
     orderBy: { createdAt: "desc" },
     take: 50,
     select: { id: true, title: true, createdAt: true },
@@ -24,7 +24,7 @@ export async function POST() {
   await ensureDemoIdentity(ctx);
 
   const chatSession = await prisma.chatSession.create({
-    data: { userId: ctx.userId, tenantId: ctx.tenantId, title: DEFAULT_SESSION_TITLE },
+    data: { ...ownedSessionWhere(ctx), title: DEFAULT_SESSION_TITLE },
     select: { id: true, title: true, createdAt: true },
   });
 

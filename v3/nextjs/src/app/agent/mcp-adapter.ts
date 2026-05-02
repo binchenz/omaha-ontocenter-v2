@@ -19,6 +19,11 @@ export function toolToMcpDescriptor(name: string, tool: Tool): McpToolDescriptor
   };
 }
 
+/** Different tool families accept different parameter shapes.
+ *  JSON Schema for MCP tools/list. MUST stay in sync with
+ *  react.ts:schemaForTool (which uses zod for the same constraints).
+ *  When adding a new tool family, edit BOTH files.
+ */
 function schemaForToolName(name: string): object {
   if (name.startsWith("search_")) {
     return {

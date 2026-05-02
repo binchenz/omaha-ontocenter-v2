@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBearerContext } from "@/lib/bearerAuth";
-import { ontologyApi } from "@/services/pythonApi";
-import { loadAllTools } from "@/app/agent/tool-registry";
+import { loadTenantToolSet } from "@/app/agent/tool-registry";
 import { toolToMcpDescriptor } from "@/app/agent/mcp-adapter";
-import type { OntologySchema } from "@/types/api";
 import type { SessionContext } from "@/lib/session";
 
 interface JsonRpcReq {
@@ -68,8 +66,7 @@ async function dispatch(
   }
 
   if (method === "tools/list") {
-    const schemas = (await ontologyApi.listSchemas(ctx.tenantId, { limit: 500 })) as OntologySchema[];
-    const tools = loadAllTools(schemas, ctx.tenantId);
+    const { tools } = await loadTenantToolSet(ctx.tenantId);
     return {
       tools: Object.entries(tools).map(([name, t]) => toolToMcpDescriptor(name, t)),
     };
@@ -80,14 +77,13 @@ async function dispatch(
     const args = params?.arguments || {};
     if (!toolName) throw new Error("tools/call requires `name`");
 
-    const schemas = (await ontologyApi.listSchemas(ctx.tenantId, { limit: 500 })) as OntologySchema[];
-    const tools = loadAllTools(schemas, ctx.tenantId);
+    const { tools } = await loadTenantToolSet(ctx.tenantId);
     const tool = tools[toolName];
     if (!tool) throw new Error(`Unknown tool: ${toolName}`);
 
     const result = await tool.execute(args);
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify(result) }],
     };
   }
 

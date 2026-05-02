@@ -70,7 +70,11 @@ ${skillInstructions}
 }
 
 
-/** Different tools accept different parameter shapes — pick the right zod schema. */
+/** Different tools accept different parameter shapes — pick the right zod schema.
+ *  MUST stay in sync with mcp-adapter.ts:schemaForToolName (which encodes the
+ *  same constraints as JSON Schema for MCP clients). When adding a new tool
+ *  family, edit BOTH files.
+ */
 function schemaForTool(name: string) {
   if (name.startsWith("search_")) {
     return z.object({

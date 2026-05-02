@@ -16,53 +16,41 @@ function buildToolsFromSchema(
   const tools: Record<string, Tool> = {};
   for (const obj of schema.objects) {
     const qualifier = `${obj.slug}_${schema.slug}`;
-    const desc = obj.description ? ` ${obj.description}` : "";
-    tools[`search_${qualifier}`] = {
-      name: `search_${qualifier}`,
-      description: `搜索 ${obj.name}（本体: ${schema.name}）。${desc}`,
-      execute: async (params) =>
-        ontologyApi.query(
-          ontologyId,
-          {
-            operation: "search",
-            object: obj.slug,
-            filters: params.filters,
-            limit: params.limit || 10,
-          },
-          tenantId,
-        ),
-    };
-
-    tools[`aggregate_${qualifier}`] = {
-      name: `aggregate_${qualifier}`,
-      description: `按维度聚合统计 ${obj.name}（本体: ${schema.name}）`,
-      execute: async (params) =>
-        ontologyApi.query(
-          ontologyId,
-          {
-            operation: "aggregate",
-            object: obj.slug,
-            measures: params.measures || ["COUNT(*)"],
-            group_by: params.group_by || [],
-          },
-          tenantId,
-        ),
-    };
-
-    tools[`count_${qualifier}`] = {
-      name: `count_${qualifier}`,
-      description: `统计 ${obj.name} 数量（本体: ${schema.name}）。比 search_* 更轻量 — 只返回行数，不返回行数据`,
-      execute: async (params) =>
-        ontologyApi.query(
-          ontologyId,
-          {
-            operation: "count",
-            object: obj.slug,
-            filters: params.filters,
-          },
-          tenantId,
-        ),
-    };
+    const descSuffix = obj.description ? ` ${obj.description}` : "";
+    const OPS: Array<{
+      op: "search" | "aggregate" | "count";
+      description: string;
+      body: (p: any) => Record<string, unknown>;
+    }> = [
+      {
+        op: "search",
+        description: `搜索 ${obj.name}（本体: ${schema.name}）。${descSuffix}`,
+        body: (p) => ({ filters: p.filters, limit: p.limit || 10 }),
+      },
+      {
+        op: "aggregate",
+        description: `按维度聚合统计 ${obj.name}（本体: ${schema.name}）`,
+        body: (p) => ({ measures: p.measures || ["COUNT(*)"], group_by: p.group_by || [] }),
+      },
+      {
+        op: "count",
+        description: `统计 ${obj.name} 数量（本体: ${schema.name}）。比 search_* 更轻量 — 只返回行数，不返回行数据`,
+        body: (p) => ({ filters: p.filters }),
+      },
+    ];
+    for (const opDef of OPS) {
+      const name = `${opDef.op}_${qualifier}`;
+      tools[name] = {
+        name,
+        description: opDef.description,
+        execute: async (params) =>
+          ontologyApi.query(
+            ontologyId,
+            { operation: opDef.op, object: obj.slug, ...opDef.body(params) },
+            tenantId,
+          ),
+      };
+    }
   }
   return tools;
 }
@@ -80,6 +68,20 @@ export function loadAllTools(
     Object.assign(merged, buildToolsFromSchema(schema.id, schema, tenantId));
   }
   return merged;
+}
+
+/**
+ * Load the full tool set for a tenant — schemas + ontology-derived tools.
+ * Used by both /api/mcp/route.ts and chat send/route.ts. Does NOT include
+ * ingest tools (those depend on skill context).
+ */
+export async function loadTenantToolSet(tenantId: string): Promise<{
+  schemas: OntologySchema[];
+  tools: Record<string, Tool>;
+}> {
+  const schemas = (await ontologyApi.listSchemas(tenantId, { limit: 500 })) as OntologySchema[];
+  const tools = loadAllTools(schemas, tenantId);
+  return { schemas, tools };
 }
 
 export function buildIngestTools(
