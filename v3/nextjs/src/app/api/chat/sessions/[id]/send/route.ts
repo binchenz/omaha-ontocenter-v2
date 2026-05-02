@@ -1,28 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import type { CoreMessage } from "ai";
-import { authOptions } from "@/lib/auth";
 import { routeToSkill } from "@/app/agent/skill-router";
 import { loadAllTools, buildIngestTools, type Tool } from "@/app/agent/tool-registry";
 import { executeReactStream } from "@/app/agent/react";
-import { DATA_SKILLS, SKILL_STATUS } from "@/app/agent/skills";
+import { DATA_SKILLS, SKILL_STATUS, SKILLS } from "@/app/agent/skills";
 import { ingestApi, ontologyApi } from "@/services/pythonApi";
 import type { OntologySchema } from "@/types/api";
 import { prisma } from "@/lib/prisma";
-
-// Cap prior-turn history sent to the LLM. Too long → cost + context pollution.
-const MAX_HISTORY_TURNS = 12;
+import { getSessionContext } from "@/lib/session";
+import { DEFAULT_SESSION_TITLE, MAX_HISTORY_MESSAGES } from "@/lib/constants";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const tenantId = (session.user as any).tenantId || "default";
+  const ctx = await getSessionContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { tenantId } = ctx;
   const sessionId = params.id;
 
   const formData = await req.formData();
-  const message = formData.get("message") as string || "";
+  const message = String(formData.get("message") ?? "");
   const file = formData.get("file") as File | null;
 
   const encoder = new TextEncoder();
@@ -30,8 +26,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     async start(controller) {
       let closed = false;
       let fullResponse = "";
-      const allToolCalls: any[] = [];
-      const send = (event: string, data: any) => {
+      const allToolCalls: unknown[] = [];
+      const send = (event: string, data: unknown) => {
         if (closed) return;
         try {
           controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
@@ -46,14 +42,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       try {
         let fileContext = "";
         if (file) {
-          send("status", { text: SKILL_STATUS["data-ingest"] });
+          send("status", { text: SKILL_STATUS[SKILLS.DATA_INGEST] });
           const fd = new FormData();
           fd.append("type", file.name.endsWith(".csv") ? "csv" : "excel");
           fd.append("file", file);
           fd.append("tenant_id", tenantId);
           try {
             const ingestResult = await ingestApi.ingest(fd);
-            const cols = ingestResult.columns.map((c: any) => `${c.name}(${c.semantic_type})`).join(", ");
+            const cols = ingestResult.columns
+              .map((c: { name: string; semantic_type: string }) => `${c.name}(${c.semantic_type})`)
+              .join(", ");
             fileContext = `\n\n[文件已上传] 表名: ${ingestResult.table_name}, ${ingestResult.rows_count} 行, 列: ${cols}, dataset_id: ${ingestResult.dataset_id}`;
           } catch (err: any) {
             send("error", { message: `文件解析失败: ${err.message}` });
@@ -64,7 +62,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
         if (closed) return;
 
-        // Route + ontology fetch + chat history run concurrently — no data dependency.
         const fullMessage = message + fileContext;
         const [routeResult, ontList, historyRows] = await Promise.all([
           routeToSkill(fullMessage, !!file),
@@ -75,7 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           prisma.chatMessage.findMany({
             where: { sessionId },
             orderBy: { createdAt: "desc" },
-            take: MAX_HISTORY_TURNS,
+            take: MAX_HISTORY_MESSAGES,
             select: { role: true, content: true },
           }).catch((e) => {
             console.warn("[chat/send] history fetch failed:", e);
@@ -83,21 +80,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           }),
         ]);
         const { skill, reasoning } = routeResult;
+        const isFirstTurn = historyRows.length === 0;
         send("skill", { name: skill.frontmatter.name, reasoning });
 
-        // Oldest-first, filter to user/assistant only (ai-sdk rejects other roles).
-        const history: CoreMessage[] = historyRows
+        // ai-sdk rejects roles other than user/assistant in CoreMessage[].
+        const history: CoreMessage[] = [...historyRows]
           .reverse()
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+          .filter((m): m is { role: "user" | "assistant"; content: string } =>
+            m.role === "user" || m.role === "assistant")
+          .map((m) => ({ role: m.role, content: m.content }));
 
         if (closed) return;
 
         const tools: Record<string, Tool> = {
-          ...buildIngestTools(tenantId, { includeCreate: skill.frontmatter.name === "data-ingest" }),
+          ...buildIngestTools(tenantId, {
+            includeCreate: skill.frontmatter.name === SKILLS.DATA_INGEST,
+          }),
         };
 
-        // Only load ontology-derived tools when the active skill needs them.
         if (DATA_SKILLS.has(skill.frontmatter.name) && ontList.length > 0) {
           const schemas = await Promise.all(
             ontList.map((o: { id: string }) =>
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
               })
             )
           );
-          Object.assign(tools, await loadAllTools(schemas.filter(Boolean) as OntologySchema[], tenantId));
+          Object.assign(tools, loadAllTools(schemas.filter(Boolean) as OntologySchema[], tenantId));
         }
 
         if (closed) return;
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           history,
         );
 
-        // Persist messages after stream completes — best-effort, never fail the response.
+        // Persist after stream — best-effort, never fail the response.
         try {
           await prisma.chatMessage.createMany({
             data: [
@@ -143,10 +143,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             ],
           });
           const trimmed = message.trim();
-          if (trimmed) {
-            // Only rename the default placeholder — preserve user-edited titles.
+          // Auto-rename only on the first turn to preserve user-edited titles.
+          if (isFirstTurn && trimmed) {
             await prisma.chatSession.updateMany({
-              where: { id: sessionId, title: "新对话" },
+              where: { id: sessionId, title: DEFAULT_SESSION_TITLE },
               data: { title: trimmed.slice(0, 30) },
             });
           }

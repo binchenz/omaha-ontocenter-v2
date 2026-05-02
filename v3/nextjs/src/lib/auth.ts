@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { DEFAULT_TENANT_ID } from "./constants";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,9 +12,14 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-        // Placeholder — Phase 6 integration will wire to Python API
+        // P6: wire to Python API. Demo credentials for now.
         if (credentials.email === "demo@ontocenter.dev" && credentials.password === "demo123") {
-          return { id: "demo", email: credentials.email, name: "Demo User", tenantId: "default" };
+          return {
+            id: "demo",
+            email: credentials.email,
+            name: "Demo User",
+            tenantId: DEFAULT_TENANT_ID,
+          };
         }
         return null;
       },
@@ -22,15 +28,20 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.tenantId = (user as any).tenantId;
+        token.id = user.id;
+        token.tenantId = user.tenantId;
       }
       return token;
     },
     async session({ session, token }) {
-      (session.user as any).tenantId = token.tenantId;
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.tenantId = token.tenantId;
+      }
       return session;
     },
   },
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
 };
+
