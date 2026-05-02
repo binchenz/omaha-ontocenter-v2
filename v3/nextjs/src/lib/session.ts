@@ -7,6 +7,7 @@ export interface SessionContext {
   userId: string;
   tenantId: string;
   email: string | null;
+  scopes?: string[];  // populated only by bearer-token flow
 }
 
 /** Resolve authenticated session context, or null if unauthenticated. */
