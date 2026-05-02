@@ -11,13 +11,74 @@ from app.services.ontology.parser import parse_ontology_string
 from app.services.ontology.store import (
     create_ontology, get_ontology, get_ontology_objects, get_object_properties,
     get_ontology_links, get_ontology_functions, list_ontologies,
-    list_ontology_schemas_bulk, delete_ontology,
+    list_ontology_schemas_bulk, get_ontology_schema_full, delete_ontology,
     rebuild_ontology_in_place,
 )
 from app.services.query.oag_service import oag_service
 from app.services.query.view_registry import ensure_view_registered
 
 router = APIRouter(prefix="/ontology", tags=["ontology"])
+
+
+def _serialize_property(p) -> dict:
+    return {
+        "name": p.name,
+        "slug": p.slug,
+        "semantic_type": p.semantic_type,
+        "source_column": p.source_column,
+        "is_computed": p.is_computed,
+        "function_ref": p.function_ref,
+        "unit": p.unit,
+    }
+
+
+def _serialize_object(obj) -> dict:
+    return {
+        "id": obj.id,
+        "name": obj.name,
+        "slug": obj.slug,
+        "description": obj.description,
+        "table_name": obj.table_name,
+        "datasource_id": obj.datasource_id,
+        "properties": [_serialize_property(p) for p in obj.properties],
+    }
+
+
+def _serialize_link(l) -> dict:
+    return {
+        "name": l.name,
+        "from_object": l.from_object,
+        "to_object": l.to_object,
+        "type": l.type,
+    }
+
+
+def _serialize_function(f) -> dict:
+    return {
+        "name": f.name,
+        "handler": f.handler,
+        "description": f.description,
+    }
+
+
+def _serialize_schema(o) -> dict:
+    """Return the nested schema dict shape used by both /ontology/{id}/schema
+    and /ontology/schemas. Single source of truth — avoid drift.
+
+    Requires ``o`` to have ``objects`` (+ nested ``properties``), ``links``,
+    and ``functions`` already loaded (use ``get_ontology_schema_full`` or
+    ``list_ontology_schemas_bulk`` for a single eager-loaded SQL pass).
+    """
+    return {
+        "id": o.id,
+        "name": o.name,
+        "slug": o.slug,
+        "version": o.version,
+        "status": o.status.value if hasattr(o.status, "value") else str(o.status),
+        "objects": [_serialize_object(obj) for obj in o.objects],
+        "links": [_serialize_link(l) for l in o.links],
+        "functions": [_serialize_function(f) for f in o.functions],
+    }
 
 
 async def _require_ontology(db: AsyncSession, ontology_id: str, tenant_id: str):
@@ -75,77 +136,15 @@ async def list_schemas(
     ontologies = await list_ontology_schemas_bulk(
         db, tenant_id, limit=pg.limit, order=pg.order
     )
-    return [
-        {
-            "id": o.id,
-            "name": o.name,
-            "slug": o.slug,
-            "version": o.version,
-            "objects": [
-                {
-                    "id": obj.id,
-                    "name": obj.name,
-                    "slug": obj.slug,
-                    "description": obj.description,
-                    "table_name": obj.table_name,
-                    "datasource_id": obj.datasource_id,
-                    "properties": [
-                        {
-                            "name": p.name,
-                            "slug": p.slug,
-                            "semantic_type": p.semantic_type,
-                            "source_column": p.source_column,
-                            "is_computed": p.is_computed,
-                            "function_ref": p.function_ref,
-                            "unit": p.unit,
-                        }
-                        for p in obj.properties
-                    ],
-                }
-                for obj in o.objects
-            ],
-            "links": [
-                {"name": l.name, "from_object": l.from_object, "to_object": l.to_object, "type": l.type}
-                for l in o.links
-            ],
-            "functions": [
-                {"name": f.name, "handler": f.handler, "description": f.description}
-                for f in o.functions
-            ],
-        }
-        for o in ontologies
-    ]
+    return [_serialize_schema(o) for o in ontologies]
 
 
 @router.get("/{ontology_id}/schema")
 async def get_schema(ontology_id: str, tenant_id: TenantId, db: AsyncSession = Depends(get_db)):
-    ontology = await _require_ontology(db, ontology_id, tenant_id)
-    objects = await get_ontology_objects(db, ontology_id)
-    result_objects = []
-    for obj in objects:
-        props = await get_object_properties(db, obj.id)
-        result_objects.append({
-            "id": obj.id,
-            "name": obj.name,
-            "slug": obj.slug,
-            "description": obj.description,
-            "table_name": obj.table_name,
-            "datasource_id": obj.datasource_id,
-            "properties": [{"name": p.name, "slug": p.slug, "semantic_type": p.semantic_type, "source_column": p.source_column, "is_computed": p.is_computed, "function_ref": p.function_ref, "unit": p.unit} for p in props],
-        })
-
-    links = await get_ontology_links(db, ontology_id)
-    funcs = await get_ontology_functions(db, ontology_id)
-
-    return {
-        "id": ontology.id,
-        "name": ontology.name,
-        "slug": ontology.slug,
-        "version": ontology.version,
-        "objects": result_objects,
-        "links": [{"name": l.name, "from_object": l.from_object, "to_object": l.to_object, "type": l.type} for l in links],
-        "functions": [{"name": f.name, "handler": f.handler, "description": f.description} for f in funcs],
-    }
+    ontology = await get_ontology_schema_full(db, ontology_id, tenant_id=tenant_id)
+    if not ontology:
+        raise HTTPException(404, "Ontology not found")
+    return _serialize_schema(ontology)
 
 
 @router.post("/{ontology_id}/query")

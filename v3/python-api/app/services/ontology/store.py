@@ -73,10 +73,19 @@ def _insert_child_rows(db: AsyncSession, ontology_id: str, config: OntologyConfi
 
 
 async def _delete_child_rows(db: AsyncSession, ontology_id: str) -> None:
-    """Delete all child rows (objects, properties, links, functions) for an ontology."""
-    objects = await get_ontology_objects(db, ontology_id)
-    for obj in objects:
-        await db.execute(sa_delete(OntologyProperty).where(OntologyProperty.object_id == obj.id))
+    """Delete all child rows (objects, properties, links, functions) for an ontology.
+
+    Issues one DELETE per child table — properties are pruned via an ID
+    subquery so we don't round-trip once per object (was O(N) before).
+    """
+    obj_id_subq = (
+        select(OntologyObject.id)
+        .where(OntologyObject.ontology_id == ontology_id)
+        .scalar_subquery()
+    )
+    await db.execute(
+        sa_delete(OntologyProperty).where(OntologyProperty.object_id.in_(obj_id_subq))
+    )
     await db.execute(sa_delete(OntologyObject).where(OntologyObject.ontology_id == ontology_id))
     await db.execute(sa_delete(OntologyLink).where(OntologyLink.ontology_id == ontology_id))
     await db.execute(sa_delete(OntologyFunction).where(OntologyFunction.ontology_id == ontology_id))
@@ -140,6 +149,31 @@ async def list_ontologies(
         stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+async def get_ontology_schema_full(
+    db: AsyncSession, ontology_id: str, tenant_id: str | None = None
+) -> Ontology | None:
+    """Single-row fetch of an Ontology with all child collections eager-loaded.
+
+    Mirrors :func:`list_ontology_schemas_bulk` so the API serializer can use
+    one path for both single-schema and bulk-schema endpoints. Avoids the
+    multi-step assembly (objects → per-object properties → links → functions)
+    that the legacy ``get_schema`` route used to do via 1+N+2 queries.
+    """
+    stmt = (
+        select(Ontology)
+        .where(Ontology.id == ontology_id)
+        .options(
+            selectinload(Ontology.objects).selectinload(OntologyObject.properties),
+            selectinload(Ontology.links),
+            selectinload(Ontology.functions),
+        )
+    )
+    if tenant_id is not None:
+        stmt = stmt.where(Ontology.tenant_id == tenant_id)
+    result = await db.execute(stmt)
+    return result.scalars().unique().one_or_none()
 
 
 async def list_ontology_schemas_bulk(

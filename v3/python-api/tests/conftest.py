@@ -22,9 +22,18 @@ def _wipe_default_tenant_after_session():
     script = Path(__file__).resolve().parents[1] / "scripts" / "cleanup_tenant.py"
     if not script.exists():
         return  # script absent — silently skip
-    subprocess.run(
+
+    result = subprocess.run(
         [sys.executable, str(script), "--tenant", "default", "--confirm"],
         cwd=script.parents[1],
         check=False,
         capture_output=True,
+        timeout=60,
+        text=True,
     )
+    if result.returncode != 0:
+        # Don't crash the test report (yield already happened) but make it visible.
+        sys.stderr.write(
+            f"\n[conftest] cleanup_tenant.py failed (rc={result.returncode}):\n"
+            f"  stdout: {result.stdout}\n  stderr: {result.stderr}\n"
+        )
